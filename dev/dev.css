@@ -1,0 +1,82 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+.app-header {
+  padding: 24px 32px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #333;
+}
+
+.app-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.app-main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.surface h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+}
+
+.surface-desc {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #999;
+}
+
+.editor-frame {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+details {
+  margin-top: 8px;
+}
+
+summary {
+  font-size: 13px;
+  cursor: pointer;
+  color: #555;
+}
+
+pre {
+  margin: 8px 0 0;
+  padding: 12px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-size: 12px;
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
