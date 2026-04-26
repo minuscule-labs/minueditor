@@ -137,6 +137,12 @@ export const minueditorTheme = EditorView.theme({
     borderRadius: '3px',
   },
 
+  '.me-link': {
+    color: 'var(--me-link-color, #2563eb)',
+    textDecoration: 'underline',
+    textUnderlineOffset: '2px',
+  },
+
   '.me-blockquote': {
     borderLeft: '3px solid var(--me-blockquote-border, #ccc)',
     paddingLeft: '1em',
@@ -184,22 +190,18 @@ export const minueditorTheme = EditorView.theme({
   '.me-unordered-list-marker': {
     color: 'transparent',
     display: 'inline-block',
-    minWidth: '1.15ch',
-    marginRight: '0.1ch',
-    position: 'relative',
     userSelect: 'none',
-    fontSize: '1px',
-    letterSpacing: '-1ch',
+    fontSize: '0',
+    lineHeight: '1',
+    verticalAlign: 'baseline',
   },
 
-  '.me-unordered-list-marker::after': {
-    content: '"•"',
+  '.me-unordered-list-marker::before': {
+    content: '"• "',
     color: 'var(--me-list-marker-color, var(--me-text, #1a1a1a))',
-    position: 'absolute',
-    inset: 'auto 0 0 0',
     fontSize: 'var(--me-font-size, 15px)',
     lineHeight: '1',
-    textAlign: 'center',
+    letterSpacing: 'normal',
   },
 
   '.me-ordered-list-marker': {

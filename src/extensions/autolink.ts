@@ -13,6 +13,8 @@ const URL_REGEX = /^https?:\/\/[^\s]+$/
  */
 export const autolinkPaste = EditorView.domEventHandlers({
   paste(event, view) {
+    if (!view.state.facet(EditorView.editable)) return false
+
     const text = event.clipboardData?.getData('text/plain')?.trim()
     if (!text || !URL_REGEX.test(text)) return false
 

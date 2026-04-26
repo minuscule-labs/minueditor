@@ -21,7 +21,11 @@ class CheckboxWidget extends WidgetType {
   }
 
   override eq(other: CheckboxWidget): boolean {
-    return this.checked === other.checked
+    return (
+      this.checked === other.checked &&
+      this.from === other.from &&
+      this.to === other.to
+    )
   }
 
     override toDOM(view: EditorView): HTMLElement {
@@ -36,6 +40,8 @@ class CheckboxWidget extends WidgetType {
     })
 
     checkbox.addEventListener('change', () => {
+      if (!view.state.facet(EditorView.editable)) return
+
       const newMark = checkbox.checked ? '[x]' : '[ ]'
       const from = this.from
       const to = this.to
@@ -71,7 +77,7 @@ function buildCheckboxDecorations(view: EditorView): DecorationSet {
 
         const lineText = doc.lineAt(node.from).text
         // Find `[ ]` or `[x]` within the task node text
-        const checkMatch = lineText.match(/^(\s*[-*+]\s+)(\[[ x]\])/)
+        const checkMatch = lineText.match(/^(\s*[-*+]\s+)(\[[ xX]\])/)
         if (!checkMatch) return
 
         const lineFrom = doc.lineAt(node.from).from
@@ -79,7 +85,7 @@ function buildCheckboxDecorations(view: EditorView): DecorationSet {
         const markerFrom = lineFrom + markerOffset
         const markerTo = markerFrom + 3 // `[ ]` or `[x]` is 3 chars
 
-        const checked = lineText[markerOffset + 1] === 'x'
+        const checked = /[xX]/.test(lineText[markerOffset + 1])
 
         builder.add(
           markerFrom,

@@ -360,4 +360,124 @@ describe('MarkdownEditor', () => {
       expect(container.querySelector('.me-unordered-list-marker')).toBeTruthy()
     })
   })
+
+  it('renders interactive task checkboxes and toggles markdown when clicked', async () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor value={'- [ ] task'} onChange={onChange} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-checkbox')).toBeTruthy()
+    })
+
+    const checkbox = container.querySelector('.me-checkbox') as HTMLInputElement
+    fireEvent.click(checkbox)
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled()
+      const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
+      expect(latestValue).toBe('- [x] task')
+    })
+  })
+
+  it('does not render unordered bullet decoration for task list items', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'- [ ] task'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-checkbox')).toBeTruthy()
+      expect(container.querySelector('.me-unordered-list-marker')).toBeFalsy()
+      expect(container.querySelector('.me-token--block')).toBeTruthy()
+    })
+  })
+
+  it('toggles indented task checkboxes without corrupting markdown text', async () => {
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor value={'- parent\n    - [ ] dsflskdjf'} onChange={onChange} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-checkbox')).toBeTruthy()
+    })
+
+    const checkbox = container.querySelector('.me-checkbox') as HTMLInputElement
+    fireEvent.click(checkbox)
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled()
+      const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
+      expect(latestValue).toBe('- parent\n    - [x] dsflskdjf')
+      expect(latestValue).not.toContain('[x] [ ]')
+    })
+  })
+
+  it('wraps selected text as a markdown link when a URL is pasted', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'hello world'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 0, head: 5 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        getData: (type: string) =>
+          type === 'text/plain' ? 'https://example.com' : '',
+      },
+    })
+
+    expect(view!.state.doc.toString()).toBe('[hello](https://example.com) world')
+  })
+
+  it('inserts [url](url) when a URL is pasted on an empty line', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={''}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        getData: (type: string) =>
+          type === 'text/plain' ? 'https://example.com' : '',
+      },
+    })
+
+    expect(view!.state.doc.toString()).toBe(
+      '[https://example.com](https://example.com)'
+    )
+  })
+
+  it('styles markdown links as underlined links when markers are hidden', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'[example](https://example.com)'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-link')).toBeTruthy()
+      expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+    })
+  })
 })

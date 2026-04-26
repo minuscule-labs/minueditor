@@ -17,6 +17,8 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
+import { checkboxDecorations } from './extensions/checkboxes'
+import { autolinkPaste } from './extensions/autolink'
 import { markdownKeymap } from './extensions/keymap'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import { MarkdownRenderer } from './renderer'
@@ -187,9 +189,11 @@ export const MarkdownEditor = forwardRef<
       minueditorTheme,
       visualMarkdown,
       markdownDecorations,
+      checkboxDecorations,
       EditorView.lineWrapping,
       updateListener,
       shortcutGuard,
+      autolinkPaste,
       blurHandler,
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),

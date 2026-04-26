@@ -90,6 +90,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (node.name === 'ListMark') {
           const line = doc.lineAt(node.from)
           const indentLevel = Math.min(listIndentLevel(line.text), 6)
+          const isTaskLine = /^\s*[-*+]\s+\[[ xX]\]\s/.test(line.text)
           ranges.push(
             Decoration.line({ class: `me-list-line me-list-line--indent-${indentLevel}` }).range(
               line.from
@@ -97,8 +98,16 @@ function buildDecorations(view: EditorView): DecorationSet {
           )
 
           const marker = doc.sliceString(node.from, node.to)
-          if (/^[-*+]$/.test(marker)) {
-            const markerTo = doc.sliceString(node.to, node.to + 1) === ' ' ? node.to + 1 : node.to
+          const markerTo = doc.sliceString(node.to, node.to + 1) === ' ' ? node.to + 1 : node.to
+
+          if (isTaskLine && /^[-*+]$/.test(marker)) {
+            ranges.push(
+              Decoration.mark({ class: 'me-token me-token--block' }).range(
+                node.from,
+                markerTo
+              )
+            )
+          } else if (/^[-*+]$/.test(marker)) {
             ranges.push(
               Decoration.mark({ class: 'me-unordered-list-marker' }).range(
                 node.from,

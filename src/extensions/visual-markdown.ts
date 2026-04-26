@@ -47,6 +47,41 @@ const rules: MarkdownRule[] = [
   },
 ]
 
+const linkDecorator = new MatchDecorator({
+  regexp: /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
+
+  decorate(add, from, to, match, view) {
+    const label = match[1]
+    if (!label) return
+
+    const contentStart = from + 1
+    const contentEnd = contentStart + label.length
+
+    if (
+      selectionTouchesRange(view, from, contentStart) ||
+      selectionTouchesRange(view, contentEnd, to)
+    ) {
+      return
+    }
+
+    add(
+      from,
+      contentStart,
+      Decoration.mark({ class: 'me-token me-token--inline' })
+    )
+    add(
+      contentStart,
+      contentEnd,
+      Decoration.mark({ class: 'me-link' })
+    )
+    add(
+      contentEnd,
+      to,
+      Decoration.mark({ class: 'me-token me-token--inline' })
+    )
+  },
+})
+
 function selectionTouchesRange(view: EditorView, from: number, to: number): boolean {
   for (const range of view.state.selection.ranges) {
     if (range.empty) {
@@ -145,7 +180,7 @@ function createDecorator(rule: MarkdownRule) {
   })
 }
 
-const decorators = rules.map(createDecorator)
+const decorators = [...rules.map(createDecorator), linkDecorator]
 
 function buildDecorations(view: EditorView): DecorationSet {
   const all: Range<Decoration>[] = buildPendingPairDecorations(view)

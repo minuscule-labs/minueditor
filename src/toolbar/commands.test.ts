@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
-import { indentList, outdentList, toggleBold, toggleItalic } from './commands'
+import {
+  indentList,
+  outdentList,
+  toggleBold,
+  toggleItalic,
+} from './commands'
 
 type MockSelection = {
   from: number
