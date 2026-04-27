@@ -480,4 +480,60 @@ describe('MarkdownEditor', () => {
       expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
     })
   })
+
+  it('pressing Enter at visual end of inline code inserts newline after closing marker', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- **Bold**, *italic*, ~~strikethrough~~, `inline code`'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      // Simulate caret placed at visual EOL, before hidden closing backtick
+      view!.dispatch({ selection: { anchor: 54 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe(
+      '- **Bold**, *italic*, ~~strikethrough~~, `inline code`\n- '
+    )
+    expect(view!.state.selection.main.from).toBe(57)
+    expect(view!.state.selection.main.to).toBe(57)
+  })
+
+  it('pressing Enter inside inline code at visual end moves to next line without carrying marker', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'`text`'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      // Visual end of inline code content (before hidden closing backtick)
+      view!.dispatch({ selection: { anchor: 5 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('`text`\n')
+    expect(view!.state.selection.main.from).toBe(7)
+    expect(view!.state.selection.main.to).toBe(7)
+  })
 })

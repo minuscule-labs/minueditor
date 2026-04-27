@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import {
+  enterAfterHiddenInlineSuffix,
   indentList,
   outdentList,
   toggleBold,
@@ -363,5 +364,56 @@ describe('inline marker commands', () => {
     expect(dispatched.changes).toEqual([])
     expect(dispatched.range.from).toBe(13)
     expect(dispatched.range.to).toBe(13)
+  })
+
+  it('inserts newline at true line end inside hidden inline code suffix', () => {
+    const view = createMockView(['- **Bold**, `inline code`'], {
+      from: 24,
+      to: 24,
+      anchor: 24,
+      head: 24,
+      empty: true,
+    })
+
+    const handled = enterAfterHiddenInlineSuffix(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: { from: number; insert: string }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual({ from: 25, insert: '\n- ' })
+  })
+
+  it('does not change cursor when already at true inline end', () => {
+    const view = createMockView(['- **Bold**, `inline code`'], {
+      from: 25,
+      to: 25,
+      anchor: 25,
+      head: 25,
+      empty: true,
+    })
+
+    const handled = enterAfterHiddenInlineSuffix(view)
+
+    expect(handled).toBe(false)
+    expect(view.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('inserts newline after closing backtick for simple inline code line end', () => {
+    const view = createMockView(['`text`'], {
+      from: 5,
+      to: 5,
+      anchor: 5,
+      head: 5,
+      empty: true,
+    })
+
+    const handled = enterAfterHiddenInlineSuffix(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: { from: number; insert: string }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual({ from: 6, insert: '\n' })
   })
 })

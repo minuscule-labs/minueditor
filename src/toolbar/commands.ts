@@ -23,6 +23,105 @@ function inlineMarkerPattern(marker: string): RegExp {
   }
 }
 
+type InlineEndRule = {
+  regexp: RegExp;
+  boundaryOffset: (matchStart: number, match: RegExpMatchArray) => number;
+  endOffset: (matchStart: number, match: RegExpMatchArray) => number;
+};
+
+const inlineEndRules: InlineEndRule[] = [
+  {
+    regexp: /\*\*([^*]+)\*\*/g,
+    boundaryOffset: (start, match) => start + match[0].length - 2,
+    endOffset: (start, match) => start + match[0].length,
+  },
+  {
+    regexp: /(?<!\*)\*(?!\*)([^*]+)\*(?!\*)/g,
+    boundaryOffset: (start, match) => start + match[0].length - 1,
+    endOffset: (start, match) => start + match[0].length,
+  },
+  {
+    regexp: /~~([^~]+)~~/g,
+    boundaryOffset: (start, match) => start + match[0].length - 2,
+    endOffset: (start, match) => start + match[0].length,
+  },
+  {
+    regexp: /(`+)([^`]+)\1/g,
+    boundaryOffset: (start, match) => {
+      const ticks = match[1]?.length ?? 1;
+      return start + match[0].length - ticks;
+    },
+    endOffset: (start, match) => start + match[0].length,
+  },
+  {
+    regexp: /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    boundaryOffset: (start, match) => start + 1 + (match[1]?.length ?? 0),
+    endOffset: (start, match) => start + match[0].length,
+  },
+];
+
+function cursorAfterHiddenInlineSuffix(view: EditorView, cursor: number): number | null {
+  const line = view.state.doc.lineAt(cursor);
+  const offset = cursor - line.from;
+
+  for (const rule of inlineEndRules) {
+    const regexp = new RegExp(rule.regexp.source, rule.regexp.flags);
+    for (const match of line.text.matchAll(regexp)) {
+      const matchStart = match.index;
+      if (matchStart === undefined) continue;
+
+      const end = rule.endOffset(matchStart, match);
+      if (end !== line.text.length) continue;
+
+      const boundary = rule.boundaryOffset(matchStart, match);
+      if (offset < boundary || offset >= end) continue;
+
+      return line.from + end;
+    }
+  }
+
+  return null;
+}
+
+export function enterAfterHiddenInlineSuffix(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const target = cursorAfterHiddenInlineSuffix(view, selection.from);
+  const line = view.state.doc.lineAt(selection.from);
+  if (target === null) {
+    if (selection.from !== line.to) return false;
+
+    const tail = view.state.doc.sliceString(selection.from, selection.from + 1);
+    if (tail !== "`" && tail !== "*" && tail !== "~") return false;
+  }
+
+  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX]\]\s+/);
+  const unorderedMatch = line.text.match(/^(\s*)([-*+])\s+/);
+  const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s+/);
+
+  let insert = "\n";
+  if (taskMatch) {
+    insert = `\n${taskMatch[1]}${taskMatch[2]} [ ] `;
+  } else if (unorderedMatch) {
+    insert = `\n${unorderedMatch[1]}${unorderedMatch[2]} `;
+  } else if (orderedMatch) {
+    insert = `\n${orderedMatch[1]}${Number(orderedMatch[2]) + 1}. `;
+  }
+
+  view.dispatch(
+    view.state.update(
+      {
+        changes: { from: line.to, insert },
+        selection: EditorSelection.cursor(line.to + insert.length),
+      },
+      { scrollIntoView: true, userEvent: "input" },
+    ),
+  );
+
+  return true;
+}
+
 function findInlineMarkerExit(
   view: EditorView,
   cursor: number,
