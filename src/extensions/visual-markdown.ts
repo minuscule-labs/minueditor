@@ -40,7 +40,7 @@ const rules: MarkdownRule[] = [
   },
   {
     marker: '`',
-    regexp: /`([^`]+)`/g,
+    regexp: /(?<!`)`([^`\n]+)`(?!`)/g,
     openLen: 1,
     closeLen: 1,
     className: 'me-inline-code',

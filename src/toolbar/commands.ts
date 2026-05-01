@@ -122,6 +122,497 @@ export function enterAfterHiddenInlineSuffix(view: EditorView): boolean {
   return true;
 }
 
+function tableColumnCount(line: string): number | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return null;
+
+  const inner = trimmed.slice(1, -1);
+  const columns = inner.split("|").length;
+  return columns > 0 ? columns : null;
+}
+
+function isTableDelimiterLine(line: string): boolean {
+  return /^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(line);
+}
+
+function isTableDataLine(line: string): boolean {
+  return /^\s*\|(?:[^|\n]*\|)+\s*$/.test(line);
+}
+
+function isTableContentLine(line: string): boolean {
+  return isTableDataLine(line) && !isTableDelimiterLine(line);
+}
+
+type TableRegion = {
+  headerLine: number;
+  delimiterLine: number;
+  bodyStartLine: number;
+  bodyEndLine: number;
+};
+
+function tableRegionAtLine(view: EditorView, lineNumber: number): TableRegion | null {
+  const { doc } = view.state;
+  const line = doc.line(lineNumber);
+
+  let headerLine: number | null = null;
+
+  if (isTableContentLine(line.text)) {
+    if (lineNumber < doc.lines && isTableDelimiterLine(doc.line(lineNumber + 1).text)) {
+      headerLine = lineNumber;
+    } else {
+      let scan = lineNumber - 1;
+      while (scan >= 1 && isTableContentLine(doc.line(scan).text)) {
+        scan -= 1;
+      }
+      if (
+        scan >= 2 &&
+        isTableDelimiterLine(doc.line(scan).text) &&
+        isTableContentLine(doc.line(scan - 1).text)
+      ) {
+        headerLine = scan - 1;
+      }
+    }
+  } else if (isTableDelimiterLine(line.text)) {
+    if (lineNumber >= 2 && isTableContentLine(doc.line(lineNumber - 1).text)) {
+      headerLine = lineNumber - 1;
+    }
+  }
+
+  if (headerLine === null) return null;
+
+  const delimiterLine = headerLine + 1;
+  if (delimiterLine > doc.lines || !isTableDelimiterLine(doc.line(delimiterLine).text)) {
+    return null;
+  }
+
+  let bodyEndLine = delimiterLine;
+  let scan = delimiterLine + 1;
+  while (scan <= doc.lines && isTableContentLine(doc.line(scan).text)) {
+    bodyEndLine = scan;
+    scan += 1;
+  }
+
+  return {
+    headerLine,
+    delimiterLine,
+    bodyStartLine: delimiterLine + 1,
+    bodyEndLine,
+  };
+}
+
+function lineIndent(line: string): string {
+  const match = line.match(/^(\s*)/);
+  return match ? match[1] : "";
+}
+
+function tableContentCells(line: string): string[] | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return null;
+
+  return trimmed
+    .slice(1, -1)
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function tableDelimiterCells(line: string): string[] | null {
+  if (!isTableDelimiterLine(line)) return null;
+
+  return line
+    .trim()
+    .slice(1, -1)
+    .split("|")
+    .map((cell) => {
+      const marker = cell.trim();
+      return marker.length > 0 ? marker : "---";
+    });
+}
+
+function formatTableContentLine(indent: string, cells: string[]): string {
+  const body = cells
+    .map((cell) => (cell.length > 0 ? ` ${cell} ` : ""))
+    .join("|");
+  return `${indent}|${body}|`;
+}
+
+function formatTableDelimiterLine(indent: string, cells: string[]): string {
+  return `${indent}| ${cells.join(" | ")} |`;
+}
+
+type TableCell = {
+  leftPipe: number;
+  rightPipe: number;
+  contentStart: number;
+};
+
+function tableCells(line: string): TableCell[] | null {
+  const pipes: number[] = [];
+
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i] === "|") pipes.push(i);
+  }
+
+  if (pipes.length < 2) return null;
+
+  return pipes.slice(0, -1).map((leftPipe, index) => {
+    const rightPipe = pipes[index + 1];
+    let contentStart = leftPipe + 1;
+    while (contentStart < rightPipe && line[contentStart] === " ") {
+      contentStart += 1;
+    }
+
+    return { leftPipe, rightPipe, contentStart };
+  });
+}
+
+function preferredCellOffset(cell: TableCell): number {
+  if (cell.contentStart < cell.rightPipe) return cell.contentStart;
+  if (cell.leftPipe + 1 < cell.rightPipe) return cell.leftPipe + 1;
+  return cell.rightPipe;
+}
+
+function tableCellIndexAtOffset(cells: TableCell[], offset: number): number {
+  for (let i = 0; i < cells.length; i += 1) {
+    if (offset <= cells[i].rightPipe) return i;
+  }
+
+  return cells.length - 1;
+}
+
+function nextTableRowNumber(view: EditorView, lineNumber: number): number | null {
+  const { doc } = view.state;
+  const nextNumber = lineNumber + 1;
+  if (nextNumber > doc.lines) return null;
+
+  const nextLine = doc.line(nextNumber);
+  if (isTableDelimiterLine(nextLine.text)) {
+    const bodyNumber = nextNumber + 1;
+    if (bodyNumber > doc.lines) return null;
+    const bodyLine = doc.line(bodyNumber);
+    return isTableContentLine(bodyLine.text) ? bodyNumber : null;
+  }
+
+  return isTableContentLine(nextLine.text) ? nextNumber : null;
+}
+
+function previousTableRowNumber(view: EditorView, lineNumber: number): number | null {
+  const { doc } = view.state;
+  const prevNumber = lineNumber - 1;
+  if (prevNumber < 1) return null;
+
+  const prevLine = doc.line(prevNumber);
+  if (isTableDelimiterLine(prevLine.text)) {
+    const headerNumber = prevNumber - 1;
+    if (headerNumber < 1) return null;
+    const headerLine = doc.line(headerNumber);
+    return isTableContentLine(headerLine.text) ? headerNumber : null;
+  }
+
+  return isTableContentLine(prevLine.text) ? prevNumber : null;
+}
+
+function emptyTableRow(columns: number): string {
+  return formatTableContentLine("", Array(columns).fill(""));
+}
+
+function firstTableCellCursorOffset(line: string): number {
+  const cells = tableCells(line);
+  if (!cells || cells.length === 0) return 1;
+  return preferredCellOffset(cells[0]);
+}
+
+function tableRowFromLine(line: string): string | null {
+  const columns = tableColumnCount(line);
+  if (!columns) return null;
+  return `${lineIndent(line)}${emptyTableRow(columns)}`;
+}
+
+export function enterInMarkdownTable(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.from);
+  if (selection.from !== line.to) return false;
+
+  if (!isTableContentLine(line.text)) return false;
+
+  const nextLine =
+    line.number < view.state.doc.lines ? view.state.doc.line(line.number + 1) : null;
+
+  // Header row: let default Enter behavior run so users can break out naturally.
+  if (nextLine && isTableDelimiterLine(nextLine.text)) {
+    return false;
+  }
+
+  const columns = tableColumnCount(line.text);
+  if (!columns || columns < 1) return false;
+
+  const rowText = `${lineIndent(line.text)}${emptyTableRow(columns)}`;
+  const insert = `\n${rowText}`;
+  const cursor = line.to + 1 + firstTableCellCursorOffset(rowText);
+
+  view.dispatch(
+    view.state.update(
+      {
+        changes: { from: line.to, insert },
+        selection: EditorSelection.cursor(cursor),
+      },
+      { scrollIntoView: true, userEvent: "input" },
+    ),
+  );
+
+  return true;
+}
+
+export function tabInMarkdownTable(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.from);
+  if (!isTableContentLine(line.text)) return false;
+
+  const cells = tableCells(line.text);
+  if (!cells || cells.length === 0) return false;
+
+  const offset = Math.max(0, Math.min(selection.from - line.from, line.text.length));
+  const cellIndex = tableCellIndexAtOffset(cells, offset);
+
+  if (cellIndex < cells.length - 1) {
+    const target = line.from + preferredCellOffset(cells[cellIndex + 1]);
+    view.dispatch(
+      view.state.update(
+        { selection: EditorSelection.cursor(target) },
+        { scrollIntoView: true, userEvent: "select" },
+      ),
+    );
+    return true;
+  }
+
+  const nextRow = nextTableRowNumber(view, line.number);
+  if (nextRow !== null) {
+    const nextLine = view.state.doc.line(nextRow);
+    const nextCells = tableCells(nextLine.text);
+    if (nextCells && nextCells.length > 0) {
+      const target = nextLine.from + preferredCellOffset(nextCells[0]);
+      view.dispatch(
+        view.state.update(
+          { selection: EditorSelection.cursor(target) },
+          { scrollIntoView: true, userEvent: "select" },
+        ),
+      );
+      return true;
+    }
+  }
+
+  const afterLineNumber =
+    line.number < view.state.doc.lines &&
+    isTableDelimiterLine(view.state.doc.line(line.number + 1).text)
+      ? line.number + 1
+      : line.number;
+  const insertAfter = view.state.doc.line(afterLineNumber);
+  const rowText = `${lineIndent(line.text)}${emptyTableRow(cells.length)}`;
+  const insert = `\n${rowText}`;
+  const cursor = insertAfter.to + 1 + firstTableCellCursorOffset(rowText);
+
+  view.dispatch(
+    view.state.update(
+      {
+        changes: { from: insertAfter.to, insert },
+        selection: EditorSelection.cursor(cursor),
+      },
+      { scrollIntoView: true, userEvent: "input" },
+    ),
+  );
+
+  return true;
+}
+
+export function shiftTabInMarkdownTable(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.from);
+  if (!isTableContentLine(line.text)) return false;
+
+  const cells = tableCells(line.text);
+  if (!cells || cells.length === 0) return false;
+
+  const offset = Math.max(0, Math.min(selection.from - line.from, line.text.length));
+  const cellIndex = tableCellIndexAtOffset(cells, offset);
+
+  if (cellIndex > 0) {
+    const target = line.from + preferredCellOffset(cells[cellIndex - 1]);
+    view.dispatch(
+      view.state.update(
+        { selection: EditorSelection.cursor(target) },
+        { scrollIntoView: true, userEvent: "select" },
+      ),
+    );
+    return true;
+  }
+
+  const prevRow = previousTableRowNumber(view, line.number);
+  if (prevRow === null) return false;
+
+  const prevLine = view.state.doc.line(prevRow);
+  const prevCells = tableCells(prevLine.text);
+  if (!prevCells || prevCells.length === 0) return false;
+
+  const target = prevLine.from + preferredCellOffset(prevCells[prevCells.length - 1]);
+  view.dispatch(
+    view.state.update(
+      { selection: EditorSelection.cursor(target) },
+      { scrollIntoView: true, userEvent: "select" },
+    ),
+  );
+
+  return true;
+}
+
+function insertTableColumn(view: EditorView, side: "left" | "right"): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const currentLine = view.state.doc.lineAt(selection.from);
+  const region = tableRegionAtLine(view, currentLine.number);
+  if (!region) return false;
+
+  const cells = tableCells(currentLine.text);
+  if (!cells || cells.length === 0) return false;
+
+  const offset = Math.max(0, Math.min(selection.from - currentLine.from, currentLine.text.length));
+  const cellIndex = tableCellIndexAtOffset(cells, offset);
+  const insertIndex = side === "left" ? cellIndex : cellIndex + 1;
+
+  const lineChanges: TextChange[] = [];
+
+  for (let lineNumber = region.headerLine; lineNumber <= region.bodyEndLine; lineNumber += 1) {
+    const line = view.state.doc.line(lineNumber);
+    const indent = lineIndent(line.text);
+
+    if (lineNumber === region.delimiterLine) {
+      const delimiterCells = tableDelimiterCells(line.text);
+      if (!delimiterCells) return false;
+
+      delimiterCells.splice(insertIndex, 0, "---");
+      lineChanges.push({
+        from: line.from,
+        to: line.to,
+        insert: formatTableDelimiterLine(indent, delimiterCells),
+      });
+      continue;
+    }
+
+    const contentCells = tableContentCells(line.text);
+    if (!contentCells) return false;
+
+    contentCells.splice(insertIndex, 0, "");
+    lineChanges.push({
+      from: line.from,
+      to: line.to,
+      insert: formatTableContentLine(indent, contentCells),
+    });
+  }
+
+  const currentLineChange = lineChanges.find((change) => change.from === currentLine.from);
+  if (!currentLineChange) return false;
+
+  const nextCells = tableCells(currentLineChange.insert);
+  if (!nextCells || !nextCells[insertIndex]) return false;
+
+  const targetOffset = preferredCellOffset(nextCells[insertIndex]);
+  const target =
+    currentLine.from +
+    lineChanges
+      .filter((change) => change.from < currentLine.from)
+      .reduce((delta, change) => {
+        const to = change.to ?? change.from;
+        return delta + change.insert.length - (to - change.from);
+      }, 0) +
+    targetOffset;
+
+  view.dispatch(
+    view.state.update(
+      {
+        changes: lineChanges,
+        selection: EditorSelection.cursor(target),
+      },
+      { scrollIntoView: true, userEvent: "input" },
+    ),
+  );
+
+  return true;
+}
+
+export function insertTableColumnLeft(view: EditorView): boolean {
+  return insertTableColumn(view, "left");
+}
+
+export function insertTableColumnRight(view: EditorView): boolean {
+  return insertTableColumn(view, "right");
+}
+
+function insertTableRowRelative(view: EditorView, side: "above" | "below"): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const currentLine = view.state.doc.lineAt(selection.from);
+  const region = tableRegionAtLine(view, currentLine.number);
+  if (!region) return false;
+
+  if (currentLine.number === region.delimiterLine) return false;
+
+  const rowSource =
+    currentLine.number === region.headerLine
+      ? view.state.doc.line(region.headerLine).text
+      : currentLine.text;
+  const rowText = tableRowFromLine(rowSource);
+  if (!rowText) return false;
+
+  let from: number;
+  let insert: string;
+
+  if (side === "above") {
+    if (currentLine.number === region.headerLine) return false;
+    from = currentLine.from;
+    insert = `${rowText}\n`;
+  } else {
+    if (currentLine.number === region.headerLine) {
+      const delimiter = view.state.doc.line(region.delimiterLine);
+      from = delimiter.to;
+      insert = `\n${rowText}`;
+    } else {
+      from = currentLine.to;
+      insert = `\n${rowText}`;
+    }
+  }
+
+  const cursor =
+    side === "above"
+      ? from + firstTableCellCursorOffset(rowText)
+      : from + 1 + firstTableCellCursorOffset(rowText);
+
+  view.dispatch(
+    view.state.update(
+      {
+        changes: { from, insert },
+        selection: EditorSelection.cursor(cursor),
+      },
+      { scrollIntoView: true, userEvent: "input" },
+    ),
+  );
+
+  return true;
+}
+
+export function insertTableRowAbove(view: EditorView): boolean {
+  return insertTableRowRelative(view, "above");
+}
+
+export function insertTableRowBelow(view: EditorView): boolean {
+  return insertTableRowRelative(view, "below");
+}
+
 function findInlineMarkerExit(
   view: EditorView,
   cursor: number,
@@ -594,12 +1085,12 @@ export function insertTable(view: EditorView): boolean {
   const { state } = view;
   const line = state.doc.lineAt(state.selection.main.from);
 
-  const table = "| Column 1 | Column 2 |\n|---|---|\n| Cell | Cell |\n";
+  const table = "|||\n| --- | --- |\n|||\n";
   const insertAt = line.to;
 
   view.dispatch({
     changes: { from: insertAt, insert: `\n${table}` },
-    selection: { anchor: insertAt + 3 }, // cursor at start of first cell
+    selection: { anchor: insertAt + 2 }, // cursor at start of first cell
     scrollIntoView: true,
   });
 

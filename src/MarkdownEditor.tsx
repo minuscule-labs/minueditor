@@ -20,6 +20,8 @@ import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
 import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
+import { tableDecorations } from './extensions/tables'
+import { codeBlockDecorations } from './extensions/codeblock'
 import { markdownKeymap } from './extensions/keymap'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import { MarkdownRenderer } from './renderer'
@@ -27,6 +29,7 @@ import type { MarkdownEditorProps } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
 import {
   enterAfterHiddenInlineSuffix,
+  enterInMarkdownTable,
   toggleBold,
   toggleInlineCode,
   toggleItalic,
@@ -104,7 +107,7 @@ export const MarkdownEditor = forwardRef<
       const view = viewRef.current
       if (!view) return
 
-      const handled = enterAfterHiddenInlineSuffix(view)
+      const handled = enterInMarkdownTable(view) || enterAfterHiddenInlineSuffix(view)
       if (!handled) return
 
       event.preventDefault()
@@ -178,9 +181,13 @@ export const MarkdownEditor = forwardRef<
     // Blur handler — switch to viewing mode when readOnlyOnBlur is set
     const blurHandler = readOnlyOnBlur
       ? EditorView.domEventHandlers({
-          blur() {
+          blur(event) {
+            const nextFocus = event.relatedTarget as HTMLElement | null
+            if (nextFocus?.closest('[data-minueditor]')) return false
+
             // Small delay so toolbar clicks don't trigger blur→view transition
             setTimeout(() => setMode('viewing'), 150)
+            return false
           },
         })
       : []
@@ -209,6 +216,8 @@ export const MarkdownEditor = forwardRef<
       }),
       minueditorTheme,
       visualMarkdown,
+      tableDecorations,
+      codeBlockDecorations,
       markdownDecorations,
       checkboxDecorations,
       EditorView.lineWrapping,

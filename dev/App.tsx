@@ -19,6 +19,21 @@ This is the **document** surface with basic live markdown only.
 - Build the editor core
 - Add live decorations
 - Keep advanced widgets out of the default setup
+
+### Table
+
+| Name | Role | Location |
+| --- | --- | --- |
+| Alice | Engineer | NYC |
+| Bob | Designer | LA |
+
+### Code
+
+\`\`\`typescript
+function greet(name: string): string {
+  return \`Hello, \${name}!\`
+}
+\`\`\`
 `
 
 const DESCRIPTION_INITIAL = `A floating toolbar appears when you select text here. The editor goes **read-only on blur** — click to edit.`

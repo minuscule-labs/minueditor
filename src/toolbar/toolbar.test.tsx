@@ -88,4 +88,14 @@ describe('EditorToolbar', () => {
     const seps = container.querySelectorAll('.me-toolbar-sep')
     expect(seps.length).toBeGreaterThan(0)
   })
+
+  it('renders table row and column insertion buttons', () => {
+    const view = mockView()
+    render(<EditorToolbar view={view} variant={'full'} />)
+
+    expect(screen.getByTitle('Insert column left (Cmd+←)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert column right (Cmd+→)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert row above (Cmd+↑)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert row below (Cmd+↓)')).toBeInTheDocument()
+  })
 })

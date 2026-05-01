@@ -40,7 +40,8 @@
     "@codemirror/state": "^6.5.1",
     "@codemirror/view": "^6.36.3",
     "@lezer/highlight": "^1.2.1",
-    "marked": "^15.0.12"
+    "marked": "^15.0.12",
+    "shiki": "^4.0.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

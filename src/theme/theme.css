@@ -62,6 +62,7 @@
   --me-table-border: #e0e0e0;
   --me-table-header-bg: #f6f6f6;
   --me-table-row-alt-bg: #fafafa;
+  --me-table-cell-min-width: 10ch;
 
   /* ── Checkboxes ────────────────────────────────────────── */
   --me-checkbox-color: #2563eb;

@@ -2,8 +2,15 @@ import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import {
   enterAfterHiddenInlineSuffix,
+  enterInMarkdownTable,
   indentList,
+  insertTableColumnLeft,
+  insertTableColumnRight,
+  insertTableRowAbove,
+  insertTableRowBelow,
   outdentList,
+  shiftTabInMarkdownTable,
+  tabInMarkdownTable,
   toggleBold,
   toggleItalic,
 } from './commands'
@@ -415,5 +422,220 @@ describe('inline marker commands', () => {
 
     expect(handled).toBe(true)
     expect(dispatched.changes).toEqual({ from: 6, insert: '\n' })
+  })
+
+  it('inserts a new table row at end of table data line', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 41,
+      to: 41,
+      anchor: 41,
+      head: 41,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownTable(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: { from: number; insert: string }
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual({ from: 41, insert: '\n|||' })
+    expect(dispatched.selection.anchor).toBe(43)
+    expect(dispatched.selection.head).toBe(43)
+  })
+
+  it('does not handle Enter on a table header line', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 14,
+      to: 14,
+      anchor: 14,
+      head: 14,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownTable(view)
+
+    expect(handled).toBe(false)
+    expect(view.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('moves to the next table cell on Tab', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 32,
+      to: 32,
+      anchor: 32,
+      head: 32,
+      empty: true,
+    })
+
+    const handled = tabInMarkdownTable(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.selection.anchor).toBe(37)
+    expect(dispatched.selection.head).toBe(37)
+  })
+
+  it('moves to first cell of next row when tabbing out of last cell', () => {
+    const view = createMockView(
+      ['| Name | Age |', '| --- | --- |', '| Ada | 42 |', '| Bob | 30 |'],
+      {
+        from: 50,
+        to: 50,
+        anchor: 50,
+        head: 50,
+        empty: true,
+      }
+    )
+
+    const handled = tabInMarkdownTable(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.selection.anchor).toBe(56)
+    expect(dispatched.selection.head).toBe(56)
+  })
+
+  it('inserts a new row when tabbing out of last cell on last row', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 37,
+      to: 37,
+      anchor: 37,
+      head: 37,
+      empty: true,
+    })
+
+    const handled = tabInMarkdownTable(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: { from: number; insert: string }
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual({ from: 41, insert: '\n|||' })
+    expect(dispatched.selection.anchor).toBe(43)
+    expect(dispatched.selection.head).toBe(43)
+  })
+
+  it('moves to previous row last cell on Shift-Tab from first cell', () => {
+    const view = createMockView(
+      ['| Name | Age |', '| --- | --- |', '| Ada | 42 |', '| Bob | 30 |'],
+      {
+        from: 44,
+        to: 44,
+        anchor: 44,
+        head: 44,
+        empty: true,
+      }
+    )
+
+    const handled = shiftTabInMarkdownTable(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.selection.anchor).toBe(37)
+    expect(dispatched.selection.head).toBe(37)
+  })
+
+  it('inserts a column to the right of current cell', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 31,
+      to: 31,
+      anchor: 31,
+      head: 31,
+      empty: true,
+    })
+
+    const handled = insertTableColumnRight(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: Array<{ from: number; to: number; insert: string }>
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual([
+      { from: 0, to: 14, insert: '| Name || Age |' },
+      { from: 15, to: 28, insert: '| --- | --- | --- |' },
+      { from: 29, to: 41, insert: '| Ada || 42 |' },
+    ])
+    expect(dispatched.selection.anchor).toBe(43)
+    expect(dispatched.selection.head).toBe(43)
+  })
+
+  it('inserts a column to the left of current cell', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 37,
+      to: 37,
+      anchor: 37,
+      head: 37,
+      empty: true,
+    })
+
+    const handled = insertTableColumnLeft(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: Array<{ from: number; to: number; insert: string }>
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual([
+      { from: 0, to: 14, insert: '| Name || Age |' },
+      { from: 15, to: 28, insert: '| --- | --- | --- |' },
+      { from: 29, to: 41, insert: '| Ada || 42 |' },
+    ])
+    expect(dispatched.selection.anchor).toBe(43)
+    expect(dispatched.selection.head).toBe(43)
+  })
+
+  it('inserts a row below current body row', () => {
+    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
+      from: 31,
+      to: 31,
+      anchor: 31,
+      head: 31,
+      empty: true,
+    })
+
+    const handled = insertTableRowBelow(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: { from: number; insert: string }
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual({ from: 41, insert: '\n|||' })
+    expect(dispatched.selection.anchor).toBe(43)
+    expect(dispatched.selection.head).toBe(43)
+  })
+
+  it('inserts a row above current body row', () => {
+    const view = createMockView(
+      ['| Name | Age |', '| --- | --- |', '| Ada | 42 |', '| Bob | 30 |'],
+      {
+        from: 44,
+        to: 44,
+        anchor: 44,
+        head: 44,
+        empty: true,
+      }
+    )
+
+    const handled = insertTableRowAbove(view)
+    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
+      changes: { from: number; insert: string }
+      selection: { anchor: number; head: number }
+    }
+
+    expect(handled).toBe(true)
+    expect(dispatched.changes).toEqual({ from: 42, insert: '|||\n' })
+    expect(dispatched.selection.anchor).toBe(43)
+    expect(dispatched.selection.head).toBe(43)
   })
 })

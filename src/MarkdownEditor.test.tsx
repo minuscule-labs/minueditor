@@ -536,4 +536,230 @@ describe('MarkdownEditor', () => {
     expect(view!.state.selection.main.from).toBe(7)
     expect(view!.state.selection.main.to).toBe(7)
   })
+
+  it('pressing Enter at end of a markdown table row inserts a new empty row', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 41 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe(
+      '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||'
+    )
+    expect(view!.state.selection.main.from).toBe(43)
+    expect(view!.state.selection.main.to).toBe(43)
+  })
+
+  it('pressing Tab in a table cell moves to the next cell', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 32 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'Tab' })
+
+    expect(view!.state.selection.main.from).toBe(37)
+    expect(view!.state.selection.main.to).toBe(37)
+  })
+
+  it('pressing Tab at the last table cell inserts a new row', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 37 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'Tab' })
+
+    expect(view!.state.doc.toString()).toBe(
+      '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||'
+    )
+    expect(view!.state.selection.main.from).toBe(43)
+    expect(view!.state.selection.main.to).toBe(43)
+  })
+
+  it('pressing Shift-Tab in first table cell moves to previous row', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Bob | 30 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 44 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'Tab', shiftKey: true })
+
+    expect(view!.state.selection.main.from).toBe(37)
+    expect(view!.state.selection.main.to).toBe(37)
+  })
+
+  it('pressing Cmd+Right inserts a table column to the right', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 31 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowRight', ctrlKey: true })
+
+    expect(view!.state.doc.toString()).toBe(
+      '| Name || Age |\n| --- | --- | --- |\n| Ada || 42 |'
+    )
+  })
+
+  it('pressing Cmd+Left inserts a table column to the left', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 37 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowLeft', ctrlKey: true })
+
+    expect(view!.state.doc.toString()).toBe(
+      '| Name || Age |\n| --- | --- | --- |\n| Ada || 42 |'
+    )
+  })
+
+  it('pressing Cmd+Down inserts a table row below', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 31 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowDown', ctrlKey: true })
+
+    expect(view!.state.doc.toString()).toBe(
+      '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||'
+    )
+  })
+
+  it('pressing Cmd+Up inserts a table row above', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Bob | 30 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 44 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowUp', ctrlKey: true })
+
+    expect(view!.state.doc.toString()).toBe(
+      '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||\n| Bob | 30 |'
+    )
+  })
+
+  it('renders table rows with live table cell decorations', async () => {
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.me-table-cell').length).toBe(4)
+      expect(container.querySelector('.me-table-cell--header')).toBeTruthy()
+      expect(container.querySelector('.me-table-line--delimiter')).toBeTruthy()
+      expect(container.querySelectorAll('.me-token--table').length).toBeGreaterThan(0)
+    })
+  })
 })

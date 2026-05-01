@@ -2,7 +2,13 @@ import { keymap } from '@codemirror/view'
 import type { EditorView } from '@codemirror/view'
 import {
   indentList,
+  insertTableColumnLeft,
+  insertTableColumnRight,
+  insertTableRowAbove,
+  insertTableRowBelow,
   outdentList,
+  shiftTabInMarkdownTable,
+  tabInMarkdownTable,
   toggleBold,
   toggleItalic,
   toggleInlineCode,
@@ -22,13 +28,39 @@ export const markdownKeymap = keymap.of([
   {
     key: 'Tab',
     run(view: EditorView) {
+      if (tabInMarkdownTable(view)) return true
       return indentList(view)
     },
   },
   {
     key: 'Shift-Tab',
     run(view: EditorView) {
+      if (shiftTabInMarkdownTable(view)) return true
       return outdentList(view)
+    },
+  },
+  {
+    key: 'Mod-ArrowLeft',
+    run(view: EditorView) {
+      return insertTableColumnLeft(view)
+    },
+  },
+  {
+    key: 'Mod-ArrowRight',
+    run(view: EditorView) {
+      return insertTableColumnRight(view)
+    },
+  },
+  {
+    key: 'Mod-ArrowUp',
+    run(view: EditorView) {
+      return insertTableRowAbove(view)
+    },
+  },
+  {
+    key: 'Mod-ArrowDown',
+    run(view: EditorView) {
+      return insertTableRowBelow(view)
     },
   },
   {

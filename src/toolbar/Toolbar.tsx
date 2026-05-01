@@ -11,6 +11,10 @@ import {
   toggleOrderedList,
   toggleCheckboxList,
   insertCodeBlock,
+  insertTableColumnLeft,
+  insertTableColumnRight,
+  insertTableRowAbove,
+  insertTableRowBelow,
   insertTable,
   insertHR,
   insertImage,
@@ -46,6 +50,10 @@ const FULL_TOOLBAR_BUTTONS: ToolbarButton[] = [
   // Block
   { label: '</>', title: 'Code block', run: insertCodeBlock, group: 'block' },
   { label: '⊞', title: 'Insert table', run: insertTable, group: 'block' },
+  { label: '⇤ Col', title: 'Insert column left (Cmd+←)', run: insertTableColumnLeft, group: 'block' },
+  { label: 'Col ⇥', title: 'Insert column right (Cmd+→)', run: insertTableColumnRight, group: 'block' },
+  { label: '⇡ Row', title: 'Insert row above (Cmd+↑)', run: insertTableRowAbove, group: 'block' },
+  { label: 'Row ⇣', title: 'Insert row below (Cmd+↓)', run: insertTableRowBelow, group: 'block' },
   { label: '—', title: 'Horizontal rule', run: insertHR, group: 'block' },
   { label: '🖼', title: 'Insert image', run: insertImage, group: 'block' },
 ]
