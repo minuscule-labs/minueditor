@@ -12,13 +12,17 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./theme.css": "./dist/theme.css"
+    "./theme.css": "./dist/theme.css",
+    "./themes/opencode.css": "./dist/themes/opencode.css",
+    "./themes/ghostty.css": "./dist/themes/ghostty.css",
+    "./themes/terminal.css": "./dist/themes/terminal.css"
   },
   "files": [
     "dist"
   ],
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "themes/*.css"
   ],
   "scripts": {
     "dev": "vite dev --config vite.dev.config.ts",

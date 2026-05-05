@@ -22,6 +22,7 @@ import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
+import { imageDecorations, imagePasteHandler } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import type { MarkdownEditorProps } from './types'
@@ -64,6 +65,7 @@ export const MarkdownEditor = forwardRef<
     minHeight,
     maxHeight,
     onSubmit,
+    onImageUpload,
     onViewReady,
     className,
   },
@@ -75,6 +77,7 @@ export const MarkdownEditor = forwardRef<
   const readOnlyCompartment = useRef(new Compartment());
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
+  const onImageUploadRef = useRef(onImageUpload)
 
   // Store the view in state so consumers of cmView (FloatingToolbar, onViewReady)
   // see it after CM6 mounts — viewRef alone wouldn't trigger a re-render.
@@ -109,6 +112,9 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     onSubmitRef.current = onSubmit
   }, [onSubmit])
+  useEffect(() => {
+    onImageUploadRef.current = onImageUpload
+  }, [onImageUpload])
 
   const onViewReadyRef = useRef(onViewReady)
   useEffect(() => {
@@ -196,10 +202,12 @@ export const MarkdownEditor = forwardRef<
       codeBlockDecorations,
       markdownDecorations,
       checkboxDecorations,
+      imageDecorations,
       EditorView.lineWrapping,
       updateListener,
       shortcutGuard,
       autolinkPaste,
+      imagePasteHandler(() => onImageUploadRef.current),
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
       ...(minHeight !== undefined

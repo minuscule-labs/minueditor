@@ -1,0 +1,33 @@
+.minueditor,
+.minueditor-wrap,
+.me-toolbar,
+.me-renderer {
+  --me-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --me-font-code: "Berkeley Mono", "JetBrains Mono", "SF Mono", monospace;
+  --me-text: #d0ffd0;
+  --me-bg: #081408;
+  --me-cursor: #7cff7c;
+  --me-selection-bg: rgba(124, 255, 124, 0.16);
+  --me-placeholder: #4f6f4f;
+  --me-heading-color: #ecfeec;
+  --me-code-bg: rgba(124, 255, 124, 0.08);
+  --me-code-color: #86efac;
+  --me-codeblock-bg: #061006;
+  --me-blockquote-border: #1f3a1f;
+  --me-blockquote-color: #8fb38f;
+  --me-hr-color: #1b331b;
+  --me-syntax-color: #3f6b3f;
+  --me-link-color: #7cff7c;
+  --me-table-border: #1b331b;
+  --me-table-header-bg: #0b190b;
+  --me-checkbox-color: #7cff7c;
+  --me-btn-bg: rgba(124, 255, 124, 0.06);
+  --me-btn-border: rgba(124, 255, 124, 0.12);
+  --me-btn-color: #d0ffd0;
+  --me-success-color: #86efac;
+  --me-toolbar-bg: #050d05;
+  --me-toolbar-border: #143014;
+  --me-toolbar-btn-color: #d0ffd0;
+  --me-toolbar-btn-hover-bg: rgba(124, 255, 124, 0.1);
+  --me-toolbar-btn-active-bg: rgba(124, 255, 124, 0.16);
+}

@@ -57,6 +57,16 @@ describe('MarkdownEditor', () => {
     expect(container.querySelector('.me-toolbar--floating')).toBeFalsy()
   })
 
+  it('renders table widgets by default', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+    })
+  })
+
   it('prevents the native meta+i shortcut in the editor contenteditable', () => {
     const { container } = render(
       <MarkdownEditor value={'Hello'} onChange={vi.fn()} />
@@ -391,6 +401,33 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       '[https://example.com](https://example.com)'
     )
+  })
+
+  it('uploads pasted images with the provided upload handler', async () => {
+    const onChange = vi.fn()
+    const onImageUpload = vi.fn(async () => 'https://cdn.example.com/note.png')
+    const file = new File(['image'], 'note.png', { type: 'image/png' })
+    const { container } = render(
+      <MarkdownEditor value={''} onChange={onChange} onImageUpload={onImageUpload} />
+    )
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        items: [
+          {
+            type: 'image/png',
+            getAsFile: () => file,
+          },
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      expect(onImageUpload).toHaveBeenCalledWith(file)
+      const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
+      expect(latestValue).toBe('![note.png](https://cdn.example.com/note.png)')
+    })
   })
 
   it('styles markdown links as underlined links when markers are hidden', async () => {

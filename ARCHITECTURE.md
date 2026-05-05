@@ -32,6 +32,21 @@ Non-responsibilities:
 
 If a product needs display-vs-edit behavior, compose `MarkdownRenderer` and `MarkdownEditor` externally.
 
+## Configuration Surface
+
+The editor behavior is intentionally opinionated.
+
+`MarkdownEditor` always installs the full editing surface:
+
+1. live markdown decorations
+2. checkboxes
+3. tables
+4. code blocks
+5. images
+6. autolink behavior
+
+The primary built-in behavior toggle is `readOnly`.
+
 ### `src/renderer/index.tsx`
 
 Static markdown rendering surface.
@@ -41,6 +56,21 @@ Responsibilities:
 1. Render markdown to HTML
 2. Provide a lightweight non-editor display surface
 3. Support external click-to-edit composition patterns
+
+## Image Upload Boundary
+
+Image uploads are intentionally application-owned.
+
+Library responsibility:
+
+1. intercept pasted image files
+2. insert a temporary markdown placeholder
+3. replace the placeholder when the upload promise resolves
+
+Consumer responsibility:
+
+1. provide `onImageUpload(file) => Promise<string>`
+2. handle storage concerns such as S3, signed uploads, auth, and validation
 
 ## Extension Layout
 
@@ -106,6 +136,22 @@ Current guidance:
 1. Rebuild rich block decorations only when document content or active widget state changes.
 2. Keep toolbar positioning event-driven rather than frame-polled.
 3. Prefer small internal modules over adding more behavior into already large widget files.
+
+## Theme Strategy
+
+The library theme is CSS-variable driven.
+
+Consumers can:
+
+1. override individual variables directly
+2. import one of the optional replacement theme CSS files
+
+Optional theme files:
+
+1. `theme.css` for the neutral base
+2. `themes/opencode.css`
+3. `themes/ghostty.css`
+4. `themes/terminal.css`
 
 ## Toolbar Boundaries
 
