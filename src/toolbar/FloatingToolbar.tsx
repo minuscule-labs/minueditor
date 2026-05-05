@@ -45,31 +45,22 @@ export function FloatingToolbar({ view }: FloatingToolbarProps) {
 
   useEffect(() => {
     if (!view) return
+    const editorView = view
 
-    // Use a MutationObserver-free approach: CM6 fires update callbacks.
-    // We need to observe selection changes — use EditorView.updateListener.
-    // But we can't add it after init here. Instead, poll via requestAnimationFrame.
-    // This is the standard approach for floating toolbars outside CM6's plugin system.
-
-    let rafId: number
+    let rafId = 0
 
     function update() {
-      if (!view) return
-
-      const sel = view.state.selection.main
+      const sel = editorView.state.selection.main
       const hasSelection = !sel.empty
 
-      if (!hasSelection || !view.hasFocus) {
+      if (!hasSelection || !editorView.hasFocus) {
         setVisible(false)
-        rafId = requestAnimationFrame(update)
         return
       }
 
-      // Position above the selection start
-      const coords = view.coordsAtPos(sel.from)
+      const coords = editorView.coordsAtPos(sel.from)
       if (!coords) {
         setVisible(false)
-        rafId = requestAnimationFrame(update)
         return
       }
 
@@ -78,12 +69,33 @@ export function FloatingToolbar({ view }: FloatingToolbarProps) {
         top: coords.top + window.scrollY - TOOLBAR_HEIGHT - TOOLBAR_OFFSET,
         left: coords.left + window.scrollX,
       })
+    }
 
+    function scheduleUpdate() {
+      cancelAnimationFrame(rafId)
       rafId = requestAnimationFrame(update)
     }
 
-    rafId = requestAnimationFrame(update)
-    return () => cancelAnimationFrame(rafId)
+    const handleFocusOut = () => {
+      window.setTimeout(scheduleUpdate, 0)
+    }
+
+    document.addEventListener('selectionchange', scheduleUpdate)
+    window.addEventListener('resize', scheduleUpdate)
+    window.addEventListener('scroll', scheduleUpdate, true)
+    editorView.dom.addEventListener('focusin', scheduleUpdate)
+    editorView.dom.addEventListener('focusout', handleFocusOut)
+
+    scheduleUpdate()
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      document.removeEventListener('selectionchange', scheduleUpdate)
+      window.removeEventListener('resize', scheduleUpdate)
+      window.removeEventListener('scroll', scheduleUpdate, true)
+      editorView.dom.removeEventListener('focusin', scheduleUpdate)
+      editorView.dom.removeEventListener('focusout', handleFocusOut)
+    }
   }, [view])
 
   if (!visible || !view) return null

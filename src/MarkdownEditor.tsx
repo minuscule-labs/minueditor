@@ -24,7 +24,6 @@ import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { markdownKeymap } from './extensions/keymap'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
-import { MarkdownRenderer } from './renderer'
 import type { MarkdownEditorProps } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
 import {
@@ -45,16 +44,11 @@ export interface MarkdownEditorHandle {
  *
  * Fully controlled: consumer owns `value` and `onChange`.
  * The underlying document is always plain markdown.
- *
- * When `readOnlyOnBlur` is set, the component switches between
- * an editing state (CM6 active) and a viewing state (MarkdownRenderer).
- * Clicking the rendered view re-enters edit mode.
- *
  * When `floatingToolbar` is set, a FloatingToolbar appears above
  * text selections inside the editor.
  *
  * When `onViewReady` is set, it is called with the EditorView instance
- * after CM6 mounts (or re-mounts). Useful for wiring an external toolbar.
+ * after CM6 mounts. Useful for wiring an external toolbar.
  */
 export const MarkdownEditor = forwardRef<
   MarkdownEditorHandle,
@@ -65,7 +59,6 @@ export const MarkdownEditor = forwardRef<
     onChange,
     placeholder,
     readOnly = false,
-    readOnlyOnBlur = false,
     floatingToolbar = false,
     autoFocus = false,
     minHeight,
@@ -80,22 +73,15 @@ export const MarkdownEditor = forwardRef<
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
   const readOnlyCompartment = useRef(new Compartment());
+  const onChangeRef = useRef(onChange)
+  const onSubmitRef = useRef(onSubmit)
 
   // Store the view in state so consumers of cmView (FloatingToolbar, onViewReady)
   // see it after CM6 mounts — viewRef alone wouldn't trigger a re-render.
   const [cmView, setCmView] = useState<EditorView | null>(null);
 
-  // When readOnlyOnBlur is set, start in viewing mode unless autoFocus
-  const [mode, setMode] = useState<"editing" | "viewing">(
-    readOnlyOnBlur && !autoFocus ? "viewing" : "editing",
-  )
-
   // Expose the EditorView via ref
   useImperativeHandle(ref, () => ({ view: viewRef.current }), [cmView])
-
-  const enterEditMode = useCallback(() => {
-    setMode('editing')
-  }, [])
 
   const handleKeyDownCapture = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -117,6 +103,13 @@ export const MarkdownEditor = forwardRef<
   )
 
   // Keep onViewReady fresh without re-init
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
+  useEffect(() => {
+    onSubmitRef.current = onSubmit
+  }, [onSubmit])
+
   const onViewReadyRef = useRef(onViewReady)
   useEffect(() => {
     onViewReadyRef.current = onViewReady
@@ -124,9 +117,6 @@ export const MarkdownEditor = forwardRef<
 
   // ── Init CM6 ──────────────────────────────────────────────────────────
   useEffect(() => {
-    // Don't mount CM6 while we're in viewing mode
-    if (mode === 'viewing') return
-
     const container = containerRef.current
     if (!container) return
 
@@ -134,7 +124,7 @@ export const MarkdownEditor = forwardRef<
       if (update.docChanged) {
         const newValue = update.state.doc.toString()
         valueRef.current = newValue
-        onChange(newValue)
+        onChangeRef.current(newValue)
       }
     })
 
@@ -178,26 +168,12 @@ export const MarkdownEditor = forwardRef<
       },
     })
 
-    // Blur handler — switch to viewing mode when readOnlyOnBlur is set
-    const blurHandler = readOnlyOnBlur
-      ? EditorView.domEventHandlers({
-          blur(event) {
-            const nextFocus = event.relatedTarget as HTMLElement | null
-            if (nextFocus?.closest('[data-minueditor]')) return false
-
-            // Small delay so toolbar clicks don't trigger blur→view transition
-            setTimeout(() => setMode('viewing'), 150)
-            return false
-          },
-        })
-      : []
-
     const submitKeymap = onSubmit
       ? keymap.of([
           {
             key: 'Mod-Enter',
             run: () => {
-              onSubmit()
+              onSubmitRef.current?.()
               return true
             },
           },
@@ -224,7 +200,6 @@ export const MarkdownEditor = forwardRef<
       updateListener,
       shortcutGuard,
       autolinkPaste,
-      blurHandler,
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
       ...(minHeight !== undefined
@@ -258,8 +233,7 @@ export const MarkdownEditor = forwardRef<
     setCmView(view)
     onViewReadyRef.current?.(view)
 
-    // Focus when switching from viewing → editing
-    view.focus()
+    if (autoFocus) view.focus()
 
     return () => {
       view.destroy()
@@ -267,8 +241,7 @@ export const MarkdownEditor = forwardRef<
       setCmView(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Intentionally re-runs only when mode changes (mount/unmount CM6)
-  }, [mode])
+  }, [])
 
   // ── Sync external value changes into CM6 ─────────────────────────────
   useEffect(() => {
@@ -297,16 +270,6 @@ export const MarkdownEditor = forwardRef<
   }, [readOnly])
 
   // ── Render ────────────────────────────────────────────────────────────
-
-  if (mode === 'viewing') {
-    return (
-      <MarkdownRenderer
-        value={value}
-        onClick={readOnly ? undefined : enterEditMode}
-        className={className}
-      />
-      )
-  }
 
   return (
     <div

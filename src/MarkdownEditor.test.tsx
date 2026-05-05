@@ -5,76 +5,6 @@ import { MarkdownEditor } from './MarkdownEditor'
 import { toggleBold, toggleItalic } from './toolbar/commands'
 
 describe('MarkdownEditor', () => {
-  // ── readOnlyOnBlur (viewing mode) ───────────────────────────────────────
-
-  it('starts in viewing mode when readOnlyOnBlur=true and autoFocus=false', () => {
-    const { container } = render(
-      <MarkdownEditor
-        value={'Hello **world**'}
-        onChange={vi.fn()}
-        readOnlyOnBlur
-      />
-    )
-    expect(container.querySelector('.me-renderer')).toBeTruthy()
-    expect(container.querySelector('.minueditor')).toBeFalsy()
-  })
-
-  it('switches to editing mode when the renderer is clicked', () => {
-    const { container } = render(
-      <MarkdownEditor
-        value={'Hello'}
-        onChange={vi.fn()}
-        readOnlyOnBlur
-      />
-    )
-    const renderer = container.querySelector('.me-renderer')!
-    fireEvent.click(renderer)
-    expect(container.querySelector('.minueditor')).toBeTruthy()
-    expect(container.querySelector('.me-renderer')).toBeFalsy()
-  })
-
-  it('activates editing on Enter key in viewing mode', () => {
-    const { container } = render(
-      <MarkdownEditor
-        value={'Hello'}
-        onChange={vi.fn()}
-        readOnlyOnBlur
-      />
-    )
-    const renderer = container.querySelector('.me-renderer')!
-    fireEvent.keyDown(renderer, { key: 'Enter' })
-    expect(container.querySelector('.minueditor')).toBeTruthy()
-  })
-
-  it('passes className to the renderer in viewing mode', () => {
-    const { container } = render(
-      <MarkdownEditor
-        value={'Hello'}
-        onChange={vi.fn()}
-        readOnlyOnBlur
-        className={'my-cls'}
-      />
-    )
-    expect(container.querySelector('.me-renderer.my-cls')).toBeTruthy()
-  })
-
-  // ── readOnly (never editable) ────────────────────────────────────────────
-
-  it('does not switch to editing when readOnly=true in readOnlyOnBlur mode', () => {
-    const { container } = render(
-      <MarkdownEditor
-        value={'Hello'}
-        onChange={vi.fn()}
-        readOnlyOnBlur
-        readOnly
-      />
-    )
-    const renderer = container.querySelector('.me-renderer')!
-    // renderer should have no onClick when readOnly — clicking does nothing
-    fireEvent.click(renderer)
-    expect(container.querySelector('.me-renderer')).toBeTruthy()
-  })
-
   // ── editing mode ─────────────────────────────────────────────────────────
 
   it('starts in editing mode by default', () => {
@@ -111,15 +41,8 @@ describe('MarkdownEditor', () => {
     expect(view).toHaveProperty('state')
   })
 
-  it('starts in editing mode when autoFocus=true even with readOnlyOnBlur', () => {
-    const { container } = render(
-      <MarkdownEditor
-        value={'Hello'}
-        onChange={vi.fn()}
-        readOnlyOnBlur
-        autoFocus
-      />
-    )
+  it('starts in editing mode when autoFocus=true', () => {
+    const { container } = render(<MarkdownEditor value={'Hello'} onChange={vi.fn()} autoFocus />)
     expect(container.querySelector('.minueditor-wrap')).toBeTruthy()
   })
 
@@ -747,7 +670,7 @@ describe('MarkdownEditor', () => {
     )
   })
 
-  it('renders table rows with live table cell decorations', async () => {
+  it('renders markdown tables with the table widget', async () => {
     const { container } = render(
       <MarkdownEditor
         value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
@@ -756,10 +679,9 @@ describe('MarkdownEditor', () => {
     )
 
     await waitFor(() => {
-      expect(container.querySelectorAll('.me-table-cell').length).toBe(4)
-      expect(container.querySelector('.me-table-cell--header')).toBeTruthy()
-      expect(container.querySelector('.me-table-line--delimiter')).toBeTruthy()
-      expect(container.querySelectorAll('.me-token--table').length).toBeGreaterThan(0)
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+      expect(container.querySelectorAll('.me-table-render th').length).toBe(2)
+      expect(container.querySelectorAll('.me-table-render td').length).toBe(2)
     })
   })
 })

@@ -36,7 +36,7 @@ function greet(name: string): string {
 \`\`\`
 `
 
-const DESCRIPTION_INITIAL = `A floating toolbar appears when you select text here. The editor goes **read-only on blur** — click to edit.`
+const DESCRIPTION_INITIAL = `A floating toolbar appears when you select text here.`
 
 const COMMENT_INITIAL = `No toolbar here. Use \`Cmd+B\` for bold, \`Cmd+I\` for italic. Press \`Cmd+Enter\` to submit.`
 
@@ -71,14 +71,13 @@ export default function App() {
 
         <section className="surface">
           <h2>Description surface</h2>
-          <p className="surface-desc">Floating selection toolbar · read-only on blur</p>
+          <p className="surface-desc">Floating selection toolbar</p>
           <div className="editor-frame">
             <MarkdownEditor
               value={descValue}
               onChange={setDescValue}
               placeholder="Add a description…"
               floatingToolbar
-              readOnlyOnBlur
               minHeight={80}
             />
           </div>
@@ -92,7 +91,6 @@ export default function App() {
               value={commentValue}
               onChange={setCommentValue}
               placeholder="Write a comment…"
-              readOnlyOnBlur
               onSubmit={() => alert(`Submit: ${commentValue}`)}
               minHeight={60}
             />

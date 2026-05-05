@@ -1,5 +1,4 @@
 import { EditorView } from '@codemirror/view'
-import type { Transaction } from '@codemirror/state'
 
 const URL_REGEX = /^https?:\/\/[^\s]+$/
 
@@ -61,12 +60,3 @@ export const autolinkPaste = EditorView.domEventHandlers({
     return true
   },
 })
-
-/**
- * Transaction filter that can be composed if paste interception
- * needs to be done at the state level instead of DOM event level.
- * Currently unused — autolinkPaste handles everything via domEventHandlers.
- */
-export function autolinkTransactionFilter(tr: Transaction): Transaction {
-  return tr
-}

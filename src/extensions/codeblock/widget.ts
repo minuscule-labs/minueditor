@@ -3,9 +3,6 @@ import {
   EditorSelection,
   EditorState,
   Prec,
-  StateEffect,
-  StateField,
-  type Extension,
 } from "@codemirror/state";
 import {
   defaultKeymap,
@@ -21,231 +18,22 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import {
-  LanguageDescription,
   defaultHighlightStyle,
-  syntaxHighlighting,
   syntaxTree,
+  syntaxHighlighting,
 } from "@codemirror/language";
-import { languages } from "@codemirror/language-data";
-import { ensureShiki, highlight, isLangLoaded, loadLang } from "./shiki";
-
-type FencedBlockInfo = {
-  blockFrom: number;
-  blockTo: number;
-  openingFenceFrom: number;
-  openingFenceTo: number;
-  contentFrom: number;
-  contentTo: number;
-  code: string;
-  lang: string;
-};
-
-type CodeBlockEditorMount = {
-  view: EditorView;
-  langCompartment: Compartment;
-  currentCode: string;
-  currentLang: string;
-  blockFrom: number;
-  contentFrom: number;
-  contentTo: number;
-  syncingFromOuter: boolean;
-  isDestroyed: boolean;
-  languageLoadId: number;
-  pendingFocusTarget: "language" | "code-start" | "code-end" | null;
-};
-
-type CodeBlockElement = HTMLDivElement & {
-  __meCodeBlockEditor?: CodeBlockEditorMount;
-};
-
-const setActiveCodeBlock = StateEffect.define<number | null>();
-const languageExtensionCache = new Map<string, Promise<Extension>>();
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function renderCodeHtml(
-  code: string,
-  lang: string,
-  highlighted: string | null,
-): string {
-  if (highlighted) return highlighted;
-  if (lang && isLangLoaded(lang)) {
-    return (
-      highlight(code, lang) ?? `<pre><code>${escapeHtml(code)}</code></pre>`
-    );
-  }
-  return `<pre><code>${escapeHtml(code)}</code></pre>`;
-}
-
-function getFencedBlockInfo(
-  state: EditorState,
-  pos: number,
-): FencedBlockInfo | null {
-  const doc = state.doc;
-  let result: FencedBlockInfo | null = null;
-
-  syntaxTree(state).iterate({
-    from: 0,
-    to: doc.length,
-    enter(node) {
-      if (node.name !== "FencedCode") return;
-      if (pos < node.from || pos > node.to) return;
-
-      const blockFrom = node.from;
-      const blockTo = node.to;
-      const blockFromLine = doc.lineAt(blockFrom).number;
-      const blockToLine = doc.lineAt(blockTo).number;
-      const openingFence = doc.line(blockFromLine);
-      const contentFrom =
-        blockFromLine < blockToLine
-          ? doc.line(blockFromLine + 1).from
-          : blockFrom;
-      const contentTo =
-        blockFromLine < blockToLine
-          ? doc.line(blockToLine).from - 1
-          : blockFrom;
-      const code = doc.sliceString(contentFrom, contentTo);
-      const fenceLine = doc.lineAt(blockFrom).text;
-      const langMatch = fenceLine.match(/^```(\w*)/);
-      const lang = langMatch?.[1] ?? "";
-
-      result = {
-        blockFrom,
-        blockTo,
-        openingFenceFrom: openingFence.from,
-        openingFenceTo: openingFence.to,
-        contentFrom,
-        contentTo,
-        code,
-        lang,
-      };
-      return false;
-    },
-  });
-
-  return result;
-}
-
-function getFencedBlockByStart(
-  state: EditorState,
-  blockFrom: number,
-): FencedBlockInfo | null {
-  return getFencedBlockInfo(state, blockFrom);
-}
-
-function getOffsetForLine(code: string, lineIndex: number): number {
-  if (lineIndex <= 0) return 0;
-  let offset = 0;
-  let currentLine = 0;
-  while (currentLine < lineIndex && offset < code.length) {
-    const nextBreak = code.indexOf("\n", offset);
-    if (nextBreak === -1) return code.length;
-    offset = nextBreak + 1;
-    currentLine += 1;
-  }
-  return offset;
-}
-
-function getSelectionForBlockClick(
-  _view: EditorView,
-  block: FencedBlockInfo,
-  event: MouseEvent,
-): EditorSelection {
-  const widget = (event.target as HTMLElement | null)?.closest(
-    ".me-codeblock-widget",
-  ) as HTMLElement | null;
-  const body = widget?.querySelector(
-    ".me-codeblock-body",
-  ) as HTMLElement | null;
-
-  if (!body || block.code.length === 0) {
-    return EditorSelection.create([EditorSelection.cursor(block.contentFrom)]);
-  }
-
-  const rect = body.getBoundingClientRect();
-  const bodyStyle = getComputedStyle(body);
-  const lineHeight = Number.parseFloat(bodyStyle.lineHeight) || 22;
-  const relativeY = Math.max(0, event.clientY - rect.top);
-  const lines = block.code.split("\n");
-  const lineIndex = Math.min(
-    lines.length - 1,
-    Math.floor(relativeY / lineHeight),
-  );
-  const offset = getOffsetForLine(block.code, lineIndex);
-  return EditorSelection.create([
-    EditorSelection.cursor(block.contentFrom + offset),
-  ]);
-}
-
-function getCodeLanguageExtension(lang: string): Promise<Extension> {
-  const normalized = lang.trim().toLowerCase();
-  if (!normalized) return Promise.resolve([]);
-
-  const cached = languageExtensionCache.get(normalized);
-  if (cached) return cached;
-
-  const promise = (async () => {
-    const description = LanguageDescription.matchLanguageName(
-      languages,
-      normalized,
-      true,
-    );
-    if (!description) return [];
-    try {
-      return await description.load();
-    } catch {
-      return [];
-    }
-  })();
-
-  languageExtensionCache.set(normalized, promise);
-  return promise;
-}
-
-const nestedEditorTheme = EditorView.theme({
-  "&": {
-    backgroundColor: "transparent",
-  },
-  ".cm-editor": {
-    backgroundColor: "transparent",
-  },
-  ".cm-scroller": {
-    fontFamily: "inherit",
-    lineHeight: "1.6",
-    overflowX: "auto",
-    minHeight: "0",
-    height: "auto",
-  },
-  ".cm-content": {
-    fontFamily: "inherit",
-    fontSize: "inherit",
-    padding: "0",
-    minHeight: "0",
-  },
-  ".cm-line": {
-    padding: "0",
-  },
-  ".cm-gutters": {
-    display: "none",
-  },
-  ".cm-activeLine": {
-    backgroundColor: "transparent",
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: "transparent",
-  },
-  ".cm-cursor, .cm-dropCursor": {
-    borderLeftColor: "var(--me-text, #1a1a1a)",
-  },
-  ".cm-selectionBackground, ::selection": {
-    backgroundColor: "rgba(59, 130, 246, 0.18)",
-  },
-});
+import { highlight, isLangLoaded, loadLang } from '../shiki';
+import {
+  getAdjacentFencedBlock,
+  getCodeLanguageExtension,
+  getFencedBlockByStart,
+  getFencedBlockInfo,
+  getSelectionForBlockClick,
+  renderCodeHtml,
+} from './model';
+import { activeCodeBlockField, setActiveCodeBlock } from './state';
+import { nestedEditorTheme } from './theme';
+import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
 
 function focusNestedEditor(
   mount: CodeBlockEditorMount,
@@ -287,25 +75,6 @@ function focusCodeBlockCloseFence(wrapper: HTMLElement): boolean {
   if (!closeFence) return false;
   closeFence.focus();
   return true;
-}
-
-function getAdjacentFencedBlock(
-  state: EditorState,
-  pos: number,
-  direction: "up" | "down",
-): FencedBlockInfo | null {
-  const doc = state.doc;
-  const line = doc.lineAt(pos);
-
-  if (direction === "down") {
-    if (line.number >= doc.lines) return null;
-    const nextLine = doc.line(line.number + 1);
-    return getFencedBlockInfo(state, nextLine.from);
-  }
-
-  if (line.number <= 1) return null;
-  const prevLine = doc.line(line.number - 1);
-  return getFencedBlockInfo(state, prevLine.from);
 }
 
 function insertLineAfterCodeBlock(
@@ -925,30 +694,7 @@ class CodeBlockWidget extends WidgetType {
   }
 }
 
-const activeCodeBlockField = StateField.define<number | null>({
-  create() {
-    return null;
-  },
-  update(value, tr) {
-    let nextValue = value;
-
-    if (nextValue != null) {
-      nextValue = tr.changes.mapPos(nextValue, -1);
-    }
-
-    for (const effect of tr.effects) {
-      if (effect.is(setActiveCodeBlock)) {
-        nextValue = effect.value;
-      }
-    }
-
-    return nextValue;
-  },
-});
-
-function buildCodeBlockDecorations(state: EditorState): DecorationSet {
-  ensureShiki();
-
+export function buildCodeBlockDecorations(state: EditorState): DecorationSet {
   const ranges: ReturnType<Decoration["range"]>[] = [];
   const doc = state.doc;
   const activeBlockFrom = state.field(activeCodeBlockField, false);
@@ -992,17 +738,7 @@ function buildCodeBlockDecorations(state: EditorState): DecorationSet {
   return Decoration.set(ranges, true);
 }
 
-const codeBlockDecorationField = StateField.define<DecorationSet>({
-  create(state) {
-    return buildCodeBlockDecorations(state);
-  },
-  update(_value, tr) {
-    return buildCodeBlockDecorations(tr.state);
-  },
-  provide: (field) => EditorView.decorations.from(field),
-});
-
-const codeBlockClickToEdit = EditorView.domEventHandlers({
+export const codeBlockClickToEdit = EditorView.domEventHandlers({
   mousedown(event, view) {
     const target = event.target as HTMLElement | null;
     const widget = target?.closest(
@@ -1026,14 +762,19 @@ const codeBlockClickToEdit = EditorView.domEventHandlers({
     const block = getFencedBlockByStart(view.state, Number(blockFromText));
     if (!block) return false;
 
-    const selection = getSelectionForBlockClick(view, block, event);
+    const selection = getSelectionForBlockClick(
+      view,
+      block,
+      event,
+      (anchor) => EditorSelection.create([EditorSelection.cursor(anchor)]),
+    );
     activateCodeBlock(view, block, selection, "code-start");
     event.preventDefault();
     return true;
   },
 });
 
-const codeBlockArrowNavigation = Prec.high(
+export const codeBlockArrowNavigation = Prec.high(
   keymap.of([
     {
       key: "ArrowDown",
@@ -1080,7 +821,7 @@ const codeBlockArrowNavigation = Prec.high(
   ]),
 );
 
-const autoCloseCodeFence = EditorView.inputHandler.of(
+export const autoCloseCodeFence = EditorView.inputHandler.of(
   (view, from, to, text, _insert) => {
     if (text !== "`") return false;
 
@@ -1119,11 +860,3 @@ const autoCloseCodeFence = EditorView.inputHandler.of(
     return true;
   },
 );
-
-export const codeBlockDecorations = [
-  activeCodeBlockField,
-  codeBlockDecorationField,
-  codeBlockClickToEdit,
-  codeBlockArrowNavigation,
-  autoCloseCodeFence,
-];

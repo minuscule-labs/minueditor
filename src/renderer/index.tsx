@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { marked } from 'marked'
+import { Marked } from 'marked'
 
 interface MarkdownRendererProps {
   /** The plain markdown string to render. */
@@ -9,8 +9,7 @@ interface MarkdownRendererProps {
   className?: string | undefined
 }
 
-// Configure marked once — GFM + line breaks
-marked.setOptions({
+const renderer = new Marked({
   gfm: true,
   breaks: false,
 })
@@ -18,13 +17,8 @@ marked.setOptions({
 /**
  * MarkdownRenderer — renders markdown as static HTML.
  *
- * Used as the "viewing" state when `readOnlyOnBlur` is set.
- * Clicking the rendered content fires `onClick` so the parent
- * can switch back to edit mode.
- *
- * Checkboxes in task lists remain interactive — toggling them
- * fires `onCheckboxToggle` which the parent reflects back into
- * the markdown value.
+ * Consumers can use this alongside `MarkdownEditor` when they want
+ * to control viewing vs editing state outside the core editor.
  */
 export function MarkdownRenderer({
   value,
@@ -34,7 +28,7 @@ export function MarkdownRenderer({
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Parse markdown synchronously (marked is sync by default)
-  const html = marked.parse(value) as string
+  const html = renderer.parse(value) as string
 
   // Wire up checkbox interactivity after render
   useEffect(() => {

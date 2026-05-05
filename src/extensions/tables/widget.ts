@@ -1,127 +1,13 @@
-import { EditorSelection, EditorState, Prec, StateEffect, StateField } from '@codemirror/state'
+import { EditorSelection, EditorState, Prec } from '@codemirror/state'
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from '@codemirror/view'
-
-type TableAlignment = 'left' | 'center' | 'right' | null
-
-type TableBlock = {
-  from: number
-  to: number
-  startLine: number
-  endLine: number
-  rows: string[][]
-  alignments: TableAlignment[]
-}
-
-const setActiveTable = StateEffect.define<number | null>()
-
-function isTableDelimiterLine(line: string): boolean {
-  return /^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(line)
-}
-
-function isTableDataLine(line: string): boolean {
-  return /^\s*\|(?:[^|\n]*\|)+\s*$/.test(line)
-}
-
-function parseTableCells(line: string): string[] {
-  return line.trim().slice(1, -1).split('|').map((cell) => cell.trim())
-}
-
-function parseAlignments(line: string): TableAlignment[] {
-  return parseTableCells(line).map((cell) => {
-    const trimmed = cell.trim()
-    const left = trimmed.startsWith(':')
-    const right = trimmed.endsWith(':')
-    if (left && right) return 'center'
-    if (right) return 'right'
-    if (left) return 'left'
-    return null
-  })
-}
-
-function formatContentLine(cells: string[]): string {
-  return `|${cells.map((cell) => ` ${cell} `).join('|')}|`
-}
-
-function formatDelimiterLine(alignments: TableAlignment[]): string {
-  const cells = alignments.map((alignment) => {
-    if (alignment === 'center') return ':---:'
-    if (alignment === 'right') return '---:'
-    if (alignment === 'left') return ':---'
-    return '---'
-  })
-  return `| ${cells.join(' | ')} |`
-}
-
-function findTableBlocks(state: EditorState): TableBlock[] {
-  const doc = state.doc
-  const blocks: TableBlock[] = []
-  let lineNumber = 1
-
-  while (lineNumber <= doc.lines - 1) {
-    const headerLine = doc.line(lineNumber)
-    const delimiterLine = doc.line(lineNumber + 1)
-
-    if (!isTableDataLine(headerLine.text) || !isTableDelimiterLine(delimiterLine.text)) {
-      lineNumber += 1
-      continue
-    }
-
-    const rows = [parseTableCells(headerLine.text)]
-    const alignments = parseAlignments(delimiterLine.text)
-    let endLine = lineNumber + 1
-
-    while (endLine < doc.lines && isTableDataLine(doc.line(endLine + 1).text)) {
-      endLine += 1
-      rows.push(parseTableCells(doc.line(endLine).text))
-    }
-
-    blocks.push({
-      from: headerLine.from,
-      to: doc.line(endLine).to,
-      startLine: lineNumber,
-      endLine,
-      rows,
-      alignments,
-    })
-
-    lineNumber = endLine + 1
-  }
-
-  return blocks
-}
-
-function getTableBlockByStart(state: EditorState, from: number): TableBlock | null {
-  for (const block of findTableBlocks(state)) {
-    if (block.from === from) return block
-  }
-  return null
-}
-
-function getAdjacentTableBlock(state: EditorState, pos: number, direction: 'up' | 'down'): TableBlock | null {
-  const doc = state.doc
-  const line = doc.lineAt(pos)
-
-  if (direction === 'down') {
-    if (line.number >= doc.lines) return null
-    const nextLine = doc.line(line.number + 1)
-    return getTableBlockByStart(state, nextLine.from)
-  }
-
-  if (line.number <= 1) return null
-  const previousLine = doc.line(line.number - 1)
-  for (const block of findTableBlocks(state)) {
-    if (block.endLine === previousLine.number) return block
-  }
-  return null
-}
-
-function formatTableMarkdown(block: TableBlock): string {
-  const lines = [formatContentLine(block.rows[0]), formatDelimiterLine(block.alignments)]
-  for (const row of block.rows.slice(1)) {
-    lines.push(formatContentLine(row))
-  }
-  return lines.join('\n')
-}
+import { activeTableField, setActiveTable } from './state'
+import {
+  findTableBlocks,
+  formatTableMarkdown,
+  getAdjacentTableBlock,
+  getTableBlockByStart,
+  type TableBlock,
+} from './model'
 
 function updateTableCell(
   view: EditorView,
@@ -255,7 +141,6 @@ function removeTableRowInWidget(
   const block = getTableBlockByStart(view.state, blockFrom)
   if (!block) return false
 
-  // Removing the header row removes the whole markdown table structure.
   if (rowIndex === 0 || block.rows.length === 1) {
     applyTableBlockUpdate(
       view,
@@ -442,7 +327,14 @@ function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: H
     return removeTableColumnRangeInWidget(view, blockFrom, bounds.colStart, bounds.colEnd)
   }
 
-  return clearTableCellRangeInWidget(view, blockFrom, bounds.rowStart, bounds.rowEnd, bounds.colStart, bounds.colEnd)
+  return clearTableCellRangeInWidget(
+    view,
+    blockFrom,
+    bounds.rowStart,
+    bounds.rowEnd,
+    bounds.colStart,
+    bounds.colEnd,
+  )
 }
 
 function removeTableColumnRangeInWidget(
@@ -739,13 +631,12 @@ function createTableInput(
       }
       if (focusTableInput(wrapper, rowIndex, colIndex + 1)) return
       focusTableInput(wrapper, rowIndex + 1, 0)
-      return
     }
   })
   return input
 }
 
-function buildTableDecorations(state: EditorState): DecorationSet {
+export function buildTableDecorations(state: EditorState): DecorationSet {
   const ranges: ReturnType<Decoration['range']>[] = []
   const activeFrom = state.field(activeTableField, false)
 
@@ -762,31 +653,7 @@ function buildTableDecorations(state: EditorState): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
-const activeTableField = StateField.define<number | null>({
-  create() {
-    return null
-  },
-  update(value, tr) {
-    let nextValue = value
-    if (nextValue != null) nextValue = tr.changes.mapPos(nextValue, -1)
-    for (const effect of tr.effects) {
-      if (effect.is(setActiveTable)) nextValue = effect.value
-    }
-    return nextValue
-  },
-})
-
-const tableDecorationField = StateField.define<DecorationSet>({
-  create(state) {
-    return buildTableDecorations(state)
-  },
-  update(_value, tr) {
-    return buildTableDecorations(tr.state)
-  },
-  provide: (field) => EditorView.decorations.from(field),
-})
-
-const tableClickHandlers = EditorView.domEventHandlers({
+export const tableClickHandlers = EditorView.domEventHandlers({
   mousedown(event, view) {
     const target = event.target as HTMLElement | null
     const widget = target?.closest('.me-table-widget') as HTMLElement | null
@@ -815,7 +682,7 @@ const tableClickHandlers = EditorView.domEventHandlers({
   },
 })
 
-const tableArrowNavigation = Prec.high(
+export const tableArrowNavigation = Prec.high(
   keymap.of([
     {
       key: 'ArrowDown',
@@ -843,5 +710,3 @@ const tableArrowNavigation = Prec.high(
     },
   ]),
 )
-
-export const tableDecorations = [activeTableField, tableDecorationField, tableClickHandlers, tableArrowNavigation]

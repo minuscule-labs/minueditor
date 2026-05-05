@@ -5,7 +5,6 @@ export interface MarkdownEditorProps {
   onChange: (markdown: string) => void
   placeholder?: string
   readOnly?: boolean
-  readOnlyOnBlur?: boolean
   floatingToolbar?: boolean
   autoFocus?: boolean
   minHeight?: number
