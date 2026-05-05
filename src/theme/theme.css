@@ -40,6 +40,9 @@
 
   /* ── Code blocks ───────────────────────────────────────── */
   --me-codeblock-bg: #f6f8fa;
+  --me-codeblock-border: #e2e8f0;
+  --me-codeblock-header-bg: #eef2f7;
+  --me-codeblock-body-bg: #f8fafc;
   --me-code-font-size: 0.875em;
 
   /* ── Blockquote ────────────────────────────────────────── */
@@ -60,12 +63,19 @@
 
   /* ── Tables ────────────────────────────────────────────── */
   --me-table-border: #e0e0e0;
+  --me-table-bg: #ffffff;
   --me-table-header-bg: #f6f6f6;
   --me-table-row-alt-bg: #fafafa;
   --me-table-cell-min-width: 10ch;
+  --me-table-selection-bg: rgba(37, 99, 235, 0.12);
+  --me-table-selection-header-bg: rgba(37, 99, 235, 0.18);
 
   /* ── Checkboxes ────────────────────────────────────────── */
   --me-checkbox-color: #2563eb;
+
+  /* ── Image states ──────────────────────────────────────── */
+  --me-image-broken-bg: #fff0f0;
+  --me-image-broken-color: #c33;
 
   /* ── Buttons (copy, toolbar) ───────────────────────────── */
   --me-btn-bg: rgba(0, 0, 0, 0.05);

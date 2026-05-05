@@ -4,6 +4,8 @@ import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
 
+let uploadPlaceholderId = 0
+
 // ── Image widget ──────────────────────────────────────────────────────────────
 
 class ImageWidget extends WidgetType {
@@ -130,6 +132,76 @@ export const imageDecorations = ViewPlugin.fromClass(
 export function imagePasteHandler(
   getUploadFn: () => ((file: File) => Promise<string>) | undefined
 ) {
+  function replaceUploadPlaceholder(
+    view: EditorView,
+    placeholder: string,
+    replacement: string,
+  ): void {
+    const currentDoc = view.state.doc.toString()
+    const placeholderIdx = currentDoc.indexOf(placeholder)
+    if (placeholderIdx === -1) return
+
+    view.dispatch({
+      changes: {
+        from: placeholderIdx,
+        to: placeholderIdx + placeholder.length,
+        insert: replacement,
+      },
+    })
+  }
+
+  function insertUploadPlaceholder(view: EditorView, file: File, from: number, to: number): void {
+    const uploadFn = getUploadFn()
+    if (!uploadFn) return
+
+    const placeholderId = `${Date.now()}-${uploadPlaceholderId++}`
+    const placeholder = `![${file.name}](__uploading__${placeholderId})`
+
+    view.dispatch({
+      changes: { from, to, insert: placeholder },
+      selection: { anchor: from + placeholder.length },
+    })
+
+    void (async () => {
+      try {
+        const url = await uploadFn(file)
+        replaceUploadPlaceholder(view, placeholder, `![${file.name}](${url})`)
+      } catch {
+        replaceUploadPlaceholder(view, placeholder, `[image upload failed: ${file.name}]`)
+      }
+    })()
+  }
+
+  function insertDroppedUploadPlaceholders(view: EditorView, files: File[], insertPos: number): void {
+    let nextPos = insertPos
+
+    for (const [index, file] of files.entries()) {
+      const separator = index === 0 ? '' : '\n'
+      const placeholderId = `${Date.now()}-${uploadPlaceholderId++}`
+      const placeholder = `![${file.name}](__uploading__${placeholderId})`
+      const insert = `${separator}${placeholder}`
+
+      view.dispatch({
+        changes: { from: nextPos, to: nextPos, insert },
+        selection: { anchor: nextPos + insert.length },
+      })
+
+      const uploadFn = getUploadFn()
+      if (!uploadFn) continue
+
+      void (async () => {
+        try {
+          const url = await uploadFn(file)
+          replaceUploadPlaceholder(view, placeholder, `![${file.name}](${url})`)
+        } catch {
+          replaceUploadPlaceholder(view, placeholder, `[image upload failed: ${file.name}]`)
+        }
+      })()
+
+      nextPos += insert.length
+    }
+  }
+
   return EditorView.domEventHandlers({
     paste(event, view) {
       const uploadFn = getUploadFn()
@@ -149,46 +221,38 @@ export function imagePasteHandler(
         handled = true
 
         const sel = view.state.selection.main
-        const placeholder = `![${file.name}](__uploading__${Date.now()})`
-
-        view.dispatch({
-          changes: { from: sel.from, to: sel.to, insert: placeholder },
-        })
-
-        void (async () => {
-          try {
-            const url = await uploadFn(file)
-            const finalMarkdown = `![${file.name}](${url})`
-            const currentDoc = view.state.doc.toString()
-            const placeholderIdx = currentDoc.indexOf(placeholder)
-            if (placeholderIdx !== -1) {
-              view.dispatch({
-                changes: {
-                  from: placeholderIdx,
-                  to: placeholderIdx + placeholder.length,
-                  insert: finalMarkdown,
-                },
-              })
-            }
-          } catch {
-            const currentDoc = view.state.doc.toString()
-            const placeholderIdx = currentDoc.indexOf(placeholder)
-            if (placeholderIdx !== -1) {
-              view.dispatch({
-                changes: {
-                  from: placeholderIdx,
-                  to: placeholderIdx + placeholder.length,
-                  insert: '',
-                },
-              })
-            }
-          }
-        })()
+        insertUploadPlaceholder(view, file, sel.from, sel.to)
 
         break // only handle first image in the paste
       }
 
       return handled
+    },
+    dragover(event) {
+      if (event.dataTransfer?.files?.length) {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+        return true
+      }
+      return false
+    },
+    drop(event, view) {
+      const uploadFn = getUploadFn()
+      if (!uploadFn) return false
+
+      const files = Array.from(event.dataTransfer?.files ?? [])
+      const imageFiles = files.filter((file) => file.type.startsWith('image/'))
+      if (imageFiles.length === 0) return false
+
+      event.preventDefault()
+
+      const coords = { x: event.clientX, y: event.clientY }
+      const dropPos = view.posAtCoords(coords)
+      const insertPos = dropPos ?? view.state.selection.main.from
+
+      insertDroppedUploadPlaceholders(view, imageFiles, insertPos)
+
+      return true
     },
   })
 }

@@ -507,9 +507,9 @@ export const minueditorTheme = EditorView.theme({
   ".me-image-broken": {
     display: "inline-block",
     padding: "4px 8px",
-    background: "#fff0f0",
+    background: "var(--me-image-broken-bg, #fff0f0)",
     borderRadius: "4px",
     fontSize: "0.875em",
-    color: "#c33",
+    color: "var(--me-image-broken-color, #c33)",
   },
 });

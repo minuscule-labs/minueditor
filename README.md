@@ -61,9 +61,12 @@ Image uploads are intentionally bring-your-own-storage.
 If you provide `onImageUpload`, the editor will:
 
 1. intercept pasted image files
-2. insert a temporary markdown placeholder
-3. call your upload function
-4. replace the placeholder with the returned URL
+2. intercept dropped image files
+3. insert a temporary markdown placeholder
+4. call your upload function
+5. replace the placeholder with the returned URL
+
+If an upload fails, the editor leaves a visible plain-text marker in the document instead of silently dropping the image.
 
 ```tsx
 <MarkdownEditor

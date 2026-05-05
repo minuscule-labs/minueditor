@@ -1,8 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
 import '../src/theme/theme.css'
+import opencodeThemeUrl from '../src/theme/themes/opencode.css?url'
+import ghosttyThemeUrl from '../src/theme/themes/ghostty.css?url'
+import terminalThemeUrl from '../src/theme/themes/terminal.css?url'
+
+type ThemeChoice = 'base' | 'opencode' | 'ghostty' | 'terminal'
+
+const THEME_URLS: Record<Exclude<ThemeChoice, 'base'>, string> = {
+  opencode: opencodeThemeUrl,
+  ghostty: ghosttyThemeUrl,
+  terminal: terminalThemeUrl,
+}
 
 const DOCUMENT_INITIAL = `# Welcome to minueditor
 
@@ -45,12 +56,43 @@ export default function App() {
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
   const [commentValue, setCommentValue] = useState(COMMENT_INITIAL)
   const [docView, setDocView] = useState<EditorView | null>(null)
+  const [theme, setTheme] = useState<ThemeChoice>('base')
+
+  useEffect(() => {
+    const id = 'minueditor-dev-theme'
+    let link = document.getElementById(id) as HTMLLinkElement | null
+
+    if (theme === 'base') {
+      link?.remove()
+      return
+    }
+
+    if (!link) {
+      link = document.createElement('link')
+      link.id = id
+      link.rel = 'stylesheet'
+      document.head.appendChild(link)
+    }
+
+    link.href = THEME_URLS[theme]
+  }, [theme])
 
   return (
-    <div className="app">
+    <div className={`app app--theme-${theme}`}>
       <header className="app-header">
-        <h1>@dpklabs/minueditor</h1>
-        <p>Development playground</p>
+        <div>
+          <h1>@dpklabs/minueditor</h1>
+          <p>Development playground</p>
+        </div>
+        <label className="theme-picker">
+          <span>Theme</span>
+          <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeChoice)}>
+            <option value="base">Base</option>
+            <option value="opencode">OpenCode</option>
+            <option value="ghostty">Ghostty</option>
+            <option value="terminal">Terminal</option>
+          </select>
+        </label>
       </header>
 
       <main className="app-main">

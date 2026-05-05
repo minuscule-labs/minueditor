@@ -64,8 +64,10 @@ Image uploads are intentionally application-owned.
 Library responsibility:
 
 1. intercept pasted image files
-2. insert a temporary markdown placeholder
-3. replace the placeholder when the upload promise resolves
+2. intercept dropped image files
+3. insert a temporary markdown placeholder
+4. replace the placeholder when the upload promise resolves
+5. leave a visible failure marker if the upload rejects
 
 Consumer responsibility:
 

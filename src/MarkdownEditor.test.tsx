@@ -430,6 +430,58 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('uploads dropped images with the provided upload handler', async () => {
+    const onChange = vi.fn()
+    const onImageUpload = vi.fn(async () => 'https://cdn.example.com/drop.png')
+    const file = new File(['image'], 'drop.png', { type: 'image/png' })
+    const { container } = render(
+      <MarkdownEditor value={''} onChange={onChange} onImageUpload={onImageUpload} />
+    )
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.drop(content, {
+      clientX: 0,
+      clientY: 0,
+      dataTransfer: {
+        files: [file],
+      },
+    })
+
+    await waitFor(() => {
+      expect(onImageUpload).toHaveBeenCalledWith(file)
+      const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
+      expect(latestValue).toBe('![drop.png](https://cdn.example.com/drop.png)')
+    })
+  })
+
+  it('leaves a visible failure marker when image upload fails', async () => {
+    const onChange = vi.fn()
+    const onImageUpload = vi.fn(async () => {
+      throw new Error('upload failed')
+    })
+    const file = new File(['image'], 'broken.png', { type: 'image/png' })
+    const { container } = render(
+      <MarkdownEditor value={''} onChange={onChange} onImageUpload={onImageUpload} />
+    )
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        items: [
+          {
+            type: 'image/png',
+            getAsFile: () => file,
+          },
+        ],
+      },
+    })
+
+    await waitFor(() => {
+      const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
+      expect(latestValue).toBe('[image upload failed: broken.png]')
+    })
+  })
+
   it('styles markdown links as underlined links when markers are hidden', async () => {
     const { container } = render(
       <MarkdownEditor value={'[example](https://example.com)'} onChange={vi.fn()} />
