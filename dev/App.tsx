@@ -51,12 +51,19 @@ const DESCRIPTION_INITIAL = `A floating toolbar appears when you select text her
 
 const COMMENT_INITIAL = `No toolbar here. Use \`Cmd+B\` for bold, \`Cmd+I\` for italic. Press \`Cmd+Enter\` to submit.`
 
+const IMAGE_INITIAL = `Paste or drop an image into this surface. The dev app uses an object URL upload handler so you can review the flow without wiring storage.`
+
 export default function App() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
   const [commentValue, setCommentValue] = useState(COMMENT_INITIAL)
+  const [imageValue, setImageValue] = useState(IMAGE_INITIAL)
   const [docView, setDocView] = useState<EditorView | null>(null)
   const [theme, setTheme] = useState<ThemeChoice>('base')
+
+  async function handleDemoImageUpload(file: File) {
+    return URL.createObjectURL(file)
+  }
 
   useEffect(() => {
     const id = 'minueditor-dev-theme'
@@ -140,6 +147,20 @@ export default function App() {
         </section>
 
         <section className="surface">
+          <h2>Image surface</h2>
+          <p className="surface-desc">Paste or drop images · app-provided upload hook</p>
+          <div className="editor-frame">
+            <MarkdownEditor
+              value={imageValue}
+              onChange={setImageValue}
+              onImageUpload={handleDemoImageUpload}
+              placeholder="Paste or drop an image…"
+              minHeight={120}
+            />
+          </div>
+        </section>
+
+        <section className="surface">
           <h2>State inspector</h2>
           <details>
             <summary>Document value</summary>
@@ -152,6 +173,10 @@ export default function App() {
           <details>
             <summary>Comment value</summary>
             <pre>{commentValue}</pre>
+          </details>
+          <details>
+            <summary>Image value</summary>
+            <pre>{imageValue}</pre>
           </details>
         </section>
       </main>

@@ -54,6 +54,18 @@ Built-in behavior toggles are intentionally small:
 1. editable by default
 2. `readOnly` when you want a non-editable editor surface
 
+```tsx
+function ReadOnlyExample() {
+  return (
+    <MarkdownEditor
+      value={'# Locked\n\nThis surface is visible but not editable.'}
+      onChange={() => {}}
+      readOnly
+    />
+  )
+}
+```
+
 ## Image uploads
 
 Image uploads are intentionally bring-your-own-storage.
@@ -68,6 +80,8 @@ If you provide `onImageUpload`, the editor will:
 
 If an upload fails, the editor leaves a visible plain-text marker in the document instead of silently dropping the image.
 
+Paste and drop use the same upload hook.
+
 ```tsx
 <MarkdownEditor
   value={value}
@@ -76,6 +90,16 @@ If an upload fails, the editor leaves a visible plain-text marker in the documen
     const url = await uploadImageToS3(file)
     return url
   }}
+/>
+```
+
+For local demos or previews, a consumer-controlled upload handler can just return an object URL:
+
+```tsx
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  onImageUpload={async (file) => URL.createObjectURL(file)}
 />
 ```
 
