@@ -2,24 +2,14 @@ import type { Extension, EditorSelection, EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { LanguageDescription, syntaxTree } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
-import { highlight, isLangLoaded } from '../shiki'
+import { renderCodeHtml as renderStaticCodeHtml } from '../highlight'
 import type { FencedBlockInfo } from './types'
 
 const languageExtensionCache = new Map<string, Promise<Extension>>()
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
 export function renderCodeHtml(code: string, lang: string, highlighted: string | null): string {
   if (highlighted) return highlighted
-  if (lang && isLangLoaded(lang)) {
-    return highlight(code, lang) ?? `<pre><code>${escapeHtml(code)}</code></pre>`
-  }
-  return `<pre><code>${escapeHtml(code)}</code></pre>`
+  return renderStaticCodeHtml(code, lang)
 }
 
 export function getFencedBlockInfo(state: EditorState, pos: number): FencedBlockInfo | null {

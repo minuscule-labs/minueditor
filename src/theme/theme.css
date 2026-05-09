@@ -55,6 +55,32 @@
   /* ── Syntax tokens (visible when cursor is on the line) ── */
   --me-syntax-color: #bbb;
 
+  /* ── Code-block static syntax highlighting (hljs) ──────── */
+  --me-hljs-keyword: #d73a49;
+  --me-hljs-string:  #032f62;
+  --me-hljs-number:  #005cc5;
+  --me-hljs-function: #6f42c1;
+  --me-hljs-class:   #6f42c1;
+  --me-hljs-variable: #e36209;
+  --me-hljs-property: #005cc5;
+  --me-hljs-type:    #005cc5;
+  --me-hljs-built_in: #005cc5;
+  --me-hljs-literal: #005cc5;
+  --me-hljs-comment: #6a737d;
+  --me-hljs-operator: #d73a49;
+  --me-hljs-punctuation: #24292e;
+  --me-hljs-regexp:  #032f62;
+  --me-hljs-tag:     #22863a;
+  --me-hljs-attr:    #6f42c1;
+  --me-hljs-meta:    #6f42c1;
+  --me-hljs-symbol:  #e36209;
+  --me-hljs-bullet:  #24292e;
+  --me-hljs-addition: #22863a;
+  --me-hljs-deletion: #d73a49;
+  --me-hljs-emphasis: #24292e;
+  --me-hljs-strong:  #24292e;
+  --me-hljs-plain:   #24292f;
+
   /* ── List markers ──────────────────────────────────────── */
   --me-list-marker-color: var(--me-text, #1a1a1a);
 
@@ -324,4 +350,130 @@
 
 .me-renderer tr:nth-child(even) {
   background: var(--me-table-row-alt-bg, #fafafa);
+}
+
+/* ─── Static code-block syntax highlighting (lowlight/hljs) ─────────────── */
+
+.me-renderer .hljs-keyword,
+.me-codeblock-body .hljs-keyword,
+.me-codeblock-widget .hljs-keyword {
+  color: var(--me-hljs-keyword, #d73a49);
+  font-weight: 600;
+}
+.me-renderer .hljs-string,
+.me-codeblock-body .hljs-string,
+.me-codeblock-widget .hljs-string {
+  color: var(--me-hljs-string, #032f62);
+}
+.me-renderer .hljs-number,
+.me-codeblock-body .hljs-number,
+.me-codeblock-widget .hljs-number {
+  color: var(--me-hljs-number, #005cc5);
+}
+.me-renderer .hljs-function,
+.me-renderer .hljs-title,
+.me-codeblock-body .hljs-function,
+.me-codeblock-body .hljs-title,
+.me-codeblock-widget .hljs-function,
+.me-codeblock-widget .hljs-title {
+  color: var(--me-hljs-function, #6f42c1);
+}
+.me-renderer .hljs-class,
+.me-codeblock-body .hljs-class,
+.me-codeblock-widget .hljs-class {
+  color: var(--me-hljs-class, #6f42c1);
+}
+.me-renderer .hljs-variable,
+.me-codeblock-body .hljs-variable,
+.me-codeblock-widget .hljs-variable {
+  color: var(--me-hljs-variable, #e36209);
+}
+.me-renderer .hljs-property,
+.me-renderer .hljs-attr,
+.me-codeblock-body .hljs-property,
+.me-codeblock-body .hljs-attr,
+.me-codeblock-widget .hljs-property,
+.me-codeblock-widget .hljs-attr {
+  color: var(--me-hljs-property, #005cc5);
+}
+.me-renderer .hljs-type,
+.me-renderer .hljs-built_in,
+.me-codeblock-body .hljs-type,
+.me-codeblock-body .hljs-built_in,
+.me-codeblock-widget .hljs-type,
+.me-codeblock-widget .hljs-built_in {
+  color: var(--me-hljs-type, #005cc5);
+}
+.me-renderer .hljs-literal,
+.me-codeblock-body .hljs-literal,
+.me-codeblock-widget .hljs-literal {
+  color: var(--me-hljs-literal, #005cc5);
+}
+.me-renderer .hljs-comment,
+.me-codeblock-body .hljs-comment,
+.me-codeblock-widget .hljs-comment {
+  color: var(--me-hljs-comment, #6a737d);
+  font-style: italic;
+}
+.me-renderer .hljs-operator,
+.me-codeblock-body .hljs-operator,
+.me-codeblock-widget .hljs-operator {
+  color: var(--me-hljs-operator, #d73a49);
+}
+.me-renderer .hljs-punctuation,
+.me-codeblock-body .hljs-punctuation,
+.me-codeblock-widget .hljs-punctuation {
+  color: var(--me-hljs-punctuation, #24292e);
+}
+.me-renderer .hljs-regexp,
+.me-codeblock-body .hljs-regexp,
+.me-codeblock-widget .hljs-regexp {
+  color: var(--me-hljs-regexp, #032f62);
+}
+.me-renderer .hljs-tag,
+.me-codeblock-body .hljs-tag,
+.me-codeblock-widget .hljs-tag {
+  color: var(--me-hljs-tag, #22863a);
+}
+.me-renderer .hljs-meta,
+.me-codeblock-body .hljs-meta,
+.me-codeblock-widget .hljs-meta {
+  color: var(--me-hljs-meta, #6f42c1);
+}
+.me-renderer .hljs-symbol,
+.me-codeblock-body .hljs-symbol,
+.me-codeblock-widget .hljs-symbol {
+  color: var(--me-hljs-symbol, #e36209);
+}
+.me-renderer .hljs-bullet,
+.me-codeblock-body .hljs-bullet,
+.me-codeblock-widget .hljs-bullet {
+  color: var(--me-hljs-bullet, #24292e);
+}
+.me-renderer .hljs-addition,
+.me-codeblock-body .hljs-addition,
+.me-codeblock-widget .hljs-addition {
+  color: var(--me-hljs-addition, #22863a);
+}
+.me-renderer .hljs-deletion,
+.me-codeblock-body .hljs-deletion,
+.me-codeblock-widget .hljs-deletion {
+  color: var(--me-hljs-deletion, #d73a49);
+}
+.me-renderer .hljs-emphasis,
+.me-codeblock-body .hljs-emphasis,
+.me-codeblock-widget .hljs-emphasis {
+  color: var(--me-hljs-emphasis, #24292e);
+  font-style: italic;
+}
+.me-renderer .hljs-strong,
+.me-codeblock-body .hljs-strong,
+.me-codeblock-widget .hljs-strong {
+  color: var(--me-hljs-strong, #24292e);
+  font-weight: 700;
+}
+.me-renderer .hljs-plain,
+.me-codeblock-body .hljs-plain,
+.me-codeblock-widget .hljs-plain {
+  color: var(--me-hljs-plain, #24292f);
 }

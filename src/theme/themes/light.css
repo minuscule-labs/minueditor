@@ -46,4 +46,30 @@
   --me-toolbar-btn-color: #243244;
   --me-toolbar-btn-hover-bg: rgba(37, 99, 235, 0.08);
   --me-toolbar-btn-active-bg: rgba(37, 99, 235, 0.13);
+
+  /* ── Code-block static syntax highlighting (hljs) ──────── */
+  --me-hljs-keyword: #cf222e;
+  --me-hljs-string:  #0a3069;
+  --me-hljs-number:  #0550ae;
+  --me-hljs-function: #8250df;
+  --me-hljs-class:   #8250df;
+  --me-hljs-variable: #953800;
+  --me-hljs-property: #0550ae;
+  --me-hljs-type:    #0550ae;
+  --me-hljs-built_in: #0550ae;
+  --me-hljs-literal: #0550ae;
+  --me-hljs-comment: #6e7781;
+  --me-hljs-operator: #cf222e;
+  --me-hljs-punctuation: #24292f;
+  --me-hljs-regexp:  #0a3069;
+  --me-hljs-tag:     #116329;
+  --me-hljs-attr:    #8250df;
+  --me-hljs-meta:    #8250df;
+  --me-hljs-symbol:  #953800;
+  --me-hljs-bullet:  #24292f;
+  --me-hljs-addition: #116329;
+  --me-hljs-deletion: #cf222e;
+  --me-hljs-emphasis: #24292f;
+  --me-hljs-strong:  #24292f;
+  --me-hljs-plain:   #24292f;
 }

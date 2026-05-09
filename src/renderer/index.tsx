@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Marked } from 'marked'
+import { renderCodeHtml } from '../extensions/highlight'
 
 interface MarkdownRendererProps {
   /** The plain markdown string to render. */
@@ -12,6 +13,11 @@ interface MarkdownRendererProps {
 const renderer = new Marked({
   gfm: true,
   breaks: false,
+  renderer: {
+    code({ text, lang }) {
+      return renderCodeHtml(text, lang || '')
+    },
+  },
 })
 
 /**

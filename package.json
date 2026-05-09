@@ -49,8 +49,10 @@
     "@codemirror/state": "^6.5.1",
     "@codemirror/view": "^6.36.3",
     "@lezer/highlight": "^1.2.1",
-    "marked": "^15.0.12",
-    "shiki": "^4.0.2"
+    "hast-util-to-html": "^9.0.5",
+    "highlight.js": "^11.11.1",
+    "lowlight": "^3.3.0",
+    "marked": "^15.0.12"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

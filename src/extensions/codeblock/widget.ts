@@ -22,7 +22,6 @@ import {
   syntaxTree,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { highlight, isLangLoaded, loadLang } from '../shiki';
 import {
   getAdjacentFencedBlock,
   getCodeLanguageExtension,
@@ -708,13 +707,7 @@ export function buildCodeBlockDecorations(state: EditorState): DecorationSet {
       const block = getFencedBlockInfo(state, node.from);
       if (!block) return;
 
-      const highlighted =
-        block.lang && isLangLoaded(block.lang)
-          ? highlight(block.code, block.lang)
-          : null;
-      if (block.lang && !isLangLoaded(block.lang)) {
-        void loadLang(block.lang);
-      }
+      const highlighted = null;
 
       ranges.push(
         Decoration.replace({
