@@ -121,18 +121,21 @@ export function getAdjacentFencedBlock(
   direction: 'up' | 'down',
 ): FencedBlockInfo | null {
   const doc = state.doc
-  const line = doc.lineAt(pos)
 
   if (direction === 'down') {
+    const line = doc.lineAt(pos)
     if (line.number >= doc.lines) return null
     const nextLine = doc.line(line.number + 1)
+    const trimmed = nextLine.text.trim()
+    if (!trimmed.startsWith('```')) return null
     return getFencedBlockInfo(state, nextLine.from)
   }
 
+  const line = doc.lineAt(pos)
   if (line.number <= 1) return null
-  const prevLineNum = line.number - 1
-  const prevLine = doc.line(prevLineNum)
-  const prevLineText = prevLine.text.trim()
-  if (!prevLineText.startsWith('```')) return null
-  return getFencedBlockInfo(state, prevLine.from)
+  const previousLine = doc.line(line.number - 1)
+  if (previousLine.text.trim().startsWith('```')) {
+    return getFencedBlockInfo(state, previousLine.from)
+  }
+  return null
 }

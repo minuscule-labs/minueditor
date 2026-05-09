@@ -169,14 +169,15 @@ function deactivateCodeBlock(
   parentView: EditorView,
   blockFrom: number,
 ): boolean {
-  const block = getFencedBlockByStart(parentView.state, blockFrom);
+  const block = getFencedBlockByStart(parentView.state, blockFrom)
+  const targetPos = block ? block.blockTo : blockFrom
   parentView.dispatch({
     effects: setActiveCodeBlock.of(null),
-    selection: EditorSelection.cursor(block?.blockTo ?? blockFrom),
+    selection: EditorSelection.cursor(targetPos),
     scrollIntoView: true,
-  });
-  parentView.focus();
-  return true;
+  })
+  parentView.focus()
+  return true
 }
 
 function deleteCodeBlock(parentView: EditorView, blockFrom: number): boolean {
@@ -770,45 +771,41 @@ export const codeBlockClickToEdit = EditorView.domEventHandlers({
 export const codeBlockArrowNavigation = Prec.high(
   keymap.of([
     {
-      key: "ArrowDown",
+      key: 'ArrowDown',
       run(view) {
-        const selection = view.state.selection.main;
-        if (!selection.empty) return false;
-        const line = view.state.doc.lineAt(selection.head);
-        if (selection.head !== line.to) return false;
+        const selection = view.state.selection.main
+        if (!selection.empty) return false
 
         const block = getAdjacentFencedBlock(
           view.state,
           selection.head,
-          "down",
-        );
-        if (!block) return false;
+          'down',
+        )
+        if (!block) return false
 
         return activateCodeBlock(
           view,
           block,
           EditorSelection.create([EditorSelection.cursor(block.contentFrom)]),
-          "language",
-        );
+          'language',
+        )
       },
     },
     {
-      key: "ArrowUp",
+      key: 'ArrowUp',
       run(view) {
-        const selection = view.state.selection.main;
-        if (!selection.empty) return false;
-        const line = view.state.doc.lineAt(selection.head);
-        if (selection.head !== line.from) return false;
+        const selection = view.state.selection.main
+        if (!selection.empty) return false
 
-        const block = getAdjacentFencedBlock(view.state, selection.head, "up");
-        if (!block) return false;
+        const block = getAdjacentFencedBlock(view.state, selection.head, 'up')
+        if (!block) return false
 
         return activateCodeBlock(
           view,
           block,
           EditorSelection.create([EditorSelection.cursor(block.contentTo)]),
-          "code-end",
-        );
+          'code-end',
+        )
       },
     },
   ]),

@@ -689,8 +689,6 @@ export const tableArrowNavigation = Prec.high(
       run(view) {
         const selection = view.state.selection.main
         if (!selection.empty) return false
-        const line = view.state.doc.lineAt(selection.head)
-        if (selection.head !== line.to) return false
         const block = getAdjacentTableBlock(view.state, selection.head, 'down')
         if (!block) return false
         return activateTable(view, block)
@@ -701,8 +699,6 @@ export const tableArrowNavigation = Prec.high(
       run(view) {
         const selection = view.state.selection.main
         if (!selection.empty) return false
-        const line = view.state.doc.lineAt(selection.head)
-        if (selection.head !== line.from) return false
         const block = getAdjacentTableBlock(view.state, selection.head, 'up')
         if (!block) return false
         return activateTable(view, block)

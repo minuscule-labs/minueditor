@@ -784,4 +784,112 @@ describe('MarkdownEditor', () => {
       expect(container.querySelectorAll('.me-table-render td').length).toBe(2)
     })
   })
+
+  it('activates table on ArrowUp from any cursor position on the line below', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |\nbottom text'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    // Place cursor in the middle of 'bottom text' (not at line start)
+    act(() => {
+      view!.dispatch({ selection: { anchor: 44 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowUp' })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+    })
+  })
+
+  it('activates codeblock on ArrowUp from any cursor position on the line below', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'```js\nconsole.log(1)\n```\nbottom text'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    // Place cursor in the middle of 'bottom text' (not at line start)
+    act(() => {
+      view!.dispatch({ selection: { anchor: 29 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowUp' })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget--editing')).toBeTruthy()
+    })
+  })
+
+  it('activates table on ArrowDown from any cursor position on the line above', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'top text\n| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    // Place cursor in the middle of 'top text' (not at line end)
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+    })
+  })
+
+  it('activates codeblock on ArrowDown from any cursor position on the line above', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'top text\n```js\nconsole.log(1)\n```'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    // Place cursor in the middle of 'top text' (not at line end)
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget--editing')).toBeTruthy()
+    })
+  })
 })
