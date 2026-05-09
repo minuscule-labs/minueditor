@@ -1,0 +1,49 @@
+.minueditor,
+.minueditor-wrap,
+.me-toolbar,
+.me-renderer {
+  --me-text: #18212f;
+  --me-bg: #ffffff;
+  --me-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  --me-font-size: 15px;
+  --me-line-height: 1.78;
+  --me-cursor: #2563eb;
+  --me-selection-bg: rgba(37, 99, 235, 0.16);
+  --me-active-line-bg: rgba(37, 99, 235, 0.03);
+  --me-placeholder: #8a94a6;
+  --me-heading-color: #0f172a;
+  --me-heading-weight: 700;
+  --me-font-code: "Berkeley Mono", "JetBrains Mono", "SF Mono", monospace;
+  --me-code-bg: rgba(15, 23, 42, 0.06);
+  --me-code-color: #be185d;
+  --me-codeblock-bg: #f8fafc;
+  --me-codeblock-border: #dbe3ee;
+  --me-codeblock-header-bg: #eef3f9;
+  --me-codeblock-body-bg: #f8fafc;
+  --me-code-font-size: 0.875em;
+  --me-blockquote-border: #d5dbe5;
+  --me-blockquote-color: #556274;
+  --me-hr-color: #d7dde6;
+  --me-syntax-color: #9aa4b2;
+  --me-list-marker-color: #334155;
+  --me-link-color: #2563eb;
+  --me-table-border: #d7dde6;
+  --me-table-bg: #ffffff;
+  --me-table-header-bg: #f3f6fb;
+  --me-table-row-alt-bg: #fafcff;
+  --me-table-cell-min-width: 10ch;
+  --me-table-selection-bg: rgba(37, 99, 235, 0.1);
+  --me-table-selection-header-bg: rgba(37, 99, 235, 0.16);
+  --me-checkbox-color: #2563eb;
+  --me-image-broken-bg: #fff1f2;
+  --me-image-broken-color: #be123c;
+  --me-btn-bg: rgba(15, 23, 42, 0.05);
+  --me-btn-border: rgba(15, 23, 42, 0.12);
+  --me-btn-color: #334155;
+  --me-success-color: #16a34a;
+  --me-toolbar-bg: #fbfcfe;
+  --me-toolbar-border: #dbe3ee;
+  --me-toolbar-btn-color: #243244;
+  --me-toolbar-btn-hover-bg: rgba(37, 99, 235, 0.08);
+  --me-toolbar-btn-active-bg: rgba(37, 99, 235, 0.13);
+}

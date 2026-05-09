@@ -13,9 +13,8 @@
       "require": "./dist/index.cjs"
     },
     "./theme.css": "./dist/theme.css",
-    "./themes/opencode.css": "./dist/themes/opencode.css",
-    "./themes/ghostty.css": "./dist/themes/ghostty.css",
-    "./themes/terminal.css": "./dist/themes/terminal.css"
+    "./themes/light.css": "./dist/themes/light.css",
+    "./themes/dark.css": "./dist/themes/dark.css"
   },
   "files": [
     "dist"
@@ -25,12 +24,18 @@
     "themes/*.css"
   ],
   "scripts": {
+    "clean": "rm -rf dist ./*.tgz",
     "dev": "vite dev --config vite.dev.config.ts",
     "build": "tsc -p tsconfig.build.json && vite build",
+    "build:release": "npm run clean && npm run build",
+    "prepare": "npm run build",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "verify:dist": "node scripts/verify-dist.cjs",
+    "check:package": "npm run typecheck && npm test && npm run build && npm pack --dry-run",
+    "check:release": "npm run typecheck && npm test && npm run build:release && npm run verify:dist && npm pack --dry-run"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

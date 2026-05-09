@@ -3,16 +3,14 @@ import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
 import '../src/theme/theme.css'
-import opencodeThemeUrl from '../src/theme/themes/opencode.css?url'
-import ghosttyThemeUrl from '../src/theme/themes/ghostty.css?url'
-import terminalThemeUrl from '../src/theme/themes/terminal.css?url'
+import lightThemeUrl from '../src/theme/themes/light.css?url'
+import darkThemeUrl from '../src/theme/themes/dark.css?url'
 
-type ThemeChoice = 'base' | 'opencode' | 'ghostty' | 'terminal'
+type ThemeChoice = 'base' | 'light' | 'dark'
 
 const THEME_URLS: Record<Exclude<ThemeChoice, 'base'>, string> = {
-  opencode: opencodeThemeUrl,
-  ghostty: ghosttyThemeUrl,
-  terminal: terminalThemeUrl,
+  light: lightThemeUrl,
+  dark: darkThemeUrl,
 }
 
 const DOCUMENT_INITIAL = `# Welcome to minueditor
@@ -95,9 +93,8 @@ export default function App() {
           <span>Theme</span>
           <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeChoice)}>
             <option value="base">Base</option>
-            <option value="opencode">OpenCode</option>
-            <option value="ghostty">Ghostty</option>
-            <option value="terminal">Terminal</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
           </select>
         </label>
       </header>

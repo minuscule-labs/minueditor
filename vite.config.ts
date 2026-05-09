@@ -39,12 +39,14 @@ export default defineConfig({
           'react-dom': 'ReactDOM',
         },
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name === 'style.css') return 'theme.css'
+          if (assetInfo.name === 'style.css' || assetInfo.name === 'minueditor.css') {
+            return 'theme.css'
+          }
           return assetInfo.name ?? 'asset'
         },
       },
     },
-    sourcemap: true,
+    sourcemap: false,
     copyPublicDir: false,
   },
   resolve: {

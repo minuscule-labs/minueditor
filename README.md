@@ -109,15 +109,14 @@ For local demos or previews, a consumer-controlled upload handler can just retur
 
 Optional full-replacement theme files are also available:
 
-1. `@dpklabs/minueditor/themes/opencode.css`
-2. `@dpklabs/minueditor/themes/ghostty.css`
-3. `@dpklabs/minueditor/themes/terminal.css`
+1. `@dpklabs/minueditor/themes/light.css`
+2. `@dpklabs/minueditor/themes/dark.css`
 
 Example:
 
 ```ts
 import '@dpklabs/minueditor/theme.css'
-import '@dpklabs/minueditor/themes/ghostty.css'
+import '@dpklabs/minueditor/themes/dark.css'
 ```
 
 You can still override any CSS custom property yourself, or start from `theme.css` alone and style it in your app.

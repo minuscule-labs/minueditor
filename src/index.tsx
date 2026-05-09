@@ -1,6 +1,8 @@
 // @dpklabs/minueditor
 // Public API — exported from here
 
+import './theme/theme.css'
+
 export { MarkdownEditor } from './MarkdownEditor'
 export type { MarkdownEditorHandle } from './MarkdownEditor'
 export { EditorToolbar } from './toolbar/Toolbar'

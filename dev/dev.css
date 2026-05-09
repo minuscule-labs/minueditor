@@ -108,58 +108,38 @@ pre {
   white-space: pre-wrap;
 }
 
-.app--theme-opencode,
-.app--theme-ghostty,
-.app--theme-terminal {
+.app--theme-dark {
   background: #0b0f14;
   color: #e5e7eb;
 }
 
-.app--theme-opencode .app-header,
-.app--theme-ghostty .app-header,
-.app--theme-terminal .app-header {
+.app--theme-dark .app-header {
   background: #0f1115;
   border-bottom-color: #1f2937;
 }
 
-.app--theme-opencode .app-header h1,
-.app--theme-ghostty .app-header h1,
-.app--theme-terminal .app-header h1,
-.app--theme-opencode .surface h2,
-.app--theme-ghostty .surface h2,
-.app--theme-terminal .surface h2 {
+.app--theme-dark .app-header h1,
+.app--theme-dark .surface h2 {
   color: #f8fafc;
 }
 
-.app--theme-opencode .app-header p,
-.app--theme-opencode .surface-desc,
-.app--theme-ghostty .app-header p,
-.app--theme-ghostty .surface-desc,
-.app--theme-terminal .app-header p,
-.app--theme-terminal .surface-desc,
-.app--theme-opencode summary,
-.app--theme-ghostty summary,
-.app--theme-terminal summary {
+.app--theme-dark .app-header p,
+.app--theme-dark .surface-desc,
+.app--theme-dark summary {
   color: #94a3b8;
 }
 
-.app--theme-opencode .theme-picker,
-.app--theme-ghostty .theme-picker,
-.app--theme-terminal .theme-picker {
+.app--theme-dark .theme-picker {
   color: #94a3b8;
 }
 
-.app--theme-opencode .theme-picker select,
-.app--theme-ghostty .theme-picker select,
-.app--theme-terminal .theme-picker select {
+.app--theme-dark .theme-picker select {
   background: #111827;
   border-color: #334155;
   color: #e5e7eb;
 }
 
-.app--theme-opencode details pre,
-.app--theme-ghostty details pre,
-.app--theme-terminal details pre {
+.app--theme-dark details pre {
   background: #020617;
   color: #cbd5e1;
 }

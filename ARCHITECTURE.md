@@ -151,9 +151,8 @@ Consumers can:
 Optional theme files:
 
 1. `theme.css` for the neutral base
-2. `themes/opencode.css`
-3. `themes/ghostty.css`
-4. `themes/terminal.css`
+2. `themes/light.css`
+3. `themes/dark.css`
 
 ## Toolbar Boundaries
 
