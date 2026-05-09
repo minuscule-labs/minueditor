@@ -130,6 +130,9 @@ export function getAdjacentFencedBlock(
   }
 
   if (line.number <= 1) return null
-  const prevLine = doc.line(line.number - 1)
+  const prevLineNum = line.number - 1
+  const prevLine = doc.line(prevLineNum)
+  const prevLineText = prevLine.text.trim()
+  if (!prevLineText.startsWith('```')) return null
   return getFencedBlockInfo(state, prevLine.from)
 }
