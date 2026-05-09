@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Marked } from 'marked'
-import { renderCodeHtml } from '../extensions/highlight'
+import { renderCodeHtml, renderCodeHtmlWithShiki } from '../extensions/highlight'
 
 interface MarkdownRendererProps {
   /** The plain markdown string to render. */
@@ -56,6 +56,23 @@ export function MarkdownRenderer({
       // Prevent toggling in read-only renderer
       cb.addEventListener('click', (e) => e.preventDefault())
     })
+
+    let isDisposed = false
+    const blocks = container.querySelectorAll<HTMLPreElement>('pre[data-language]')
+    blocks.forEach((block) => {
+      const lang = block.dataset.language
+      const code = block.textContent
+      if (!lang || code == null) return
+
+      void renderCodeHtmlWithShiki(code, lang).then((highlighted) => {
+        if (!highlighted || isDisposed || !block.isConnected) return
+        block.outerHTML = highlighted
+      })
+    })
+
+    return () => {
+      isDisposed = true
+    }
   }, [html])
 
   return (

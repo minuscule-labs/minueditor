@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MarkdownRenderer } from './index'
 
@@ -20,6 +20,13 @@ describe('MarkdownRenderer', () => {
   it('renders code blocks', () => {
     render(<MarkdownRenderer value={'```\nconst x = 1\n```'} />)
     expect(screen.getByText('const x = 1')).toBeInTheDocument()
+  })
+
+  it('upgrades fenced code blocks to shiki when a language is present', async () => {
+    const { container } = render(<MarkdownRenderer value={'```ts\nconst x = 1\n```'} />)
+    await waitFor(() => {
+      expect(container.querySelector('pre.shiki')).toBeInTheDocument()
+    })
   })
 
   it('renders inline code', () => {

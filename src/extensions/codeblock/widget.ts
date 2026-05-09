@@ -30,6 +30,7 @@ import {
   getSelectionForBlockClick,
   renderCodeHtml,
 } from './model';
+import { renderCodeHtmlWithShiki } from '../highlight';
 import { activeCodeBlockField, setActiveCodeBlock } from './state';
 import { nestedEditorTheme } from './theme';
 import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
@@ -65,6 +66,24 @@ function focusCodeBlockLanguage(wrapper: HTMLElement): boolean {
   langInput.focus();
   langInput.setSelectionRange(langInput.value.length, langInput.value.length);
   return true;
+}
+
+function normalizeRenderedCodeBlock(body: HTMLElement): void {
+  const pre = body.querySelector("pre");
+  if (!pre) return;
+
+  pre.style.margin = "0";
+  pre.style.padding = "0";
+  pre.style.background = "transparent";
+  pre.style.fontFamily = "inherit";
+  pre.style.fontSize = "inherit";
+  pre.style.lineHeight = "inherit";
+
+  const codeEl = pre.querySelector("code");
+  if (!codeEl) return;
+  codeEl.style.fontFamily = "inherit";
+  codeEl.style.fontSize = "inherit";
+  codeEl.style.lineHeight = "inherit";
 }
 
 function focusCodeBlockCloseFence(wrapper: HTMLElement): boolean {
@@ -646,22 +665,18 @@ class CodeBlockWidget extends WidgetType {
 
     const body = document.createElement("div");
     body.className = "me-codeblock-body";
+    body.dataset.code = this.code;
+    body.dataset.lang = this.lang;
     body.innerHTML = renderCodeHtml(this.code, this.lang, this.highlighted);
-
-    const pre = body.querySelector("pre");
-    if (pre) {
-      pre.style.margin = "0";
-      pre.style.padding = "0";
-      pre.style.background = "transparent";
-      pre.style.fontFamily = "inherit";
-      pre.style.fontSize = "inherit";
-      pre.style.lineHeight = "inherit";
-      const codeEl = pre.querySelector("code");
-      if (codeEl) {
-        codeEl.style.fontFamily = "inherit";
-        codeEl.style.fontSize = "inherit";
-        codeEl.style.lineHeight = "inherit";
-      }
+    normalizeRenderedCodeBlock(body);
+    if (!this.highlighted && this.lang) {
+      const code = this.code;
+      const lang = this.lang;
+      void renderCodeHtmlWithShiki(code, lang).then((html) => {
+        if (!html || body.dataset.code !== code || body.dataset.lang !== lang) return;
+        body.innerHTML = html;
+        normalizeRenderedCodeBlock(body);
+      });
     }
 
     wrapper.appendChild(body);
