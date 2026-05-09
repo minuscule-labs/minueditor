@@ -126,6 +126,10 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
 
         if (node.name === 'HorizontalRule' && !onActiveLine) {
+          const line = doc.lineAt(node.from)
+          ranges.push(
+            Decoration.line({ class: 'me-hr-line' }).range(line.from)
+          )
           ranges.push(
             Decoration.mark({ class: 'me-hr-text' }).range(node.from, node.to)
           )

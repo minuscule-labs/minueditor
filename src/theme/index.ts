@@ -439,6 +439,21 @@ export const minueditorTheme = EditorView.theme({
     textDecorationThickness: "2px",
   },
 
+  ".cm-line.me-hr-line": {
+    position: "relative",
+  },
+
+  ".cm-line.me-hr-line::after": {
+    content: '""',
+    position: "absolute",
+    left: "0",
+    right: "0",
+    top: "50%",
+    borderTop: "2px solid var(--me-hr-color, #e0e0e0)",
+    transform: "translateY(-50%)",
+    pointerEvents: "none",
+  },
+
   // ── Checkbox widget ───────────────────────────────────────────────────
 
   ".me-checkbox": {

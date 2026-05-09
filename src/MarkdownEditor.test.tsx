@@ -273,6 +273,17 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('renders horizontal rules as full-width lines on inactive lines', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'Intro\n\n---'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-hr-line')).toBeTruthy()
+      expect(container.querySelector('.me-hr-text')).toBeTruthy()
+    })
+  })
+
   it('uses list marker decorations only on inactive list lines', async () => {
     const { container } = render(
       <MarkdownEditor value={'Intro\n- bullet\n1. ordered'} onChange={vi.fn()} />
