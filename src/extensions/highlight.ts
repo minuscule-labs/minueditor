@@ -89,7 +89,10 @@ export async function renderCodeHtmlWithShiki(code: string, lang: string): Promi
   try {
     return await codeToHtml(code, {
       lang: normalized,
-      theme: 'github-light',
+      themes: {
+        light: 'github-light',
+        dark: 'github-dark',
+      },
     })
   } catch {
     return null

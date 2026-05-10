@@ -73,3 +73,16 @@
   --me-hljs-strong:  #c9d1d9;
   --me-hljs-plain:   #c9d1d9;
 }
+
+.minueditor .shiki,
+.minueditor-wrap .shiki,
+.me-renderer .shiki {
+  background-color: transparent !important;
+  color: var(--shiki-dark) !important;
+}
+
+.minueditor .shiki span,
+.minueditor-wrap .shiki span,
+.me-renderer .shiki span {
+  color: var(--shiki-dark) !important;
+}

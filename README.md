@@ -8,6 +8,12 @@ Controlled React markdown editor built on CodeMirror 6.
 npm install @dpklabs/minueditor
 ```
 
+Install directly from a GitHub release tag:
+
+```bash
+npm install github:spdydve/minueditor#v0.1.0
+```
+
 Import the default styles:
 
 ```ts
@@ -142,3 +148,113 @@ function WithToolbar() {
 ## More detail
 
 See `ARCHITECTURE.md` for the internal module layout and extension boundaries.
+
+## Releases
+
+For personal GitHub-based installs, tag releases from the version already in `package.json`.
+
+### Install from a release tag
+
+```bash
+npm install github:spdydve/minueditor#v0.1.0
+```
+
+Use tags rather than a branch like `main` when you want reproducible installs.
+
+### Version bump helpers
+
+Choose the release type you want:
+
+```bash
+npm run version:patch
+npm run version:minor
+npm run version:major
+```
+
+These update `package.json` and `package-lock.json` without creating a git tag.
+
+Version behavior:
+
+1. `patch`: `0.1.0 -> 0.1.1`
+2. `minor`: `0.1.0 -> 0.2.0`
+3. `major`: `0.1.0 -> 1.0.0`
+
+### Release validation
+
+Dry run the release validation without creating a tag:
+
+```bash
+npm run release:tag:dry-run
+```
+
+This checks that:
+
+1. the git worktree is clean
+2. the version tag does not already exist
+3. `npm run check:release` passes
+
+### Tagging
+
+Create the local annotated tag after validation passes:
+
+```bash
+npm run release:tag
+```
+
+Create and push the tag in one step:
+
+```bash
+npm run release:tag:push
+```
+
+The release script will:
+
+1. require a clean git worktree
+2. run `npm run check:release`
+3. create `v<package.json version>` as an annotated git tag
+4. optionally push the current branch and tag
+
+### Recommended workflow
+
+For a patch release:
+
+```bash
+npm run version:patch
+git add package.json package-lock.json
+git commit -m "Release v0.1.1"
+npm run release:tag:push
+```
+
+For a minor release:
+
+```bash
+npm run version:minor
+git add package.json package-lock.json
+git commit -m "Release v0.2.0"
+npm run release:tag:push
+```
+
+For a major release:
+
+```bash
+npm run version:major
+git add package.json package-lock.json
+git commit -m "Release v1.0.0"
+npm run release:tag:push
+```
+
+### First release checklist
+
+1. finish the remaining code/docs changes
+2. confirm `git status` is clean
+3. choose the version bump with `npm run version:patch|minor|major`
+4. commit the version bump
+5. run `npm run release:tag:dry-run`
+6. run `npm run release:tag:push`
+7. install it from GitHub in the consuming app
+
+### Notes
+
+1. `npm version` without `--no-git-tag-version` is intentionally not used here, because this repo's release tag is created by `release:tag`
+2. `release:tag:push` pushes the current branch first, then the release tag
+3. if you want a tag without pushing it yet, use `npm run release:tag`
