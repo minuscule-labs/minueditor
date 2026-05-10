@@ -166,9 +166,9 @@ Use tags rather than a branch like `main` when you want reproducible installs.
 Choose the release type you want:
 
 ```bash
-npm run version:patch
-npm run version:minor
-npm run version:major
+pnpm run version:patch
+pnpm run version:minor
+pnpm run version:major
 ```
 
 These update `package.json` and `package-lock.json` without creating a git tag.
@@ -184,7 +184,7 @@ Version behavior:
 Dry run the release validation without creating a tag:
 
 ```bash
-npm run release:tag:dry-run
+pnpm run release:tag:dry-run
 ```
 
 This checks that:
@@ -198,19 +198,19 @@ This checks that:
 Create the local annotated tag after validation passes:
 
 ```bash
-npm run release:tag
+pnpm run release:tag
 ```
 
 Create and push the tag in one step:
 
 ```bash
-npm run release:tag:push
+pnpm run release:tag:push
 ```
 
 The release script will:
 
 1. require a clean git worktree
-2. run `npm run check:release`
+2. run `pnpm run check:release` when invoked from pnpm
 3. create `v<package.json version>` as an annotated git tag
 4. optionally push the current branch and tag
 
@@ -219,42 +219,42 @@ The release script will:
 For a patch release:
 
 ```bash
-npm run version:patch
+pnpm run version:patch
 git add package.json package-lock.json
 git commit -m "Release v0.1.1"
-npm run release:tag:push
+pnpm run release:tag:push
 ```
 
 For a minor release:
 
 ```bash
-npm run version:minor
+pnpm run version:minor
 git add package.json package-lock.json
 git commit -m "Release v0.2.0"
-npm run release:tag:push
+pnpm run release:tag:push
 ```
 
 For a major release:
 
 ```bash
-npm run version:major
+pnpm run version:major
 git add package.json package-lock.json
 git commit -m "Release v1.0.0"
-npm run release:tag:push
+pnpm run release:tag:push
 ```
 
 ### First release checklist
 
 1. finish the remaining code/docs changes
 2. confirm `git status` is clean
-3. choose the version bump with `npm run version:patch|minor|major`
+3. choose the version bump with `pnpm run version:patch|minor|major`
 4. commit the version bump
-5. run `npm run release:tag:dry-run`
-6. run `npm run release:tag:push`
+5. run `pnpm run release:tag:dry-run`
+6. run `pnpm run release:tag:push`
 7. install it from GitHub in the consuming app
 
 ### Notes
 
-1. `npm version` without `--no-git-tag-version` is intentionally not used here, because this repo's release tag is created by `release:tag`
+1. `pnpm version` without `--no-git-tag-version` is intentionally not used here, because this repo's release tag is created by `release:tag`
 2. `release:tag:push` pushes the current branch first, then the release tag
-3. if you want a tag without pushing it yet, use `npm run release:tag`
+3. if you want a tag without pushing it yet, use `pnpm run release:tag`

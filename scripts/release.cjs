@@ -9,6 +9,7 @@ const packageJsonPath = path.join(rootDir, 'package.json')
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 const version = packageJson.version
 const tag = `v${version}`
+const packageManager = process.env.npm_config_user_agent?.startsWith('pnpm/') ? 'pnpm' : 'npm'
 
 const args = new Set(process.argv.slice(2))
 const shouldPush = args.has('--push')
@@ -56,7 +57,7 @@ function main() {
   ensureTagDoesNotExist()
 
   console.log(`release: validating ${tag} from branch ${branch || '(detached HEAD)'}`)
-  run('npm', ['run', 'check:release'])
+  run(packageManager, ['run', 'check:release'])
 
   if (isDryRun) {
     console.log(`release: dry run complete. ${tag} was not created.`)
