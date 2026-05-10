@@ -191,7 +191,7 @@ This checks that:
 
 1. the git worktree is clean
 2. the version tag does not already exist
-3. `npm run check:release` passes
+3. `pnpm run check:release` passes
 
 ### Tagging
 
