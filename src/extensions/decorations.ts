@@ -1,4 +1,4 @@
-import { RangeSet } from '@codemirror/state'
+import { RangeSet, StateEffect } from '@codemirror/state'
 import type { Range } from '@codemirror/state'
 import {
   Decoration,
@@ -38,8 +38,15 @@ function buildDecorations(view: EditorView): DecorationSet {
   const doc = view.state.doc
   const activeLines = activeLinesSet(view)
 
-  // Walk the visible ranges for performance (CM6 viewport)
-  for (const { from, to } of view.visibleRanges) {
+  // Walk the visible ranges for performance (CM6 viewport).
+  // Fallback to the full document on initial mount when the viewport
+  // hasn't been computed yet.
+  const rangesToScan =
+    view.visibleRanges.length > 0
+      ? view.visibleRanges
+      : [{ from: 0, to: doc.length }]
+
+  for (const { from, to } of rangesToScan) {
     syntaxTree(view.state).iterate({
       from,
       to,
@@ -143,22 +150,46 @@ function buildDecorations(view: EditorView): DecorationSet {
 
 // ── ViewPlugin ────────────────────────────────────────────────────────────────
 
+const forceDecorationsRefresh = StateEffect.define<void>()
+
 export const markdownDecorations = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
+    needsInitialRefresh: boolean
+    destroyed: boolean
 
     constructor(view: EditorView) {
       this.decorations = buildDecorations(view)
+      this.needsInitialRefresh = true
+      this.destroyed = false
+
+      requestAnimationFrame(() => {
+        if (this.destroyed) return
+        // Force a plugin update cycle so decorations rebuild with the
+        // post-layout viewport and fully parsed syntax tree.
+        view.dispatch({ effects: forceDecorationsRefresh.of() })
+      })
     }
 
     update(update: ViewUpdate) {
+      const forceRefresh = update.transactions.some((transaction) =>
+        transaction.effects.some((effect) => effect.is(forceDecorationsRefresh))
+      )
+
       if (
+        this.needsInitialRefresh ||
+        forceRefresh ||
         update.docChanged ||
         update.viewportChanged ||
         update.selectionSet
       ) {
         this.decorations = buildDecorations(update.view)
+        this.needsInitialRefresh = false
       }
+    }
+
+    destroy() {
+      this.destroyed = true
     }
   },
   {
