@@ -157,13 +157,22 @@ export const markdownDecorations = ViewPlugin.fromClass(
     decorations: DecorationSet
     needsInitialRefresh: boolean
     destroyed: boolean
+    refreshScheduled: boolean
 
     constructor(view: EditorView) {
       this.decorations = buildDecorations(view)
       this.needsInitialRefresh = true
       this.destroyed = false
+      this.refreshScheduled = false
 
+      this.scheduleRefresh(view)
+    }
+
+    scheduleRefresh(view: EditorView) {
+      if (this.refreshScheduled) return
+      this.refreshScheduled = true
       requestAnimationFrame(() => {
+        this.refreshScheduled = false
         if (this.destroyed) return
         // Force a plugin update cycle so decorations rebuild with the
         // post-layout viewport and fully parsed syntax tree.
@@ -185,6 +194,10 @@ export const markdownDecorations = ViewPlugin.fromClass(
       ) {
         this.decorations = buildDecorations(update.view)
         this.needsInitialRefresh = false
+      }
+
+      if (update.docChanged) {
+        this.scheduleRefresh(update.view)
       }
     }
 

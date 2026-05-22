@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+- Fixed heading decoration rendering when markdown content loads asynchronously after editor mount.
+- Added a regression test for delayed markdown value updates.
+
+Verified with release checks.
+
 ## 0.2.1
 
 - Fixed initial markdown heading rendering by refreshing CodeMirror decorations after the editor mounts and layout has had a frame to stabilize.

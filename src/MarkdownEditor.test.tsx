@@ -1,4 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react'
+import { useEffect, useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from './MarkdownEditor'
@@ -258,6 +259,24 @@ describe('MarkdownEditor', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.me-token--block')).toBeTruthy()
+      expect(container.querySelector('.me-h1')).toBeTruthy()
+    })
+  })
+
+  it('renders heading decorations when markdown content loads asynchronously', async () => {
+    function AsyncMarkdownEditor() {
+      const [value, setValue] = useState('')
+
+      useEffect(() => {
+        setValue('# Heading')
+      }, [])
+
+      return <MarkdownEditor value={value} onChange={setValue} />
+    }
+
+    const { container } = render(<AsyncMarkdownEditor />)
+
+    await waitFor(() => {
       expect(container.querySelector('.me-h1')).toBeTruthy()
     })
   })
