@@ -13,7 +13,7 @@ import {
   placeholder as cmPlaceholder,
   keymap,
 } from '@codemirror/view'
-import { defaultKeymap, historyKeymap, history } from '@codemirror/commands'
+import { defaultKeymap, historyKeymap, history, redoDepth, undoDepth } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { minueditorTheme } from './theme'
@@ -25,7 +25,7 @@ import { codeBlockDecorations } from './extensions/codeblock'
 import { imageDecorations, imagePasteHandler } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
-import type { MarkdownEditorProps } from './types'
+import type { MarkdownEditorProps, MarkdownEditorState } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
 import {
   enterAfterHiddenInlineSuffix,
@@ -38,6 +38,61 @@ import {
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
+  getState: () => MarkdownEditorState | null
+  markClean: () => void
+}
+
+function getActiveMarks(lineText: string): MarkdownEditorState['activeMarks'] {
+  const heading = /^(#{1,6})\s+/.exec(lineText)
+  const list = /^\s*[-*+]\s+\[[ xX]\]\s+/.test(lineText)
+    ? 'task'
+    : /^\s*[-*+]\s+/.test(lineText)
+      ? 'bullet'
+      : /^\s*\d+\.\s+/.test(lineText)
+        ? 'ordered'
+        : null
+
+  return {
+    bold: /\*\*[^*]+\*\*|__[^_]+__/.test(lineText),
+    italic: /(^|[^*])\*[^*\s][^*]*\*|(^|[^_])_[^_\s][^_]*_/.test(lineText),
+    code: /`[^`]+`/.test(lineText),
+    link: /\[[^\]]+\]\([^)]+\)/.test(lineText),
+    headingLevel: heading ? (heading[1].length as 1 | 2 | 3 | 4 | 5 | 6) : null,
+    list,
+    quote: /^\s*>\s?/.test(lineText),
+  }
+}
+
+function buildEditorState(
+  view: EditorView,
+  baselineValue: string,
+  readOnly: boolean,
+): MarkdownEditorState {
+  const value = view.state.doc.toString()
+  const selection = view.state.selection.main
+  const activeLine = view.state.doc.lineAt(selection.from)
+
+  return {
+    value,
+    isDirty: value !== baselineValue,
+    isFocused: view.hasFocus,
+    isEmpty: value.trim().length === 0,
+    canUndo: undoDepth(view.state) > 0,
+    canRedo: redoDepth(view.state) > 0,
+    readOnly,
+    selection: {
+      from: selection.from,
+      to: selection.to,
+      empty: selection.empty,
+    },
+    activeLine: {
+      number: activeLine.number,
+      from: activeLine.from,
+      to: activeLine.to,
+      text: activeLine.text,
+    },
+    activeMarks: getActiveMarks(activeLine.text),
+  }
 }
 
 /**
@@ -58,6 +113,7 @@ export const MarkdownEditor = forwardRef<
   {
     value,
     onChange,
+    baselineValue,
     placeholder,
     readOnly = false,
     floatingToolbar = false,
@@ -66,6 +122,7 @@ export const MarkdownEditor = forwardRef<
     maxHeight,
     onSubmit,
     onImageUpload,
+    onStateChange,
     onViewReady,
     className,
   },
@@ -74,17 +131,40 @@ export const MarkdownEditor = forwardRef<
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
+  const baselineValueRef = useRef(baselineValue ?? value)
+  const readOnlyRef = useRef(readOnly)
   const readOnlyCompartment = useRef(new Compartment());
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
   const onImageUploadRef = useRef(onImageUpload)
+  const onStateChangeRef = useRef(onStateChange)
+  const editorStateRef = useRef<MarkdownEditorState | null>(null)
 
   // Store the view in state so consumers of cmView (FloatingToolbar, onViewReady)
   // see it after CM6 mounts — viewRef alone wouldn't trigger a re-render.
   const [cmView, setCmView] = useState<EditorView | null>(null);
 
+  const emitState = useCallback((view: EditorView) => {
+    const nextState = buildEditorState(
+      view,
+      baselineValueRef.current,
+      readOnlyRef.current,
+    )
+    editorStateRef.current = nextState
+    onStateChangeRef.current?.(nextState)
+  }, [])
+
   // Expose the EditorView via ref
-  useImperativeHandle(ref, () => ({ view: viewRef.current }), [cmView])
+  useImperativeHandle(ref, () => ({
+    view: viewRef.current,
+    getState: () => editorStateRef.current,
+    markClean: () => {
+      const view = viewRef.current
+      if (!view) return
+      baselineValueRef.current = view.state.doc.toString()
+      emitState(view)
+    },
+  }), [cmView, emitState])
 
   const handleKeyDownCapture = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -115,6 +195,16 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     onImageUploadRef.current = onImageUpload
   }, [onImageUpload])
+  useEffect(() => {
+    onStateChangeRef.current = onStateChange
+  }, [onStateChange])
+
+  useEffect(() => {
+    if (baselineValue === undefined) return
+    baselineValueRef.current = baselineValue
+    const view = viewRef.current
+    if (view) emitState(view)
+  }, [baselineValue, emitState])
 
   const onViewReadyRef = useRef(onViewReady)
   useEffect(() => {
@@ -131,6 +221,9 @@ export const MarkdownEditor = forwardRef<
         const newValue = update.state.doc.toString()
         valueRef.current = newValue
         onChangeRef.current(newValue)
+      }
+      if (update.docChanged || update.selectionSet || update.focusChanged) {
+        emitState(update.view)
       }
     })
 
@@ -240,6 +333,7 @@ export const MarkdownEditor = forwardRef<
     viewRef.current = view
     setCmView(view)
     onViewReadyRef.current?.(view)
+    emitState(view)
 
     if (autoFocus) view.focus()
 
@@ -270,12 +364,14 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
+    readOnlyRef.current = readOnly
     view.dispatch({
       effects: readOnlyCompartment.current.reconfigure(
         EditorView.editable.of(!readOnly),
       ),
     })
-  }, [readOnly])
+    emitState(view)
+  }, [readOnly, emitState])
 
   // ── Render ────────────────────────────────────────────────────────────
 

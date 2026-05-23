@@ -1,5 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react'
-import { useEffect, useState } from 'react'
+import { createRef, useEffect, useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from './MarkdownEditor'
@@ -40,6 +40,134 @@ describe('MarkdownEditor', () => {
     const view = onViewReady.mock.calls[0][0]
     // The view should expose .state
     expect(view).toHaveProperty('state')
+  })
+
+  it('reports editor state on mount and external value changes', async () => {
+    const onStateChange = vi.fn()
+    const { rerender } = render(
+      <MarkdownEditor
+        value={'# Heading'}
+        baselineValue={'# Heading'}
+        onChange={vi.fn()}
+        onStateChange={onStateChange}
+      />
+    )
+
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalled()
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        value: '# Heading',
+        isDirty: false,
+        isEmpty: false,
+        activeLine: { number: 1, text: '# Heading' },
+        activeMarks: { headingLevel: 1 },
+      })
+    })
+
+    rerender(
+      <MarkdownEditor
+        value={'# Heading changed'}
+        baselineValue={'# Heading'}
+        onChange={vi.fn()}
+        onStateChange={onStateChange}
+      />
+    )
+
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        value: '# Heading changed',
+        isDirty: true,
+      })
+    })
+  })
+
+  it('exposes getState and markClean through the editor ref', async () => {
+    const ref = createRef<React.ElementRef<typeof MarkdownEditor>>()
+    let view: EditorView | null = null
+
+    render(
+      <MarkdownEditor
+        ref={ref}
+        value={'Hello'}
+        baselineValue={'Original'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    expect(ref.current?.getState()?.isDirty).toBe(true)
+
+    act(() => {
+      ref.current?.markClean()
+    })
+
+    expect(ref.current?.getState()?.isDirty).toBe(false)
+  })
+
+  it('reports selection and active line changes', async () => {
+    const onStateChange = vi.fn()
+    let view: EditorView | null = null
+
+    render(
+      <MarkdownEditor
+        value={'First line\n## Second line'}
+        onChange={vi.fn()}
+        onStateChange={onStateChange}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 14 } })
+    })
+
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        selection: { from: 14, to: 14, empty: true },
+        activeLine: { number: 2, text: '## Second line' },
+        activeMarks: { headingLevel: 2 },
+      })
+    })
+  })
+
+  it('reports readOnly changes in editor state', async () => {
+    const onStateChange = vi.fn()
+    const { rerender } = render(
+      <MarkdownEditor
+        value={'Hello'}
+        onChange={vi.fn()}
+        onStateChange={onStateChange}
+      />
+    )
+
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        readOnly: false,
+      })
+    })
+
+    rerender(
+      <MarkdownEditor
+        value={'Hello'}
+        onChange={vi.fn()}
+        onStateChange={onStateChange}
+        readOnly
+      />
+    )
+
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        readOnly: true,
+      })
+    })
   })
 
   it('starts in editing mode when autoFocus=true', () => {

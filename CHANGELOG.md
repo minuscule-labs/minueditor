@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- Added public editor-state reporting with `MarkdownEditorState` and `onStateChange`.
+- Added `baselineValue` support for explicit dirty-state tracking.
+- Added `getState()` and `markClean()` to the editor ref handle.
+- Added tests for dirty state, selection/active-line state, read-only state, and ref state APIs.
+
+Verified with release checks.
+
 ## 0.2.2
 
 - Fixed heading decoration rendering when markdown content loads asynchronously after editor mount.
