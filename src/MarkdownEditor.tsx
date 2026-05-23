@@ -24,6 +24,7 @@ import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageDecorations, imagePasteHandler } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
+import { slashCommandExtension } from './extensions/slash-commands'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import type { MarkdownEditorProps, MarkdownEditorState } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
@@ -114,6 +115,7 @@ export const MarkdownEditor = forwardRef<
     value,
     onChange,
     baselineValue,
+    slashCommands = true,
     placeholder,
     readOnly = false,
     floatingToolbar = false,
@@ -301,6 +303,9 @@ export const MarkdownEditor = forwardRef<
       shortcutGuard,
       autolinkPaste,
       imagePasteHandler(() => onImageUploadRef.current),
+      ...(slashCommands !== false
+        ? [slashCommandExtension(Array.isArray(slashCommands) ? slashCommands : undefined)]
+        : []),
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
       ...(minHeight !== undefined

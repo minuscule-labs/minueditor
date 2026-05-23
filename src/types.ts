@@ -30,10 +30,18 @@ export interface MarkdownEditorState {
   }
 }
 
+export interface SlashCommand {
+  label: string
+  detail?: string
+  keywords?: readonly string[]
+  run: (view: EditorView) => boolean
+}
+
 export interface MarkdownEditorProps {
   value: string
   onChange: (markdown: string) => void
   baselineValue?: string
+  slashCommands?: boolean | readonly SlashCommand[]
   placeholder?: string
   readOnly?: boolean
   floatingToolbar?: boolean
