@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import {
   enterAfterHiddenInlineSuffix,
+  enterInMarkdownList,
   enterInMarkdownTable,
   indentList,
   insertTableColumnLeft,
@@ -70,6 +71,82 @@ function createMockView(lines: string[], selection?: MockSelection): EditorView 
 }
 
 describe('list indentation commands', () => {
+  it('continues unordered lists on Enter without an extra blank line', () => {
+    const view = createMockView(['- one'], {
+      from: 5,
+      to: 5,
+      anchor: 5,
+      head: 5,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownList(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 5, insert: '\n- ' },
+      selection: expect.anything(),
+      scrollIntoView: true,
+    })
+  })
+
+  it('continues task lists on Enter without an extra blank line', () => {
+    const view = createMockView(['- [ ] one'], {
+      from: 9,
+      to: 9,
+      anchor: 9,
+      head: 9,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownList(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 9, insert: '\n- [ ] ' },
+      selection: expect.anything(),
+      scrollIntoView: true,
+    })
+  })
+
+  it('continues ordered lists with the next number on Enter', () => {
+    const view = createMockView(['1. one'], {
+      from: 6,
+      to: 6,
+      anchor: 6,
+      head: 6,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownList(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 6, insert: '\n2. ' },
+      selection: expect.anything(),
+      scrollIntoView: true,
+    })
+  })
+
+  it('exits unordered lists from an empty item on Enter', () => {
+    const view = createMockView(['- '], {
+      from: 2,
+      to: 2,
+      anchor: 2,
+      head: 2,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownList(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 0, to: 2, insert: '' },
+      selection: expect.anything(),
+      scrollIntoView: true,
+    })
+  })
+
   it('indents existing unordered list lines on Tab', () => {
     const view = createMockView(['- one', '- two'])
     const handled = indentList(view)

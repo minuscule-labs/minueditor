@@ -11,12 +11,44 @@ import {
   insertCodeBlock,
   insertHR,
   insertImage,
-  insertTable,
   setHeading,
   toggleCheckboxList,
   toggleOrderedList,
   toggleUnorderedList,
 } from '../toolbar/commands'
+
+function moveCursorAfterLineMarker(view: EditorView, markerPattern: RegExp): boolean {
+  const line = view.state.doc.lineAt(view.state.selection.main.from)
+  const match = markerPattern.exec(line.text)
+  if (!match) return false
+
+  view.dispatch({
+    selection: { anchor: line.from + match[0].length },
+    scrollIntoView: true,
+  })
+
+  return true
+}
+
+function setSlashHeading(view: EditorView, level: 1 | 2 | 3): boolean {
+  if (!setHeading(view, level)) return false
+  return moveCursorAfterLineMarker(view, /^#{1,6}\s+/) || true
+}
+
+function setSlashUnorderedList(view: EditorView): boolean {
+  if (!toggleUnorderedList(view)) return false
+  return moveCursorAfterLineMarker(view, /^\s*[-*+]\s+/) || true
+}
+
+function setSlashOrderedList(view: EditorView): boolean {
+  if (!toggleOrderedList(view)) return false
+  return moveCursorAfterLineMarker(view, /^\s*\d+\.\s+/) || true
+}
+
+function setSlashCheckboxList(view: EditorView): boolean {
+  if (!toggleCheckboxList(view)) return false
+  return moveCursorAfterLineMarker(view, /^\s*[-*+]\s+\[[ xX]\]\s+/) || true
+}
 
 function setBlockquote(view: EditorView): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
@@ -33,48 +65,66 @@ function setBlockquote(view: EditorView): boolean {
   return true
 }
 
+function setSlashBlockquote(view: EditorView): boolean {
+  if (!setBlockquote(view)) return false
+  return moveCursorAfterLineMarker(view, /^\s*>\s?/) || true
+}
+
+function insertSlashTable(view: EditorView): boolean {
+  const line = view.state.doc.lineAt(view.state.selection.main.from)
+  const table = '|||\n| --- | --- |\n|||'
+
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert: table },
+    selection: { anchor: line.from + 1 },
+    scrollIntoView: true,
+  })
+
+  return true
+}
+
 export const defaultSlashCommands: readonly SlashCommand[] = [
   {
     label: 'Heading 1',
     detail: '# Heading',
     keywords: ['h1', 'title'],
-    run: (view) => setHeading(view, 1),
+    run: (view) => setSlashHeading(view, 1),
   },
   {
     label: 'Heading 2',
     detail: '## Heading',
     keywords: ['h2', 'subtitle'],
-    run: (view) => setHeading(view, 2),
+    run: (view) => setSlashHeading(view, 2),
   },
   {
     label: 'Heading 3',
     detail: '### Heading',
     keywords: ['h3'],
-    run: (view) => setHeading(view, 3),
+    run: (view) => setSlashHeading(view, 3),
   },
   {
     label: 'Bulleted List',
     detail: '- List item',
     keywords: ['bullet', 'ul', 'list'],
-    run: toggleUnorderedList,
+    run: setSlashUnorderedList,
   },
   {
     label: 'Numbered List',
     detail: '1. List item',
     keywords: ['ordered', 'ol', 'list'],
-    run: toggleOrderedList,
+    run: setSlashOrderedList,
   },
   {
     label: 'Task List',
     detail: '- [ ] Task',
     keywords: ['todo', 'checkbox', 'checklist'],
-    run: toggleCheckboxList,
+    run: setSlashCheckboxList,
   },
   {
     label: 'Quote',
     detail: '> Quote',
     keywords: ['blockquote'],
-    run: setBlockquote,
+    run: setSlashBlockquote,
   },
   {
     label: 'Code Block',
@@ -86,7 +136,7 @@ export const defaultSlashCommands: readonly SlashCommand[] = [
     label: 'Table',
     detail: '2 columns',
     keywords: ['grid'],
-    run: insertTable,
+    run: insertSlashTable,
   },
   {
     label: 'Divider',
@@ -125,8 +175,8 @@ function toCompletion(command: SlashCommand): Completion {
     type: 'keyword',
     apply(view, _completion, from, to) {
       view.dispatch({
-        changes: { from, to, insert: '' },
-        selection: { anchor: from },
+        changes: { from: from - 1, to, insert: '' },
+        selection: { anchor: from - 1 },
       })
       command.run(view)
     },
@@ -146,10 +196,10 @@ export function slashCommandCompletions(
   if (!range) return null
 
   return {
-    from: range.from,
+    from: range.from + 1,
     to: range.to,
     options: commands.map(toCompletion),
-    validFor: /^\/[\w-]*$/,
+    validFor: /^[\w-]*$/,
   }
 }
 

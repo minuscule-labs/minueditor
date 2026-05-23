@@ -30,6 +30,7 @@ import type { MarkdownEditorProps, MarkdownEditorState } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
 import {
   enterAfterHiddenInlineSuffix,
+  enterInMarkdownList,
   enterInMarkdownTable,
   toggleBold,
   toggleInlineCode,
@@ -178,7 +179,7 @@ export const MarkdownEditor = forwardRef<
       const view = viewRef.current
       if (!view) return
 
-      const handled = enterInMarkdownTable(view) || enterAfterHiddenInlineSuffix(view)
+      const handled = enterInMarkdownTable(view) || enterInMarkdownList(view) || enterAfterHiddenInlineSuffix(view)
       if (!handled) return
 
       event.preventDefault()

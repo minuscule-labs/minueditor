@@ -23,6 +23,18 @@ function createView(doc: string, extensions = [slashCommandExtension()]): Editor
   return view
 }
 
+function applySlashCommand(view: EditorView, label: string) {
+  const result = slashCommandCompletions({
+    state: view.state,
+    pos: view.state.selection.main.from,
+    explicit: true,
+  } as CompletionContext)
+  const option = result!.options.find((completion) => completion.label === label)!
+  const apply = option.apply
+  expect(typeof apply).toBe('function')
+  if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+}
+
 afterEach(() => {
   for (const view of views) {
     const parent = view.dom.parentElement
@@ -41,7 +53,7 @@ describe('slashCommandExtension', () => {
       explicit: true,
     } as CompletionContext)
 
-    expect(result?.from).toBe(0)
+    expect(result?.from).toBe(1)
     expect(result?.to).toBe(3)
     const from = result!.from
     const to = result!.to
@@ -51,6 +63,45 @@ describe('slashCommandExtension', () => {
     expect(typeof apply).toBe('function')
     if (typeof apply === 'function') apply(view, result!.options[0], from, to!)
     expect(view.state.doc.toString()).toBe('# ')
+  })
+
+  it('uses the text after slash as the filtered query', () => {
+    const view = createView('/h1')
+    const result = slashCommandCompletions({
+      state: view.state,
+      pos: view.state.selection.main.from,
+      explicit: true,
+    } as CompletionContext)
+
+    expect(view.state.doc.sliceString(result!.from, result!.to)).toBe('h1')
+    expect(result!.validFor).toEqual(/^[\w-]*$/)
+  })
+
+  it('places the cursor after a task list marker', () => {
+    const view = createView('/task')
+
+    applySlashCommand(view, 'Task List')
+
+    expect(view.state.doc.toString()).toBe('- [ ] ')
+    expect(view.state.selection.main.from).toBe(6)
+  })
+
+  it('places the cursor after a heading marker', () => {
+    const view = createView('/h2')
+
+    applySlashCommand(view, 'Heading 2')
+
+    expect(view.state.doc.toString()).toBe('## ')
+    expect(view.state.selection.main.from).toBe(3)
+  })
+
+  it('inserts a table at the slash command line', () => {
+    const view = createView('/table')
+
+    applySlashCommand(view, 'Table')
+
+    expect(view.state.doc.toString()).toBe('|||\n| --- | --- |\n|||')
+    expect(view.state.selection.main.from).toBe(1)
   })
 
   it('uses custom slash commands when provided', async () => {

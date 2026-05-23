@@ -122,6 +122,77 @@ export function enterAfterHiddenInlineSuffix(view: EditorView): boolean {
   return true;
 }
 
+export function enterInMarkdownList(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.from);
+  if (selection.from !== line.to) return false;
+
+  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX]\]\s+(.*)$/);
+  const unorderedMatch = line.text.match(/^(\s*)([-*+])\s+(.*)$/);
+  const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s+(.*)$/);
+
+  if (taskMatch) {
+    if (taskMatch[3].length === 0) {
+      view.dispatch({
+        changes: { from: line.from, to: line.to, insert: taskMatch[1] },
+        selection: EditorSelection.cursor(line.from + taskMatch[1].length),
+        scrollIntoView: true,
+      });
+      return true;
+    }
+
+    const insert = `\n${taskMatch[1]}${taskMatch[2]} [ ] `;
+    view.dispatch({
+      changes: { from: line.to, insert },
+      selection: EditorSelection.cursor(line.to + insert.length),
+      scrollIntoView: true,
+    });
+    return true;
+  }
+
+  if (unorderedMatch) {
+    if (unorderedMatch[3].length === 0) {
+      view.dispatch({
+        changes: { from: line.from, to: line.to, insert: unorderedMatch[1] },
+        selection: EditorSelection.cursor(line.from + unorderedMatch[1].length),
+        scrollIntoView: true,
+      });
+      return true;
+    }
+
+    const insert = `\n${unorderedMatch[1]}${unorderedMatch[2]} `;
+    view.dispatch({
+      changes: { from: line.to, insert },
+      selection: EditorSelection.cursor(line.to + insert.length),
+      scrollIntoView: true,
+    });
+    return true;
+  }
+
+  if (orderedMatch) {
+    if (orderedMatch[3].length === 0) {
+      view.dispatch({
+        changes: { from: line.from, to: line.to, insert: orderedMatch[1] },
+        selection: EditorSelection.cursor(line.from + orderedMatch[1].length),
+        scrollIntoView: true,
+      });
+      return true;
+    }
+
+    const insert = `\n${orderedMatch[1]}${Number(orderedMatch[2]) + 1}. `;
+    view.dispatch({
+      changes: { from: line.to, insert },
+      selection: EditorSelection.cursor(line.to + insert.length),
+      scrollIntoView: true,
+    });
+    return true;
+  }
+
+  return false;
+}
+
 function tableColumnCount(line: string): number | null {
   const trimmed = line.trim();
   if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return null;
