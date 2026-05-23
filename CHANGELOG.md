@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- Polished the slash-command menu styling and removed extra command metadata from the display.
+- Fixed horizontal rule rendering so the divider text no longer leaves a visible stub.
+
+Verified with release checks.
+
 ## 0.3.0
 
 - Added public editor-state reporting with `MarkdownEditorState` and `onStateChange`.

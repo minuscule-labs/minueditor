@@ -86,67 +86,56 @@ function insertSlashTable(view: EditorView): boolean {
 export const defaultSlashCommands: readonly SlashCommand[] = [
   {
     label: 'Heading 1',
-    detail: '# Heading',
     keywords: ['h1', 'title'],
     run: (view) => setSlashHeading(view, 1),
   },
   {
     label: 'Heading 2',
-    detail: '## Heading',
     keywords: ['h2', 'subtitle'],
     run: (view) => setSlashHeading(view, 2),
   },
   {
     label: 'Heading 3',
-    detail: '### Heading',
     keywords: ['h3'],
     run: (view) => setSlashHeading(view, 3),
   },
   {
     label: 'Bulleted List',
-    detail: '- List item',
     keywords: ['bullet', 'ul', 'list'],
     run: setSlashUnorderedList,
   },
   {
     label: 'Numbered List',
-    detail: '1. List item',
     keywords: ['ordered', 'ol', 'list'],
     run: setSlashOrderedList,
   },
   {
     label: 'Task List',
-    detail: '- [ ] Task',
     keywords: ['todo', 'checkbox', 'checklist'],
     run: setSlashCheckboxList,
   },
   {
     label: 'Quote',
-    detail: '> Quote',
     keywords: ['blockquote'],
     run: setSlashBlockquote,
   },
   {
     label: 'Code Block',
-    detail: '```',
     keywords: ['code', 'pre'],
     run: insertCodeBlock,
   },
   {
     label: 'Table',
-    detail: '2 columns',
     keywords: ['grid'],
     run: insertSlashTable,
   },
   {
     label: 'Divider',
-    detail: '---',
     keywords: ['hr', 'horizontal rule', 'separator'],
     run: insertHR,
   },
   {
     label: 'Image',
-    detail: '![]()',
     keywords: ['photo', 'media'],
     run: insertImage,
   },
@@ -183,7 +172,6 @@ function toCompletion(command: SlashCommand): Completion {
   }
 
   if (command.detail) completion.detail = command.detail
-  if (command.keywords?.length) completion.info = command.keywords.join(', ')
 
   return completion
 }

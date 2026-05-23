@@ -9,7 +9,7 @@ export const minueditorTheme = EditorView.theme({
   "&": {
     color: "var(--me-text, #1a1a1a)",
     backgroundColor: "var(--me-bg, transparent)",
-    fontFamily: "var(--me-font-family, inherit)",
+    fontFamily: 'var(--me-command-font-family, var(--me-font-family, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif))',
     fontSize: "var(--me-font-size, 15px)",
     lineHeight: "var(--me-line-height, 1.6)",
   },
@@ -83,6 +83,74 @@ export const minueditorTheme = EditorView.theme({
   ".cm-placeholder": {
     color: "var(--me-placeholder, #aaa)",
     fontStyle: "italic",
+  },
+
+  // ── Slash command menu ────────────────────────────────────────────────
+
+  "& .cm-tooltip.cm-tooltip-autocomplete": {
+    border: "1px solid var(--me-command-border, rgba(55,53,47,0.09))",
+    borderRadius: "10px",
+    backgroundColor: "var(--me-command-bg, #fff)",
+    boxShadow: "var(--me-command-shadow, 0 12px 28px rgba(15,15,15,0.10), 0 2px 8px rgba(15,15,15,0.06))",
+    padding: "4px",
+    overflow: "hidden",
+    minWidth: "240px",
+    maxWidth: "340px",
+    fontFamily: "var(--me-font-family, inherit)",
+    color: "var(--me-command-color, var(--me-text, #1a1a1a))",
+  },
+
+  "& .cm-tooltip-autocomplete > ul": {
+    fontFamily: "inherit",
+    maxHeight: "min(320px, 42vh)",
+    padding: "0",
+  },
+
+  "& .cm-tooltip-autocomplete ul li": {
+    display: "flex",
+    alignItems: "center",
+    minHeight: "32px",
+    padding: "5px 8px",
+    borderRadius: "6px",
+    fontSize: "14px",
+    lineHeight: "1.3",
+    color: "inherit",
+    cursor: "default",
+  },
+
+  "& .cm-tooltip-autocomplete ul li[aria-selected]": {
+    backgroundColor: "var(--me-command-selected-bg, rgba(55,53,47,0.08))",
+    color: "var(--me-command-selected-color, var(--me-command-color, var(--me-text, #1a1a1a)))",
+  },
+
+  "& .cm-tooltip-autocomplete ul li:hover": {
+    backgroundColor: "var(--me-command-hover-bg, rgba(55,53,47,0.06))",
+  },
+
+  "& .cm-tooltip-autocomplete .cm-completionLabel": {
+    flex: "1 1 auto",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    fontWeight: "450",
+    fontFamily: "inherit",
+  },
+
+  "& .cm-tooltip-autocomplete .cm-completionMatchedText": {
+    color: "var(--me-command-match-color, inherit)",
+    textDecoration: "none",
+    fontWeight: "650",
+  },
+
+  "& .cm-tooltip-autocomplete .cm-completionIcon": {
+    display: "none",
+  },
+
+  "& .cm-tooltip-autocomplete .cm-completionDetail": {
+    marginLeft: "10px",
+    color: "var(--me-command-muted-color, var(--me-placeholder, #777))",
+    fontSize: "12px",
+    fontFamily: "inherit",
   },
 
   // ── Markdown element styles ──────────────────────────────────────────
@@ -435,8 +503,10 @@ export const minueditorTheme = EditorView.theme({
 
   ".me-hr-text": {
     color: "transparent",
-    textDecoration: "line-through solid var(--me-hr-color, #e0e0e0)",
-    textDecorationThickness: "2px",
+    fontSize: "1px",
+    letterSpacing: "-1ch",
+    textDecoration: "none",
+    userSelect: "none",
   },
 
   ".cm-line.me-hr-line": {
