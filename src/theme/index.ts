@@ -225,6 +225,47 @@ export const minueditorTheme = EditorView.theme({
     margin: "0.5em 0",
   },
 
+  ".me-annotation": {
+    cursor: "pointer",
+  },
+
+  ".me-annotation--kind-comment": {
+    backgroundColor: "var(--me-comment-bg, rgba(245, 158, 11, 0.10))",
+  },
+
+  ".me-annotation--kind-generated": {
+    backgroundColor: "var(--me-generated-bg, rgba(59, 130, 246, 0.10))",
+  },
+
+  ".me-annotation--kind-added": {
+    backgroundColor: "var(--me-added-bg, rgba(34, 197, 94, 0.10))",
+  },
+
+  ".me-annotation--kind-updated": {
+    backgroundColor: "var(--me-updated-bg, rgba(59, 130, 246, 0.10))",
+  },
+
+  ".me-annotation--kind-deleted": {
+    backgroundColor: "var(--me-deleted-bg, rgba(239, 68, 68, 0.10))",
+    textDecoration: "line-through",
+  },
+
+  ".me-annotation--status-resolved": {
+    opacity: "0.55",
+  },
+
+  ".me-annotation--actor-agent": {
+    boxShadow: "inset 3px 0 0 var(--me-annotation-agent-accent, rgba(59, 130, 246, 0.55))",
+  },
+
+  ".me-annotation--actor-user": {
+    boxShadow: "inset 3px 0 0 var(--me-annotation-user-accent, rgba(34, 197, 94, 0.55))",
+  },
+
+  ".me-annotation--actor-system": {
+    boxShadow: "inset 3px 0 0 var(--me-annotation-system-accent, rgba(107, 114, 128, 0.55))",
+  },
+
   // ── Syntax token visibility (decorations.ts hides/shows these) ──────
 
   ".me-syntax": {

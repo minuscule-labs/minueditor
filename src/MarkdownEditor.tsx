@@ -18,6 +18,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
+import { documentAnnotationExtension } from './extensions/annotations'
 import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { tableDecorations } from './extensions/tables'
@@ -126,6 +127,8 @@ export const MarkdownEditor = forwardRef<
     onSubmit,
     onImageUpload,
     onStateChange,
+    annotations,
+    onAnnotationClick,
     onViewReady,
     className,
   },
@@ -137,11 +140,19 @@ export const MarkdownEditor = forwardRef<
   const baselineValueRef = useRef(baselineValue ?? value)
   const readOnlyRef = useRef(readOnly)
   const readOnlyCompartment = useRef(new Compartment());
+  const annotationsCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
   const onImageUploadRef = useRef(onImageUpload)
   const onStateChangeRef = useRef(onStateChange)
+  const onAnnotationClickRef = useRef(onAnnotationClick)
   const editorStateRef = useRef<MarkdownEditorState | null>(null)
+  const handleAnnotationClick = useCallback(
+    (annotation: NonNullable<MarkdownEditorProps['annotations']>[number], view: EditorView) => {
+      onAnnotationClickRef.current?.(annotation, view)
+    },
+    [],
+  )
 
   // Store the view in state so consumers of cmView (FloatingToolbar, onViewReady)
   // see it after CM6 mounts — viewRef alone wouldn't trigger a re-render.
@@ -201,6 +212,9 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     onStateChangeRef.current = onStateChange
   }, [onStateChange])
+  useEffect(() => {
+    onAnnotationClickRef.current = onAnnotationClick
+  }, [onAnnotationClick])
 
   useEffect(() => {
     if (baselineValue === undefined) return
@@ -299,6 +313,7 @@ export const MarkdownEditor = forwardRef<
       markdownDecorations,
       checkboxDecorations,
       imageDecorations,
+      annotationsCompartment.current.of(documentAnnotationExtension(annotations, handleAnnotationClick)),
       EditorView.lineWrapping,
       updateListener,
       shortcutGuard,
@@ -365,6 +380,17 @@ export const MarkdownEditor = forwardRef<
       },
     })
   }, [value])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: annotationsCompartment.current.reconfigure(
+        documentAnnotationExtension(annotations, handleAnnotationClick),
+      ),
+    })
+  }, [annotations, handleAnnotationClick])
 
   // ── Sync readOnly prop changes via Compartment ────────────────────────
   useEffect(() => {

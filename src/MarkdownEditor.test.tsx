@@ -81,6 +81,77 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('renders document annotations and forwards clicks', async () => {
+    const onAnnotationClick = vi.fn()
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'First line\nSecond line\nThird line'}
+        onChange={vi.fn()}
+        annotations={[
+          {
+            id: 'annotation-1',
+            documentId: 'doc-1',
+            kind: 'comment',
+            actorType: 'agent',
+            status: 'open',
+            anchorType: 'line',
+            startLine: 2,
+            endLine: 2,
+            label: 'AI comment',
+          },
+        ]}
+        onAnnotationClick={onAnnotationClick}
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-me-annotation-id="annotation-1"]')).toBeTruthy()
+    })
+
+    const annotation = container.querySelector('[data-me-annotation-id="annotation-1"]') as HTMLElement
+    expect(annotation.className).toContain('me-annotation--kind-comment')
+    expect(annotation.className).toContain('me-annotation--actor-agent')
+    expect(annotation.className).toContain('me-annotation--status-open')
+
+    fireEvent.click(annotation)
+
+    expect(onAnnotationClick).toHaveBeenCalledOnce()
+    expect(onAnnotationClick.mock.calls[0][0]).toMatchObject({
+      id: 'annotation-1',
+      kind: 'comment',
+      actorType: 'agent',
+      status: 'open',
+    })
+  })
+
+  it('renders range annotations with the generic decoration API', async () => {
+    const { container } = render(
+      <MarkdownEditor
+        value={'Hello world'}
+        onChange={vi.fn()}
+        annotations={[
+          {
+            id: 'annotation-range',
+            documentId: 'doc-1',
+            kind: 'generated',
+            anchorType: 'range',
+            from: 0,
+            to: 5,
+          },
+        ]}
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-me-annotation-id="annotation-range"]')).toBeTruthy()
+    })
+
+    expect(container.querySelector('[data-me-annotation-id="annotation-range"]')?.className).toContain(
+      'me-annotation--kind-generated',
+    )
+  })
+
   it('exposes getState and markClean through the editor ref', async () => {
     const ref = createRef<React.ElementRef<typeof MarkdownEditor>>()
     let view: EditorView | null = null

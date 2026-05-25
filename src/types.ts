@@ -37,11 +37,29 @@ export interface SlashCommand {
   run: (view: EditorView) => boolean
 }
 
+export interface DocumentAnnotation {
+  id: string
+  documentId: string
+  kind: string
+  anchorType: 'line' | 'range'
+  startLine?: number
+  endLine?: number
+  from?: number
+  to?: number
+  label?: string
+  actorType?: string
+  actorId?: string
+  status?: string
+  className?: string
+}
+
 export interface MarkdownEditorProps {
   value: string
   onChange: (markdown: string) => void
   baselineValue?: string
   slashCommands?: boolean | readonly SlashCommand[]
+  annotations?: readonly DocumentAnnotation[]
+  onAnnotationClick?: (annotation: DocumentAnnotation, view: EditorView) => void
   placeholder?: string
   readOnly?: boolean
   floatingToolbar?: boolean
