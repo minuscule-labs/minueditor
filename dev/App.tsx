@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
+import type { DocumentAnnotation } from '../src/index'
 import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
 import darkThemeUrl from '../src/theme/themes/dark.css?url'
@@ -50,6 +51,225 @@ const DESCRIPTION_INITIAL = `A floating toolbar appears when you select text her
 const COMMENT_INITIAL = `No toolbar here. Use \`Cmd+B\` for bold, \`Cmd+I\` for italic. Press \`Cmd+Enter\` to submit.`
 
 const IMAGE_INITIAL = `Paste or drop an image into this surface. The dev app uses an object URL upload handler so you can review the flow without wiring storage.`
+
+const COMMENT_DOC = `# Commented draft
+
+This section has review notes attached to specific lines.
+
+## Scope
+
+We should explain the tradeoff before merging.
+
+## Risks
+
+The anchor model may drift if the document changes a lot above the comment.
+
+## Follow-up
+
+Add replies, resolve state, and a sidebar thread view later.
+`
+
+const AI_DOC = `# AI change highlights
+
+The editor can render annotations for generated, updated, added, and deleted ranges.
+
+## Generated
+
+This paragraph was drafted by an agent.
+
+## Updated
+
+This paragraph was revised by an agent after a human edit.
+
+## Added
+
+This section was inserted during an automation pass.
+
+## Deleted
+
+This line remains in the document but should be struck through in the review surface.
+`
+
+function annotationById(annotations: readonly DocumentAnnotation[], id: string | null) {
+  if (!id) return null
+  return annotations.find((annotation) => annotation.id === id) ?? null
+}
+
+function AnnotationSurface({
+  title,
+  description,
+  value,
+  annotations,
+  selectedId,
+  onAnnotationClick,
+  sidebarLabel,
+}: {
+  title: string
+  description: string
+  value: string
+  annotations: readonly DocumentAnnotation[]
+  selectedId: string | null
+  onAnnotationClick: (annotation: DocumentAnnotation, view: EditorView) => void
+  sidebarLabel: string
+}) {
+  const selectedAnnotation = useMemo(
+    () => annotationById(annotations, selectedId),
+    [annotations, selectedId],
+  )
+
+  return (
+    <section className="surface">
+      <h2>{title}</h2>
+      <p className="surface-desc">{description}</p>
+      <div className="annotation-layout">
+        <div className="editor-frame">
+          <MarkdownEditor
+            value={value}
+            onChange={() => {}}
+            annotations={annotations}
+            onAnnotationClick={onAnnotationClick}
+            readOnly
+            minHeight={240}
+            slashCommands={false}
+          />
+        </div>
+        <aside className="annotation-panel">
+          <div className="annotation-panel__header">{sidebarLabel}</div>
+          {selectedAnnotation ? (
+            <div className="annotation-panel__body">
+              <div className="annotation-panel__label">{selectedAnnotation.label ?? selectedAnnotation.kind}</div>
+              <div className="annotation-panel__meta">
+                {selectedAnnotation.actorType ? <span>{selectedAnnotation.actorType}</span> : null}
+                {selectedAnnotation.status ? <span>{selectedAnnotation.status}</span> : null}
+                {selectedAnnotation.anchorType === 'line' ? (
+                  <span>
+                    lines {selectedAnnotation.startLine ?? 1}
+                    {selectedAnnotation.endLine && selectedAnnotation.endLine !== selectedAnnotation.startLine
+                      ? `-${selectedAnnotation.endLine}`
+                      : ''}
+                  </span>
+                ) : (
+                  <span>range {selectedAnnotation.from ?? 0}-{selectedAnnotation.to ?? 0}</span>
+                )}
+              </div>
+              <pre>{JSON.stringify(selectedAnnotation, null, 2)}</pre>
+            </div>
+          ) : (
+            <div className="annotation-panel__empty">Click an annotation to inspect it.</div>
+          )}
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function CommentAnnotationsDemo() {
+  const [selectedId, setSelectedId] = useState<string | null>('comment-2')
+
+  const annotations = useMemo<readonly DocumentAnnotation[]>(
+    () => [
+      {
+        id: 'comment-1',
+        documentId: 'comments-doc',
+        kind: 'comment',
+        actorType: 'user',
+        anchorType: 'line',
+        startLine: 5,
+        endLine: 7,
+        label: 'Clarify scope',
+        status: 'open',
+      },
+      {
+        id: 'comment-2',
+        documentId: 'comments-doc',
+        kind: 'comment',
+        actorType: 'agent',
+        anchorType: 'line',
+        startLine: 9,
+        endLine: 11,
+        label: 'Add a follow-up',
+        status: 'open',
+      },
+    ],
+    [],
+  )
+
+  return (
+    <AnnotationSurface
+      title="Comment wrapper"
+      description="External comment threads rendered as annotations, not markdown metadata."
+      value={COMMENT_DOC}
+      annotations={annotations}
+      selectedId={selectedId}
+      sidebarLabel="Comment thread"
+      onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
+    />
+  )
+}
+
+function AIChangeHighlightsDemo() {
+  const [selectedId, setSelectedId] = useState<string | null>('ai-updated')
+
+  const annotations = useMemo<readonly DocumentAnnotation[]>(
+    () => [
+      {
+        id: 'ai-generated',
+        documentId: 'ai-doc',
+        kind: 'generated',
+        actorType: 'agent',
+        actorId: 'pi',
+        anchorType: 'line',
+        startLine: 5,
+        endLine: 7,
+        label: 'AI drafted',
+      },
+      {
+        id: 'ai-updated',
+        documentId: 'ai-doc',
+        kind: 'updated',
+        actorType: 'agent',
+        actorId: 'pi',
+        anchorType: 'line',
+        startLine: 9,
+        endLine: 11,
+        label: 'AI revised',
+      },
+      {
+        id: 'ai-added',
+        documentId: 'ai-doc',
+        kind: 'added',
+        actorType: 'system',
+        anchorType: 'range',
+        from: AI_DOC.indexOf('This section was inserted'),
+        to: AI_DOC.indexOf('This section was inserted') + 'This section was inserted during an automation pass.'.length,
+        label: 'AI inserted text',
+      },
+      {
+        id: 'ai-deleted',
+        documentId: 'ai-doc',
+        kind: 'deleted',
+        actorType: 'agent',
+        anchorType: 'line',
+        startLine: 17,
+        endLine: 19,
+        label: 'AI removed candidate',
+      },
+    ],
+    [],
+  )
+
+  return (
+    <AnnotationSurface
+      title="AI change wrapper"
+      description="Generated, updated, added, and deleted ranges all render through the same annotation API."
+      value={AI_DOC}
+      annotations={annotations}
+      selectedId={selectedId}
+      sidebarLabel="Change metadata"
+      onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
+    />
+  )
+}
 
 export default function App() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
@@ -156,6 +376,10 @@ export default function App() {
             />
           </div>
         </section>
+
+        <CommentAnnotationsDemo />
+
+        <AIChangeHighlightsDemo />
 
         <section className="surface">
           <h2>State inspector</h2>
