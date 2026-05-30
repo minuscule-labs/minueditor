@@ -74,6 +74,14 @@ Consumer responsibility:
 1. provide `onImageUpload(file) => Promise<string>`
 2. handle storage concerns such as S3, signed uploads, auth, and validation
 
+Planned image insertion feature:
+
+1. the editor should own the `/Image` picker UI, upload/link tabs, markdown insertion, loading state, and error display
+2. consumers should still own storage providers and return the final URL through `onImageUpload`
+3. if `onImageUpload` is absent, the picker can still support link insertion and should hide or disable upload
+
+See `ROADMAP.md` for the proposed feature scope.
+
 ## Extension Layout
 
 ### Lightweight extensions

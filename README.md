@@ -88,6 +88,8 @@ If an upload fails, the editor leaves a visible plain-text marker in the documen
 
 Paste and drop use the same upload hook.
 
+Planned: `/Image` should grow from inserting raw `![]()` markdown into a Notion-style picker with Upload and Link options. The editor will own that insertion UI while storage remains consumer-owned through `onImageUpload`. See `ROADMAP.md`.
+
 ```tsx
 <MarkdownEditor
   value={value}
