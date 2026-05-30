@@ -1,9 +1,23 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { createRef, useEffect, useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
+import type { CompletionContext } from '@codemirror/autocomplete'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from './MarkdownEditor'
+import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
 import { toggleBold, toggleItalic } from './toolbar/commands'
+
+function applyEditorSlashCommand(view: EditorView, label: string) {
+  const result = slashCommandCompletions({
+    state: view.state,
+    pos: view.state.selection.main.from,
+    explicit: true,
+  } as CompletionContext, editorSlashCommands)
+  const option = result!.options.find((completion) => completion.label === label)!
+  const apply = option.apply
+  expect(typeof apply).toBe('function')
+  if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+}
 
 describe('MarkdownEditor', () => {
   // ── editing mode ─────────────────────────────────────────────────────────
@@ -122,6 +136,104 @@ describe('MarkdownEditor', () => {
       kind: 'comment',
       actorType: 'agent',
       status: 'open',
+    })
+  })
+
+  it('opens the image picker from the editor slash image command', async () => {
+    let view: EditorView | null = null
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'/image'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+      applyEditorSlashCommand(view!, 'Image')
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-picker')).toBeTruthy()
+    })
+
+    expect(container.querySelector('.me-image-picker__upload')).toHaveAttribute('disabled')
+  })
+
+  it('uploads an image file from the slash image picker', async () => {
+    const onChange = vi.fn()
+    const onImageUpload = vi.fn(async () => 'https://cdn.example.com/file.png')
+    let view: EditorView | null = null
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'/image'}
+        onChange={onChange}
+        onImageUpload={onImageUpload}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+      applyEditorSlashCommand(view!, 'Image')
+    })
+
+    const fileInput = await waitFor(() => container.querySelector('input[type="file"]') as HTMLInputElement)
+    const file = new File(['image'], 'file.png', { type: 'image/png' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(onImageUpload).toHaveBeenCalledWith(file)
+      expect(onChange).toHaveBeenCalledWith('![file.png](https://cdn.example.com/file.png)')
+    })
+  })
+
+  it('embeds an image link from the slash image picker', async () => {
+    const onChange = vi.fn()
+    let view: EditorView | null = null
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'/image'}
+        onChange={onChange}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+      applyEditorSlashCommand(view!, 'Image')
+    })
+
+    const linkTab = await waitFor(() => container.querySelectorAll('.me-image-picker__tab')[1] as HTMLButtonElement)
+    fireEvent.click(linkTab)
+
+    const input = container.querySelector('.me-image-picker__input') as HTMLInputElement
+    fireEvent.mouseDown(input)
+    input.focus()
+
+    expect(document.activeElement).toBe(input)
+
+    fireEvent.change(input, { target: { value: 'https://example.com/image.png' } })
+    fireEvent.submit(input.closest('form')!)
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith('![](https://example.com/image.png)')
     })
   })
 

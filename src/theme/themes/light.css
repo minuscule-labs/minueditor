@@ -46,6 +46,25 @@
   --me-toolbar-btn-color: #243244;
   --me-toolbar-btn-hover-bg: rgba(37, 99, 235, 0.08);
   --me-toolbar-btn-active-bg: rgba(37, 99, 235, 0.13);
+  --me-accent: #2563eb;
+  --me-command-bg: #ffffff;
+  --me-command-border: rgba(15, 23, 42, 0.12);
+  --me-command-shadow: 0 12px 28px rgba(15,15,15,0.10), 0 2px 8px rgba(15,15,15,0.06);
+  --me-command-color: #18212f;
+  --me-command-selected-bg: rgba(37, 99, 235, 0.10);
+  --me-command-selected-color: #0f172a;
+  --me-command-hover-bg: rgba(15, 23, 42, 0.06);
+  --me-command-match-color: #2563eb;
+  --me-command-detail-color: #64748b;
+  --me-image-picker-bg: #ffffff;
+  --me-image-picker-border: rgba(15, 23, 42, 0.12);
+  --me-image-picker-shadow: 0 12px 28px rgba(15,15,15,0.10), 0 2px 8px rgba(15,15,15,0.06);
+  --me-image-picker-color: #18212f;
+  --me-image-picker-muted: #64748b;
+  --me-image-picker-accent: #2563eb;
+  --me-image-picker-accent-text: #ffffff;
+  --me-image-picker-button-bg: rgba(15, 23, 42, 0.03);
+  --me-image-picker-input-bg: #ffffff;
 
   /* ── Code-block static syntax highlighting (hljs) ──────── */
   --me-hljs-keyword: #cf222e;

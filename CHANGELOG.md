@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.3
+
+- Added a Notion-style `/Image` picker with Upload and Link flows.
+- Reused `onImageUpload` for slash-command uploads while keeping storage consumer-owned.
+- Fixed picker focus handling so CodeMirror no longer steals focus from image link inputs.
+- Added light and dark theme variables for the slash command menu and image picker.
+- Updated image insertion documentation and roadmap notes.
+
+Verified with release checks.
+
 ## 0.3.2
 
 - Added generic document annotations with line and range anchors.

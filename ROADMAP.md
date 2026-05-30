@@ -1,10 +1,10 @@
 # Roadmap
 
-## Planned: Notion-style image insertion
+## Implemented: Notion-style image insertion
 
-`/Image` currently inserts raw markdown image syntax (`![]()`). Paste and drop already support uploaded images through the consumer-provided `onImageUpload(file) => Promise<string>` hook.
+`/Image` opens an inline picker instead of only inserting raw markdown image syntax (`![]()`). Paste, drop, and the picker all use the consumer-provided `onImageUpload(file) => Promise<string>` hook.
 
-Build a richer `/Image` flow that keeps storage application-owned while making image insertion editor-owned.
+The flow keeps storage application-owned while making image insertion editor-owned.
 
 ### Goals
 
@@ -15,7 +15,7 @@ Build a richer `/Image` flow that keeps storage application-owned while making i
 3. The editor owns markdown insertion, loading state, focus handling, and visible upload errors.
 4. The host application continues to own storage, auth, validation, and the final URL returned from `onImageUpload`.
 
-### Non-goals for the first pass
+### Non-goals
 
 1. Built-in storage providers.
 2. Built-in Unsplash/GIPHY integrations.
@@ -23,7 +23,7 @@ Build a richer `/Image` flow that keeps storage application-owned while making i
 
 These can be added later as provider slots supplied by the host app.
 
-### Suggested UX
+### UX
 
 1. User types `/image` and selects **Image**.
 2. Editor inserts a temporary "Add an image" widget at the current position.
@@ -54,7 +54,7 @@ If `onImageUpload` is absent, the picker should still allow **Link** and should 
 
 ### Implementation notes
 
-- Reuse the existing paste/drop upload path in `src/extensions/images.ts` where possible.
-- Consider extracting shared upload placeholder helpers from `imagePasteHandler`.
-- `/Image` is defined in `src/extensions/slash-commands.ts` and currently calls `insertImage` from `src/toolbar/commands.ts`.
-- A richer picker likely belongs in the image extension rather than toolbar commands, because it needs DOM UI, file input, async upload state, and focus handling.
+- Shared upload placeholder helpers live in `src/extensions/images.ts`.
+- `/Image` is defined in `src/extensions/slash-commands.ts`.
+- The richer picker belongs in the image extension rather than toolbar commands, because it needs DOM UI, file input, async upload state, and focus handling.
+- The toolbar image button still uses the simpler raw markdown insertion command.

@@ -16,6 +16,7 @@ import {
   toggleOrderedList,
   toggleUnorderedList,
 } from '../toolbar/commands'
+import { insertImagePicker } from './images'
 
 function moveCursorAfterLineMarker(view: EditorView, markerPattern: RegExp): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
@@ -83,7 +84,16 @@ function insertSlashTable(view: EditorView): boolean {
   return true
 }
 
-export const defaultSlashCommands: readonly SlashCommand[] = [
+interface DefaultSlashCommandOptions {
+  imageCommand?: (view: EditorView) => boolean
+}
+
+export function createDefaultSlashCommands(
+  options: DefaultSlashCommandOptions = {},
+): readonly SlashCommand[] {
+  const imageCommand = options.imageCommand ?? insertImage
+
+  return [
   {
     label: 'Heading 1',
     keywords: ['h1', 'title'],
@@ -137,9 +147,15 @@ export const defaultSlashCommands: readonly SlashCommand[] = [
   {
     label: 'Image',
     keywords: ['photo', 'media'],
-    run: insertImage,
+    run: imageCommand,
   },
 ]
+}
+
+export const defaultSlashCommands: readonly SlashCommand[] = createDefaultSlashCommands()
+export const editorSlashCommands: readonly SlashCommand[] = createDefaultSlashCommands({
+  imageCommand: insertImagePicker,
+})
 
 function slashCommandRange(context: CompletionContext): { from: number; to: number } | null {
   const line = context.state.doc.lineAt(context.pos)

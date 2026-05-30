@@ -86,9 +86,14 @@ If you provide `onImageUpload`, the editor will:
 
 If an upload fails, the editor leaves a visible plain-text marker in the document instead of silently dropping the image.
 
-Paste and drop use the same upload hook.
+Paste, drop, and the `/Image` slash-command picker use the same upload hook.
 
-Planned: `/Image` should grow from inserting raw `![]()` markdown into a Notion-style picker with Upload and Link options. The editor will own that insertion UI while storage remains consumer-owned through `onImageUpload`. See `ROADMAP.md`.
+`/Image` opens an inline picker with:
+
+1. **Upload** — calls `onImageUpload(file)` and inserts the returned URL
+2. **Link** — inserts an image URL directly as markdown
+
+If `onImageUpload` is not provided, Link still works and Upload is disabled with a helpful message.
 
 ```tsx
 <MarkdownEditor

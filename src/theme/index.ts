@@ -148,7 +148,7 @@ export const minueditorTheme = EditorView.theme({
 
   "& .cm-tooltip-autocomplete .cm-completionDetail": {
     marginLeft: "10px",
-    color: "var(--me-command-muted-color, var(--me-placeholder, #777))",
+    color: "var(--me-command-detail-color, var(--me-command-muted-color, var(--me-placeholder, #777)))",
     fontSize: "12px",
     fontFamily: "inherit",
   },
@@ -637,5 +637,98 @@ export const minueditorTheme = EditorView.theme({
     borderRadius: "4px",
     fontSize: "0.875em",
     color: "var(--me-image-broken-color, #c33)",
+  },
+
+  ".me-image-picker": {
+    border: "1px solid var(--me-image-picker-border, var(--me-command-border, rgba(55,53,47,0.14)))",
+    borderRadius: "12px",
+    background: "var(--me-image-picker-bg, var(--me-command-bg, #fff))",
+    boxShadow: "var(--me-image-picker-shadow, var(--me-command-shadow, 0 12px 28px rgba(15,15,15,0.10), 0 2px 8px rgba(15,15,15,0.06)))",
+    color: "var(--me-image-picker-color, var(--me-text, #1a1a1a))",
+    margin: "0.5rem 0",
+    overflow: "hidden",
+    maxWidth: "680px",
+  },
+
+  ".me-image-picker__title": {
+    padding: "14px 18px",
+    fontWeight: "600",
+    borderBottom: "1px solid var(--me-image-picker-border, var(--me-command-border, rgba(55,53,47,0.10)))",
+  },
+
+  ".me-image-picker__tabs": {
+    display: "flex",
+    gap: "2px",
+    padding: "0 16px",
+    borderBottom: "1px solid var(--me-image-picker-border, var(--me-command-border, rgba(55,53,47,0.10)))",
+  },
+
+  ".me-image-picker__tab": {
+    appearance: "none",
+    border: "none",
+    borderBottom: "2px solid transparent",
+    background: "transparent",
+    color: "var(--me-image-picker-muted, var(--me-placeholder, #777))",
+    cursor: "pointer",
+    font: "inherit",
+    fontWeight: "600",
+    padding: "10px 12px 8px",
+  },
+
+  ".me-image-picker__tab--active": {
+    borderBottomColor: "var(--me-image-picker-accent, var(--me-accent, #2f80ed))",
+    color: "var(--me-image-picker-color, var(--me-text, #1a1a1a))",
+  },
+
+  ".me-image-picker__panel": {
+    padding: "16px",
+  },
+
+  ".me-image-picker__upload, .me-image-picker__submit": {
+    width: "100%",
+    border: "1px solid var(--me-image-picker-border, rgba(55,53,47,0.14))",
+    borderRadius: "8px",
+    background: "var(--me-image-picker-button-bg, transparent)",
+    color: "inherit",
+    cursor: "pointer",
+    font: "inherit",
+    fontWeight: "600",
+    padding: "10px 12px",
+  },
+
+  ".me-image-picker__submit": {
+    background: "var(--me-image-picker-accent, var(--me-accent, #2f80ed))",
+    borderColor: "var(--me-image-picker-accent, var(--me-accent, #2f80ed))",
+    color: "var(--me-image-picker-accent-text, #fff)",
+    marginTop: "12px",
+  },
+
+  ".me-image-picker__upload:disabled": {
+    cursor: "not-allowed",
+    opacity: "0.55",
+  },
+
+  ".me-image-picker__input": {
+    boxSizing: "border-box",
+    width: "100%",
+    border: "1px solid var(--me-image-picker-border, rgba(55,53,47,0.18))",
+    borderRadius: "8px",
+    background: "var(--me-image-picker-input-bg, transparent)",
+    color: "inherit",
+    font: "inherit",
+    outline: "none",
+    padding: "10px 12px",
+  },
+
+  ".me-image-picker__input:focus": {
+    borderColor: "var(--me-image-picker-accent, var(--me-accent, #2f80ed))",
+    boxShadow: "0 0 0 2px color-mix(in srgb, var(--me-image-picker-accent, var(--me-accent, #2f80ed)) 22%, transparent)",
+  },
+
+  ".me-image-picker__hint": {
+    color: "var(--me-image-picker-muted, var(--me-placeholder, #777))",
+    fontSize: "0.875em",
+    marginTop: "10px",
+    textAlign: "center",
   },
 });

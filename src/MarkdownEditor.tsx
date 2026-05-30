@@ -23,9 +23,9 @@ import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
-import { imageDecorations, imagePasteHandler } from './extensions/images'
+import { imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
-import { slashCommandExtension } from './extensions/slash-commands'
+import { editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import type { MarkdownEditorProps, MarkdownEditorState } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
@@ -313,6 +313,7 @@ export const MarkdownEditor = forwardRef<
       markdownDecorations,
       checkboxDecorations,
       imageDecorations,
+      imagePickerExtension(() => onImageUploadRef.current),
       annotationsCompartment.current.of(documentAnnotationExtension(annotations, handleAnnotationClick)),
       EditorView.lineWrapping,
       updateListener,
@@ -320,7 +321,7 @@ export const MarkdownEditor = forwardRef<
       autolinkPaste,
       imagePasteHandler(() => onImageUploadRef.current),
       ...(slashCommands !== false
-        ? [slashCommandExtension(Array.isArray(slashCommands) ? slashCommands : undefined)]
+        ? [slashCommandExtension(Array.isArray(slashCommands) ? slashCommands : editorSlashCommands)]
         : []),
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
