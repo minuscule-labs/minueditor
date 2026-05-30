@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2
+
+- Added generic document annotations with line and range anchors.
+- Added annotation click handling and annotation metadata classes/data attributes.
+- Added dev app examples for comments, generated, updated, added, and deleted ranges.
+- Documented the planned Notion-style `/Image` picker feature.
+
+Verified with release checks.
+
 ## 0.3.1
 
 - Polished the slash-command menu styling and removed extra command metadata from the display.
