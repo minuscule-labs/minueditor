@@ -15,7 +15,6 @@ import {
 } from '@codemirror/view'
 import { defaultKeymap, historyKeymap, history, redoDepth, undoDepth } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { languages } from '@codemirror/language-data'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
 import { documentAnnotationExtension } from './extensions/annotations'
@@ -126,6 +125,7 @@ export const MarkdownEditor = forwardRef<
     maxHeight,
     onSubmit,
     onImageUpload,
+    codeLanguages,
     onStateChange,
     annotations,
     onAnnotationClick,
@@ -304,12 +304,12 @@ export const MarkdownEditor = forwardRef<
       submitKeymap,
       markdown({
         base: markdownLanguage,
-        codeLanguages: languages,
+        codeLanguages: codeLanguages ? [...codeLanguages] : [],
       }),
       minueditorTheme,
       visualMarkdown,
       tableDecorations,
-      codeBlockDecorations,
+      codeBlockDecorations(codeLanguages),
       markdownDecorations,
       checkboxDecorations,
       imageDecorations,

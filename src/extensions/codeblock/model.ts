@@ -1,11 +1,16 @@
 import type { Extension, EditorSelection, EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { LanguageDescription, syntaxTree } from '@codemirror/language'
-import { languages } from '@codemirror/language-data'
 import { renderCodeHtml as renderStaticCodeHtml } from '../highlight'
 import type { FencedBlockInfo } from './types'
 
+let configuredCodeLanguages: readonly LanguageDescription[] = []
 const languageExtensionCache = new Map<string, Promise<Extension>>()
+
+export function setCodeLanguages(languages: readonly LanguageDescription[] = []): void {
+  configuredCodeLanguages = languages
+  languageExtensionCache.clear()
+}
 
 export function renderCodeHtml(code: string, lang: string, highlighted: string | null): string {
   if (highlighted) return highlighted
@@ -102,7 +107,7 @@ export function getCodeLanguageExtension(lang: string): Promise<Extension> {
   if (cached) return cached
 
   const promise = (async () => {
-    const description = LanguageDescription.matchLanguageName(languages, normalized, true)
+    const description = LanguageDescription.matchLanguageName([...configuredCodeLanguages], normalized, true)
     if (!description) return []
     try {
       return await description.load()

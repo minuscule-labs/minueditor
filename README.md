@@ -72,6 +72,24 @@ function ReadOnlyExample() {
 }
 ```
 
+## Fenced code languages
+
+By default, the editor does not bundle CodeMirror language packages for fenced-code editing. Code blocks still work as plain editable Markdown/code blocks.
+
+If you want language-aware editing inside fenced code blocks, provide CodeMirror language descriptions from your app:
+
+```tsx
+import { languages } from '@codemirror/language-data'
+
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  codeLanguages={languages}
+/>
+```
+
+This keeps language bundle cost under the consuming app's control.
+
 ## Image uploads
 
 Image uploads are intentionally bring-your-own-storage.

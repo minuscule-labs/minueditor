@@ -1,3 +1,4 @@
+import type { LanguageDescription } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 
 export interface MarkdownEditorState {
@@ -68,6 +69,8 @@ export interface MarkdownEditorProps {
   maxHeight?: number
   onSubmit?: () => void
   onImageUpload?: (file: File) => Promise<string>
+  /** Optional CodeMirror language loaders for fenced-code editing. Defaults to none. */
+  codeLanguages?: readonly LanguageDescription[]
   onStateChange?: (state: MarkdownEditorState) => void
   /** Called with the EditorView instance after CM6 mounts (or re-mounts). */
   onViewReady?: (view: EditorView) => void

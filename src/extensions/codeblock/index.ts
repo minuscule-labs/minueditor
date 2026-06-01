@@ -1,7 +1,9 @@
 import { StateField, type EditorState } from '@codemirror/state'
+import type { LanguageDescription } from '@codemirror/language'
 import type { DecorationSet } from '@codemirror/view'
 import { EditorView } from '@codemirror/view'
 import { activeCodeBlockField, setActiveCodeBlock } from './state'
+import { setCodeLanguages } from './model'
 import {
   autoCloseCodeFence,
   buildCodeBlockDecorations,
@@ -22,10 +24,13 @@ const codeBlockDecorationField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 })
 
-export const codeBlockDecorations = [
-  activeCodeBlockField,
-  codeBlockDecorationField,
-  codeBlockClickToEdit,
-  codeBlockArrowNavigation,
-  autoCloseCodeFence,
-]
+export function codeBlockDecorations(codeLanguages: readonly LanguageDescription[] = []) {
+  setCodeLanguages(codeLanguages)
+  return [
+    activeCodeBlockField,
+    codeBlockDecorationField,
+    codeBlockClickToEdit,
+    codeBlockArrowNavigation,
+    autoCloseCodeFence,
+  ]
+}

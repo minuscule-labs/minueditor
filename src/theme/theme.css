@@ -357,7 +357,7 @@
   background: var(--me-table-row-alt-bg, #fafafa);
 }
 
-/* ─── Static code-block syntax highlighting (lowlight/hljs) ─────────────── */
+/* ─── Static code-block syntax highlighting (Shiki) ─────────────────────── */
 
 .me-renderer .hljs-keyword,
 .me-codeblock-body .hljs-keyword,
