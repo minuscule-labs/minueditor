@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
-import type { DocumentAnnotation } from '../src/index'
+import type { CodeHighlighter, DocumentAnnotation } from '../src/index'
+import { createShikiHighlighter } from '../src/shiki'
 import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
 import darkThemeUrl from '../src/theme/themes/dark.css?url'
@@ -103,6 +104,7 @@ function AnnotationSurface({
   selectedId,
   onAnnotationClick,
   sidebarLabel,
+  codeHighlighter,
 }: {
   title: string
   description: string
@@ -111,6 +113,7 @@ function AnnotationSurface({
   selectedId: string | null
   onAnnotationClick: (annotation: DocumentAnnotation, view: EditorView) => void
   sidebarLabel: string
+  codeHighlighter: CodeHighlighter
 }) {
   const selectedAnnotation = useMemo(
     () => annotationById(annotations, selectedId),
@@ -131,6 +134,7 @@ function AnnotationSurface({
             readOnly
             minHeight={240}
             slashCommands={false}
+            codeHighlighter={codeHighlighter}
           />
         </div>
         <aside className="annotation-panel">
@@ -163,7 +167,7 @@ function AnnotationSurface({
   )
 }
 
-function CommentAnnotationsDemo() {
+function CommentAnnotationsDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
   const [selectedId, setSelectedId] = useState<string | null>('comment-2')
 
   const annotations = useMemo<readonly DocumentAnnotation[]>(
@@ -202,12 +206,13 @@ function CommentAnnotationsDemo() {
       annotations={annotations}
       selectedId={selectedId}
       sidebarLabel="Comment thread"
+      codeHighlighter={codeHighlighter}
       onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
     />
   )
 }
 
-function AIChangeHighlightsDemo() {
+function AIChangeHighlightsDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
   const [selectedId, setSelectedId] = useState<string | null>('ai-updated')
 
   const annotations = useMemo<readonly DocumentAnnotation[]>(
@@ -266,6 +271,7 @@ function AIChangeHighlightsDemo() {
       annotations={annotations}
       selectedId={selectedId}
       sidebarLabel="Change metadata"
+      codeHighlighter={codeHighlighter}
       onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
     />
   )
@@ -278,6 +284,7 @@ export default function App() {
   const [imageValue, setImageValue] = useState(IMAGE_INITIAL)
   const [docView, setDocView] = useState<EditorView | null>(null)
   const [theme, setTheme] = useState<ThemeChoice>('base')
+  const codeHighlighter = useMemo(() => createShikiHighlighter(), [])
 
   async function handleDemoImageUpload(file: File) {
     return URL.createObjectURL(file)
@@ -331,6 +338,7 @@ export default function App() {
               placeholder="Start writing…"
               minHeight={300}
               onViewReady={setDocView}
+              codeHighlighter={codeHighlighter}
             />
           </div>
         </section>
@@ -377,9 +385,9 @@ export default function App() {
           </div>
         </section>
 
-        <CommentAnnotationsDemo />
+        <CommentAnnotationsDemo codeHighlighter={codeHighlighter} />
 
-        <AIChangeHighlightsDemo />
+        <AIChangeHighlightsDemo codeHighlighter={codeHighlighter} />
 
         <section className="surface">
           <h2>State inspector</h2>
