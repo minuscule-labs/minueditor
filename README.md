@@ -149,6 +149,8 @@ const codeHighlighter: CodeHighlighter = async (code, lang) => {
 
 If you do not pass `codeHighlighter`, fenced code remains plain and escaped.
 
+In `readOnly` mode, code blocks stay in static display mode. They still render plain escaped code by default, and they use `codeHighlighter` for highlighted display when one is provided.
+
 ## Image uploads
 
 Image uploads are intentionally bring-your-own-storage.
