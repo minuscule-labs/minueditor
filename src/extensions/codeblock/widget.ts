@@ -24,13 +24,14 @@ import {
 } from "@codemirror/language";
 import {
   getAdjacentFencedBlock,
+  getCodeHighlighter,
   getCodeLanguageExtension,
   getFencedBlockByStart,
   getFencedBlockInfo,
   getSelectionForBlockClick,
   renderCodeHtml,
 } from './model';
-import { renderCodeHtmlWithShiki } from '../highlight';
+import { highlightCodeHtml } from '../highlight';
 import { activeCodeBlockField, setActiveCodeBlock } from './state';
 import { nestedEditorTheme } from './theme';
 import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
@@ -672,7 +673,7 @@ class CodeBlockWidget extends WidgetType {
     if (!this.highlighted && this.lang) {
       const code = this.code;
       const lang = this.lang;
-      void renderCodeHtmlWithShiki(code, lang).then((html) => {
+      void highlightCodeHtml(getCodeHighlighter(), code, lang).then((html) => {
         if (!html || body.dataset.code !== code || body.dataset.lang !== lang) return;
         body.innerHTML = html;
         normalizeRenderedCodeBlock(body);

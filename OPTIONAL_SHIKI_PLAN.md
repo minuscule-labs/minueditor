@@ -10,8 +10,10 @@ The editor and renderer should still render safe plain code blocks without any h
 
 - `highlight.js` and `lowlight` have been removed from first-party code.
 - `@codemirror/language-data` is no longer bundled by default. Consumers can pass CodeMirror language descriptions through `codeLanguages`.
-- Shiki is the only remaining syntax highlighter dependency.
-- Shiki is still imported by `src/extensions/highlight.ts`, so the default package build still emits many Shiki language/theme chunks.
+- Shiki is no longer imported by the default editor/renderer path.
+- Syntax highlighting is consumer-controlled through `codeHighlighter`.
+- A separate opt-in `@dpklabs/minueditor/shiki` export provides `createShikiHighlighter`.
+- Because the Shiki helper is currently published from the same package, the package tarball still includes Shiki helper chunks even though default consumers do not import them.
 
 ## Design principles
 
@@ -21,7 +23,7 @@ The editor and renderer should still render safe plain code blocks without any h
 4. The consuming app should decide whether to use Shiki, another highlighter, or no highlighter.
 5. Existing Markdown editing behavior should not require syntax highlighting.
 
-## Proposed API
+## Implemented API
 
 Add a highlighter callback type:
 
@@ -75,55 +77,26 @@ Possible package exports:
 }
 ```
 
-## Implementation steps
+## Implementation status
 
-### 1. Introduce highlighter types
+### Completed
 
-- Add `CodeHighlighter` to `src/types.ts`.
-- Export it from `src/index.tsx`.
+- Added `CodeHighlighter` to `src/types.ts` and exported it from `src/index.tsx`.
+- Kept `renderCodeHtml(code, lang)` as an escaped plain fallback.
+- Removed Shiki imports from the default highlight helper.
+- Added `highlightCodeHtml(...)` to safely apply a supplied highlighter.
+- Threaded `codeHighlighter` through `MarkdownEditor` and code block widgets.
+- Threaded `codeHighlighter` through `MarkdownRenderer`.
+- Added `src/shiki.ts` and package export `@dpklabs/minueditor/shiki`.
+- Added renderer tests for default plain rendering and supplied highlighter upgrades.
+- Verified `npm test -- --run` and `npm run build` pass.
 
-### 2. Split plain rendering from highlighting
+### Remaining validation
 
-- Keep `renderCodeHtml(code, lang)` as escaped plain fallback.
-- Remove Shiki imports from `src/extensions/highlight.ts`.
-- Add helper that applies a passed highlighter and falls back safely.
-
-### 3. Thread highlighter through editor code block widgets
-
-- Add a configurable highlighter path for `codeBlockDecorations(...)`.
-- Pass `codeHighlighter` from `MarkdownEditor`.
-- Ensure code block widgets render plain code first, then upgrade when async highlighter resolves.
-
-### 4. Thread highlighter through MarkdownRenderer
-
-- Add `codeHighlighter` prop.
-- Synchronously render plain escaped code blocks.
-- In `useEffect`, upgrade `pre[data-language]` blocks if a highlighter is present.
-
-### 5. Add Shiki helper entrypoint
-
-- Create `src/shiki.ts` or `src/shiki/index.ts`.
-- Import Shiki only in that entrypoint.
-- Add Vite/package export for `./shiki`.
-- Keep default `src/index.tsx` Shiki-free.
-
-### 6. Tests
-
-- Default editor renders plain code blocks without highlighter.
-- Editor upgrades code block widget when highlighter is supplied.
-- Renderer renders plain code blocks without highlighter.
-- Renderer upgrades code blocks when highlighter is supplied.
-- Default import path does not reference `shiki` in source dependency graph.
-
-### 7. Build/package validation
-
-- Run tests and typecheck.
-- Build package.
-- Compare:
-  - `dist/` size
-  - tarball size
-  - emitted file count
-- Confirm default package no longer emits Shiki language/theme chunks unless `./shiki` is included in the package output.
+- Install the generated tarball into a fresh consumer app.
+- Confirm default consumer usage works without importing `@dpklabs/minueditor/shiki`.
+- Confirm opt-in Shiki usage works through `createShikiHighlighter`.
+- Inspect consumer app bundle output to confirm Shiki is only pulled when the subpath is imported.
 
 ## Open question
 

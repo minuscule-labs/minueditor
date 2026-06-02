@@ -90,6 +90,65 @@ import { languages } from '@codemirror/language-data'
 
 This keeps language bundle cost under the consuming app's control.
 
+## Optional syntax highlighting
+
+Code blocks render safely as escaped plain HTML by default. The default editor and renderer do not require a syntax highlighter.
+
+To opt into Shiki highlighting, import the separate Shiki helper entrypoint and pass the resulting highlighter to the editor and/or renderer:
+
+```tsx
+import { MarkdownEditor, MarkdownRenderer } from '@dpklabs/minueditor'
+import { createShikiHighlighter } from '@dpklabs/minueditor/shiki'
+
+const codeHighlighter = createShikiHighlighter()
+
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  codeHighlighter={codeHighlighter}
+/>
+
+<MarkdownRenderer
+  value={value}
+  codeHighlighter={codeHighlighter}
+/>
+```
+
+You can customize Shiki themes:
+
+```tsx
+const codeHighlighter = createShikiHighlighter({
+  themes: {
+    light: 'github-light',
+    dark: 'github-dark',
+  },
+})
+```
+
+or use a single theme:
+
+```tsx
+const codeHighlighter = createShikiHighlighter({ theme: 'github-dark' })
+```
+
+You can also bring your own highlighter by implementing the exported `CodeHighlighter` type:
+
+```tsx
+import type { CodeHighlighter } from '@dpklabs/minueditor'
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+const codeHighlighter: CodeHighlighter = async (code, lang) => {
+  return `<pre data-language="${lang}"><code>${escapeHtml(code)}</code></pre>`
+}
+```
+
+If you do not pass `codeHighlighter`, fenced code remains plain and escaped.
+
 ## Image uploads
 
 Image uploads are intentionally bring-your-own-storage.

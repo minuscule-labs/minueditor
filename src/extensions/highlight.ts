@@ -1,17 +1,4 @@
-import { codeToHtml } from 'shiki'
-
-const shikiLanguageAliases: Record<string, string> = {
-  js: 'javascript',
-  jsx: 'jsx',
-  md: 'markdown',
-  py: 'python',
-  sh: 'bash',
-  shell: 'bash',
-  ts: 'typescript',
-  tsx: 'tsx',
-  yml: 'yaml',
-  zsh: 'bash',
-}
+import type { CodeHighlighter } from '../types'
 
 function escapeHtml(value: string): string {
   return value
@@ -24,28 +11,20 @@ function escapeAttribute(value: string): string {
   return escapeHtml(value).replace(/"/g, '&quot;')
 }
 
-function normalizeLanguage(lang: string): string {
-  const normalized = lang.trim().toLowerCase()
-  return shikiLanguageAliases[normalized] ?? normalized
-}
-
 export function renderCodeHtml(code: string, lang: string): string {
   const languageAttr = lang ? ` data-language="${escapeAttribute(lang)}"` : ''
   return `<pre${languageAttr}><code>${escapeHtml(code)}</code></pre>`
 }
 
-export async function renderCodeHtmlWithShiki(code: string, lang: string): Promise<string | null> {
-  const normalized = normalizeLanguage(lang)
-  if (!normalized) return null
+export async function highlightCodeHtml(
+  highlighter: CodeHighlighter | undefined,
+  code: string,
+  lang: string,
+): Promise<string | null> {
+  if (!highlighter) return null
 
   try {
-    return await codeToHtml(code, {
-      lang: normalized,
-      themes: {
-        light: 'github-light',
-        dark: 'github-dark',
-      },
-    })
+    return await highlighter(code, lang)
   } catch {
     return null
   }

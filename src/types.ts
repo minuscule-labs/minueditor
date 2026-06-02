@@ -38,6 +38,8 @@ export interface SlashCommand {
   run: (view: EditorView) => boolean
 }
 
+export type CodeHighlighter = (code: string, lang: string) => string | Promise<string | null> | null
+
 export interface DocumentAnnotation {
   id: string
   documentId: string
@@ -71,6 +73,8 @@ export interface MarkdownEditorProps {
   onImageUpload?: (file: File) => Promise<string>
   /** Optional CodeMirror language loaders for fenced-code editing. Defaults to none. */
   codeLanguages?: readonly LanguageDescription[]
+  /** Optional syntax highlighter for rendered fenced code. Defaults to plain escaped code. */
+  codeHighlighter?: CodeHighlighter
   onStateChange?: (state: MarkdownEditorState) => void
   /** Called with the EditorView instance after CM6 mounts (or re-mounts). */
   onViewReady?: (view: EditorView) => void

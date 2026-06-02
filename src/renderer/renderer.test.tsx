@@ -22,11 +22,25 @@ describe('MarkdownRenderer', () => {
     expect(screen.getByText('const x = 1')).toBeInTheDocument()
   })
 
-  it('upgrades fenced code blocks to shiki when a language is present', async () => {
+  it('renders plain escaped fenced code blocks by default', () => {
     const { container } = render(<MarkdownRenderer value={'```ts\nconst x = 1\n```'} />)
-    await waitFor(() => {
-      expect(container.querySelector('pre.shiki')).toBeInTheDocument()
+    expect(container.querySelector('pre[data-language="ts"]')).toBeInTheDocument()
+    expect(container.querySelector('pre.shiki')).not.toBeInTheDocument()
+  })
+
+  it('upgrades fenced code blocks with a supplied highlighter', async () => {
+    const codeHighlighter = vi.fn(async (code: string, lang: string) => {
+      return `<pre class="custom-highlight" data-lang="${lang}"><code>${code}</code></pre>`
     })
+
+    const { container } = render(
+      <MarkdownRenderer value={'```ts\nconst x = 1\n```'} codeHighlighter={codeHighlighter} />,
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('pre.custom-highlight')).toBeInTheDocument()
+    })
+    expect(codeHighlighter).toHaveBeenCalledWith('const x = 1', 'ts')
   })
 
   it('renders inline code', () => {

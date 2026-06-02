@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { Marked } from 'marked'
-import { renderCodeHtml, renderCodeHtmlWithShiki } from '../extensions/highlight'
+import { renderCodeHtml, highlightCodeHtml } from '../extensions/highlight'
+import type { CodeHighlighter } from '../types'
 
 interface MarkdownRendererProps {
   /** The plain markdown string to render. */
   value: string
   /** Called when the user clicks anywhere on the rendered content. */
   onClick?: (() => void) | undefined
+  /** Optional syntax highlighter for rendered fenced code. Defaults to plain escaped code. */
+  codeHighlighter?: CodeHighlighter | undefined
   className?: string | undefined
 }
 
@@ -29,6 +32,7 @@ const renderer = new Marked({
 export function MarkdownRenderer({
   value,
   onClick,
+  codeHighlighter,
   className,
 }: MarkdownRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -64,7 +68,7 @@ export function MarkdownRenderer({
       const code = block.textContent
       if (!lang || code == null) return
 
-      void renderCodeHtmlWithShiki(code, lang).then((highlighted) => {
+      void highlightCodeHtml(codeHighlighter, code, lang).then((highlighted) => {
         if (!highlighted || isDisposed || !block.isConnected) return
         block.outerHTML = highlighted
       })
@@ -73,7 +77,7 @@ export function MarkdownRenderer({
     return () => {
       isDisposed = true
     }
-  }, [html])
+  }, [html, codeHighlighter])
 
   return (
     <div

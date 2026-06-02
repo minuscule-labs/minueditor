@@ -47,6 +47,13 @@ The editor behavior is intentionally opinionated.
 
 The primary built-in behavior toggle is `readOnly`.
 
+Optional consumer-owned integrations:
+
+1. `codeLanguages` supplies CodeMirror language descriptions for fenced-code editing.
+2. `codeHighlighter` supplies rendered HTML for fenced-code syntax highlighting.
+
+Syntax highlighting is not part of the default dependency path. Code blocks render as escaped plain HTML unless a consumer passes a highlighter. The Shiki helper lives behind the separate `@dpklabs/minueditor/shiki` subpath.
+
 ### `src/renderer/index.tsx`
 
 Static markdown rendering surface.
@@ -126,10 +133,10 @@ Shared types for fenced block metadata and nested editor mounts.
 Nested editor theme used inside editable code block widgets.
 
 5. `model.ts`
-Fenced block parsing, language extension loading, click-position mapping, and HTML rendering helpers.
+Fenced block parsing, language extension loading, highlighter configuration, click-position mapping, and HTML rendering helpers.
 
 6. `widget.ts`
-Widget DOM, nested editor lifecycle, keyboard interactions, focus transitions, and decoration construction.
+Widget DOM, nested editor lifecycle, keyboard interactions, focus transitions, optional highlighted-HTML upgrades, and decoration construction.
 
 ## Performance Notes
 

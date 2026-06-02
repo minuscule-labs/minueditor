@@ -2,143 +2,79 @@
 
 ## Current observations
 
-The published package is usable but heavy for route-level app usage.
+The default editor/renderer source path no longer imports Shiki directly. Syntax highlighting is now consumer-controlled through `codeHighlighter`, with an opt-in Shiki helper at `@dpklabs/minueditor/shiki`.
 
-After the `0.3.3` build:
+After the current build:
 
-- `dist/` is about 24 MB unpacked.
-- npm tarball is about 4.8 MB.
-- `dist/` contains 800+ emitted files.
-- Most emitted files are syntax highlighting language/theme chunks.
+- `dist/` is about 21 MB unpacked.
+- npm tarball dry-run is about 3.9 MB packed / 20.9 MB unpacked.
+- `dist/` contains 600+ emitted JS/CJS files.
+- Most emitted files are Shiki language/theme chunks from the optional `./shiki` build entry.
 
-Large dependencies involved:
+Main entry sizes from Vite output:
 
-- `shiki` via `src/extensions/highlight.ts`
+| file | raw | gzip |
+|---|---:|---:|
+| `dist/index.js` | ~916 KB | ~270 KB |
+| `dist/index.cjs` | ~637 KB | ~218 KB |
+| `dist/shiki.js` | ~286 KB | ~80 KB |
+| `dist/shiki.cjs` | ~210 KB | ~67 KB |
 
-Previously this path also used `highlight.js`, `lowlight`, and `@codemirror/language-data`; those have been removed from the default dependency path. Shiki is now the only syntax highlighter dependency, and CodeMirror language packages are consumer-supplied through `codeLanguages`.
+## Dependency boundaries
 
-## Why this happens
+### CodeMirror language data
 
-### 1. MarkdownEditor no longer eagerly imports CodeMirror language data
-
-`MarkdownEditor` now accepts consumer-provided CodeMirror language descriptions:
+`MarkdownEditor` does not bundle `@codemirror/language-data` by default. Consumers can supply CodeMirror language descriptions when they want language-aware fenced-code editing:
 
 ```tsx
+import { languages } from '@codemirror/language-data'
+
 <MarkdownEditor codeLanguages={languages} />
 ```
 
-The default is no bundled CodeMirror language packages. This keeps fenced-code language editing cost under the consuming app's control.
+The default is no bundled CodeMirror language packages.
 
-### 2. Code block widgets import highlighting
+### Syntax highlighting
 
-`src/extensions/codeblock/widget.ts` imports `renderCodeHtmlWithShiki`.
-`src/extensions/codeblock/model.ts` imports `renderCodeHtml` and uses the configured `codeLanguages` list for nested fenced-code editors.
+Code blocks render as escaped plain HTML by default.
 
-`renderCodeHtml` returns escaped plain code HTML synchronously. Shiki is used for highlighted upgrades.
-
-### 3. MarkdownRenderer imports highlighting too
-
-`src/renderer/index.tsx` imports both:
-
-```ts
-import { renderCodeHtml, renderCodeHtmlWithShiki } from '../extensions/highlight'
-```
-
-So renderer usage is also connected to Shiki.
-
-### 4. Vite library build emits dynamic chunks into `dist/`
-
-Because Shiki and language packages use many dynamic imports, the library build emits many chunks. Since `package.json` publishes the whole `dist` directory, all those chunks go into the package tarball.
-
-## Recommended plan
-
-### Phase 1: Add a minimal editor path
-
-Goal: provide a documented import that avoids highlighter and broad language-data dependencies.
-
-Potential entrypoint:
-
-```ts
-import { MarkdownEditor } from '@dpklabs/minueditor/minimal'
-```
-
-Minimal editor should:
-
-- keep core markdown editing
-- keep slash commands, tables, checkboxes, images, annotations
-- omit Shiki/lowlight/highlight.js
-- avoid `@codemirror/language-data` when possible
-- render code fences as plain editable blocks
-
-Possible implementation options:
-
-1. Add a `highlighting?: boolean | 'basic' | 'full'` prop.
-2. Add a separate `MarkdownEditorMinimal` component.
-3. Add a separate package export that uses a minimal internal editor configuration.
-
-The separate export is clearest for consumers because bundle analyzers can see a different import path.
-
-### Phase 2: Make Shiki lazy/optional
-
-Move Shiki behind a dynamic import so the main editor bundle is not directly connected to it.
-
-Example direction:
-
-```ts
-export async function renderCodeHtmlWithShiki(...) {
-  const { codeToHtml } = await import('shiki')
-  return codeToHtml(...)
-}
-```
-
-This may still emit chunks, but it can keep them out of the initial app route when bundled by consuming apps.
-
-### Phase 3: Reduce default language data
-
-Instead of importing all `@codemirror/language-data`, provide one of:
-
-- no code language support by default
-- a small curated language list
-- consumer-supplied `codeLanguages`
-- separate full build with all languages
-
-Possible API:
+Consumers can opt into Shiki by importing the separate subpath:
 
 ```tsx
-<MarkdownEditor codeLanguages="none" />
-<MarkdownEditor codeLanguages="common" />
-<MarkdownEditor codeLanguages={customLanguages} />
+import { createShikiHighlighter } from '@dpklabs/minueditor/shiki'
+
+const codeHighlighter = createShikiHighlighter()
+
+<MarkdownEditor codeHighlighter={codeHighlighter} />
+<MarkdownRenderer codeHighlighter={codeHighlighter} />
 ```
 
-### Phase 4: Document lazy loading
+Consumers can also provide any custom `CodeHighlighter` implementation.
 
-Add an app integration section showing route-level lazy loading:
+## Why package size is still large
 
-```tsx
-const MarkdownEditor = lazy(() =>
-  import('@dpklabs/minueditor').then((mod) => ({ default: mod.MarkdownEditor }))
-)
+The `./shiki` helper is built and published from the same package. Vite emits Shiki's dynamic language/theme chunks into `dist/`, and `package.json` publishes the whole `dist` directory.
+
+This means:
+
+1. Default consumer app bundles should not pull Shiki unless they import `@dpklabs/minueditor/shiki`.
+2. The package tarball still includes the optional Shiki helper and its emitted chunks.
+
+## Remaining validation
+
+Before release, test the generated tarball in a fresh consumer app:
+
+1. Install the local `.tgz` from `npm pack`.
+2. Verify default `@dpklabs/minueditor` usage works with plain code blocks.
+3. Verify `@dpklabs/minueditor/shiki` usage highlights code blocks.
+4. Inspect the consumer app bundle to confirm Shiki only appears when the subpath is imported.
+
+## Future option
+
+If tarball size becomes the primary concern, move the Shiki helper into a separate optional package, for example:
+
+```ts
+import { createShikiHighlighter } from '@dpklabs/minueditor-shiki'
 ```
 
-And the corresponding CSS import requirement.
-
-### Phase 5: Publish package-size guidance
-
-Document:
-
-- full editor vs minimal editor tradeoffs
-- expected package size
-- how to avoid loading renderer/highlighting on routes that do not need it
-- when to use `MarkdownRenderer` vs app-owned rendering
-
-## Proposed next concrete task
-
-Completed first cleanup:
-
-1. Removed `highlight.js`, `lowlight`, and direct HAST-to-HTML rendering from first-party code.
-2. Kept Shiki as the only syntax highlighter.
-3. `renderCodeHtml` now emits safe plain code HTML synchronously; `renderCodeHtmlWithShiki` upgrades highlighted blocks.
-
-Result: package size improved only slightly because Shiki and CodeMirror language data remain the dominant contributors.
-
-Next best task: decide whether Shiki should also become consumer-supplied/optional for consumers who only need plain Markdown editing.
+That would keep the main package tarball smaller while preserving opt-in Shiki support.
