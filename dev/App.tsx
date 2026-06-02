@@ -283,6 +283,7 @@ export default function App() {
   const [commentValue, setCommentValue] = useState(COMMENT_INITIAL)
   const [imageValue, setImageValue] = useState(IMAGE_INITIAL)
   const [docView, setDocView] = useState<EditorView | null>(null)
+  const [docEditing, setDocEditing] = useState(false)
   const [theme, setTheme] = useState<ThemeChoice>('base')
   const codeHighlighter = useMemo(() => createShikiHighlighter(), [])
 
@@ -329,9 +330,16 @@ export default function App() {
       <main className="app-main">
         <section className="surface">
           <h2>Document surface</h2>
-          <p className="surface-desc">Full persistent toolbar · all features</p>
-          <div className="editor-frame">
-            <EditorToolbar view={docView} variant="full" />
+          <p className="surface-desc">
+            Full persistent toolbar · starts read-only so click the editor to enter edit mode
+          </p>
+          <div
+            className="editor-frame"
+            onMouseDown={() => {
+              if (!docEditing) setDocEditing(true)
+            }}
+          >
+            <EditorToolbar view={docEditing ? docView : null} variant="full" />
             <MarkdownEditor
               value={docValue}
               onChange={setDocValue}
@@ -339,8 +347,12 @@ export default function App() {
               minHeight={300}
               onViewReady={setDocView}
               codeHighlighter={codeHighlighter}
+              readOnly={!docEditing}
             />
           </div>
+          <button type="button" onClick={() => setDocEditing(false)}>
+            Return document surface to read-only
+          </button>
         </section>
 
         <section className="surface">
