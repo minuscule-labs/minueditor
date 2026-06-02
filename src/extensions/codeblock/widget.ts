@@ -713,7 +713,9 @@ class CodeBlockWidget extends WidgetType {
 export function buildCodeBlockDecorations(state: EditorState): DecorationSet {
   const ranges: ReturnType<Decoration["range"]>[] = [];
   const doc = state.doc;
-  const activeBlockFrom = state.field(activeCodeBlockField, false);
+  const activeBlockFrom = state.facet(EditorView.editable)
+    ? state.field(activeCodeBlockField, false)
+    : null;
 
   syntaxTree(state).iterate({
     from: 0,
@@ -750,6 +752,8 @@ export function buildCodeBlockDecorations(state: EditorState): DecorationSet {
 
 export const codeBlockClickToEdit = EditorView.domEventHandlers({
   mousedown(event, view) {
+    if (!view.state.facet(EditorView.editable)) return false;
+
     const target = event.target as HTMLElement | null;
     const widget = target?.closest(
       ".me-codeblock-widget",
@@ -789,6 +793,8 @@ export const codeBlockArrowNavigation = Prec.high(
     {
       key: 'ArrowDown',
       run(view) {
+        if (!view.state.facet(EditorView.editable)) return false
+
         const selection = view.state.selection.main
         if (!selection.empty) return false
 
@@ -810,6 +816,8 @@ export const codeBlockArrowNavigation = Prec.high(
     {
       key: 'ArrowUp',
       run(view) {
+        if (!view.state.facet(EditorView.editable)) return false
+
         const selection = view.state.selection.main
         if (!selection.empty) return false
 
@@ -829,6 +837,7 @@ export const codeBlockArrowNavigation = Prec.high(
 
 export const autoCloseCodeFence = EditorView.inputHandler.of(
   (view, from, to, text, _insert) => {
+    if (!view.state.facet(EditorView.editable)) return false;
     if (text !== "`") return false;
 
     const selection = view.state.selection.main;

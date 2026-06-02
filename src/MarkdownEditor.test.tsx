@@ -1100,6 +1100,26 @@ describe('MarkdownEditor', () => {
     )
   })
 
+  it('renders code blocks with the code block widget in read-only mode', async () => {
+    const { container } = render(
+      <MarkdownEditor
+        value={'```ts\nconst x = 1\n```'}
+        onChange={vi.fn()}
+        readOnly
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget')).toBeTruthy()
+      expect(container.querySelector('.me-codeblock-body')).toHaveTextContent('const x = 1')
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-widget')!)
+
+    expect(container.querySelector('.me-codeblock-widget--editing')).toBeNull()
+    expect(container.querySelector('.me-codeblock-body')).toHaveTextContent('const x = 1')
+  })
+
   it('renders markdown tables with the table widget', async () => {
     const { container } = render(
       <MarkdownEditor
