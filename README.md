@@ -90,6 +90,22 @@ import { languages } from '@codemirror/language-data'
 
 This keeps language bundle cost under the consuming app's control.
 
+To enable only specific languages, filter the language descriptions before passing them to the editor:
+
+```tsx
+import { languages } from '@codemirror/language-data'
+
+const codeLanguages = languages.filter((language) =>
+  ['JavaScript', 'TypeScript', 'JSON', 'Markdown'].includes(language.name)
+)
+
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  codeLanguages={codeLanguages}
+/>
+```
+
 ## Optional syntax highlighting
 
 Code blocks render safely as escaped plain HTML by default. The default editor and renderer do not require a syntax highlighter.
@@ -129,6 +145,21 @@ or use a single theme:
 
 ```tsx
 const codeHighlighter = createShikiHighlighter({ theme: 'github-dark' })
+```
+
+To highlight only specific languages, wrap the highlighter and return `null` for unsupported languages. Unsupported blocks fall back to safe escaped plain HTML:
+
+```tsx
+import { createShikiHighlighter } from '@dpklabs/minueditor/shiki'
+import type { CodeHighlighter } from '@dpklabs/minueditor'
+
+const shikiHighlighter = createShikiHighlighter()
+const highlightedLanguages = new Set(['js', 'jsx', 'ts', 'tsx', 'json', 'md'])
+
+const codeHighlighter: CodeHighlighter = (code, lang) => {
+  if (!highlightedLanguages.has(lang.toLowerCase())) return null
+  return shikiHighlighter(code, lang)
+}
 ```
 
 You can also bring your own highlighter by implementing the exported `CodeHighlighter` type:
