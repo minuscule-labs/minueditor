@@ -45,6 +45,25 @@ export function MarkdownRenderer({
     const container = containerRef.current
     if (!container) return
 
+    container.querySelectorAll<HTMLLIElement>('li').forEach((li) => {
+      const first = li.firstChild
+      if (!first || first.nodeType !== Node.TEXT_NODE) return
+      const text = first.textContent ?? ''
+      const match = text.match(/^\[\/\]\s+/)
+      if (!match) return
+
+      first.textContent = text.slice(match[0].length)
+      li.classList.add('task-list-item', 'me-task-list-item--partial')
+      li.parentElement?.classList.add('contains-task-list')
+
+      const checkbox = document.createElement('span')
+      checkbox.className = 'me-renderer-checkbox me-renderer-checkbox--partial'
+      checkbox.setAttribute('role', 'checkbox')
+      checkbox.setAttribute('aria-checked', 'mixed')
+      checkbox.setAttribute('aria-label', 'In progress')
+      li.prepend(checkbox)
+    })
+
     // marked renders GFM task list items as:
     // <li><input type="checkbox" disabled> text</li>
     // We remove `disabled` to make them interactive,

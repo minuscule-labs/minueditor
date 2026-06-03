@@ -651,7 +651,7 @@ describe('MarkdownEditor', () => {
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled()
       const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
-      expect(latestValue).toBe('- [x] task')
+      expect(latestValue).toBe('- [/] task')
     })
   })
 
@@ -683,7 +683,7 @@ describe('MarkdownEditor', () => {
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled()
       const latestValue = onChange.mock.calls[onChange.mock.calls.length - 1][0]
-      expect(latestValue).toBe('- parent\n    - [x] dsflskdjf')
+      expect(latestValue).toBe('- parent\n    - [/] dsflskdjf')
       expect(latestValue).not.toContain('[x] [ ]')
     })
   })

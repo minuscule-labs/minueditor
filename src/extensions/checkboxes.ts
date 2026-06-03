@@ -7,13 +7,14 @@ import {
   type ViewUpdate,
   WidgetType,
 } from '@codemirror/view'
-import { syntaxTree } from '@codemirror/language'
 
 // ── Checkbox widget ───────────────────────────────────────────────────────────
 
+type CheckboxState = 'empty' | 'partial' | 'checked'
+
 class CheckboxWidget extends WidgetType {
   constructor(
-    readonly checked: boolean,
+    readonly state: CheckboxState,
     readonly from: number,
     readonly to: number
   ) {
@@ -22,33 +23,39 @@ class CheckboxWidget extends WidgetType {
 
   override eq(other: CheckboxWidget): boolean {
     return (
-      this.checked === other.checked &&
+      this.state === other.state &&
       this.from === other.from &&
       this.to === other.to
     )
   }
 
-    override toDOM(view: EditorView): HTMLElement {
-    const checkbox = document.createElement('input')
-    checkbox.type = 'checkbox'
-    checkbox.checked = this.checked
-    checkbox.className = 'me-checkbox'
-    checkbox.setAttribute('aria-label', this.checked ? 'Completed' : 'Incomplete')
+  override toDOM(view: EditorView): HTMLElement {
+    const checkbox = document.createElement('button')
+    checkbox.type = 'button'
+    checkbox.className = `me-checkbox me-checkbox--${this.state}`
+    checkbox.setAttribute('role', 'checkbox')
+    checkbox.setAttribute('aria-checked', this.state === 'partial' ? 'mixed' : String(this.state === 'checked'))
+    checkbox.setAttribute(
+      'aria-label',
+      this.state === 'checked'
+        ? 'Completed'
+        : this.state === 'partial'
+          ? 'In progress'
+          : 'Incomplete'
+    )
 
     checkbox.addEventListener('mousedown', (e) => {
       e.preventDefault() // prevent editor blur
     })
 
-    checkbox.addEventListener('change', () => {
+    checkbox.addEventListener('click', () => {
       if (!view.state.facet(EditorView.editable)) return
 
-      const newMark = checkbox.checked ? '[x]' : '[ ]'
-      const from = this.from
-      const to = this.to
+      const newMark =
+        this.state === 'empty' ? '[/]' : this.state === 'partial' ? '[x]' : '[ ]'
 
-      // Replace `[ ]` or `[x]` at the stored position
       view.dispatch({
-        changes: { from, to, insert: newMark },
+        changes: { from: this.from, to: this.to, insert: newMark },
       })
     })
 
@@ -68,34 +75,30 @@ function buildCheckboxDecorations(view: EditorView): DecorationSet {
 
   // Only walk visible ranges
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(view.state).iterate({
-      from,
-      to,
-      enter(node) {
-        // The Lezer markdown tree uses "Task" for `- [ ]` / `- [x]` items
-        if (node.name !== 'Task') return
-
-        const lineText = doc.lineAt(node.from).text
-        // Find `[ ]` or `[x]` within the task node text
-        const checkMatch = lineText.match(/^(\s*[-*+]\s+)(\[[ xX]\])/)
-        if (!checkMatch) return
-
-        const lineFrom = doc.lineAt(node.from).from
+    for (let pos = from; pos <= to; ) {
+      const line = doc.lineAt(pos)
+      const checkMatch = line.text.match(/^(\s*[-*+]\s+)(\[[ xX/]\])/)
+      if (checkMatch) {
         const markerOffset = checkMatch[1].length
-        const markerFrom = lineFrom + markerOffset
-        const markerTo = markerFrom + 3 // `[ ]` or `[x]` is 3 chars
-
-        const checked = /[xX]/.test(lineText[markerOffset + 1])
+        const markerFrom = line.from + markerOffset
+        const markerTo = markerFrom + 3 // `[ ]`, `[/]`, or `[x]` is 3 chars
+        const mark = line.text[markerOffset + 1]
+        const state: CheckboxState = /[xX]/.test(mark)
+          ? 'checked'
+          : mark === '/'
+            ? 'partial'
+            : 'empty'
 
         builder.add(
           markerFrom,
           markerTo,
           Decoration.replace({
-            widget: new CheckboxWidget(checked, markerFrom, markerTo),
+            widget: new CheckboxWidget(state, markerFrom, markerTo),
           })
         )
-      },
-    })
+      }
+      pos = line.to + 1
+    }
   }
 
   return builder.finish()

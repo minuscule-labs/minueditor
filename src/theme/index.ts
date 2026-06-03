@@ -569,11 +569,36 @@ export const minueditorTheme = EditorView.theme({
 
   ".me-checkbox": {
     cursor: "pointer",
-    verticalAlign: "middle",
-    margin: "0 4px 0 0",
-    width: "14px",
-    height: "14px",
-    accentColor: "var(--me-checkbox-color, #2563eb)",
+    verticalAlign: "-0.08em",
+    margin: "0 0.38em 0 0",
+    width: "1.15em",
+    height: "1.15em",
+    padding: "0",
+    border: "2px solid #000",
+    borderRadius: "0",
+    background: "transparent",
+    position: "relative",
+    boxSizing: "border-box",
+  },
+
+  ".me-checkbox--partial": {
+    background: "linear-gradient(135deg, #000 0 50%, transparent 50% 100%)",
+  },
+
+  ".me-checkbox--checked": {
+    background: "#000",
+  },
+
+  ".me-checkbox--checked::after": {
+    content: '""',
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: "0.28em",
+    height: "0.56em",
+    border: "solid white",
+    borderWidth: "0 2px 2px 0",
+    transform: "translate(-42%, -58%) rotate(45deg)",
   },
 
   // ── Code block widgets ────────────────────────────────────────────────

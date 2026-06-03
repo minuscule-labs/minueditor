@@ -97,7 +97,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (node.name === 'ListMark') {
           const line = doc.lineAt(node.from)
           const indentLevel = Math.min(listIndentLevel(line.text), 6)
-          const isTaskLine = /^\s*[-*+]\s+\[[ xX]\]\s/.test(line.text)
+          const isTaskLine = /^\s*[-*+]\s+\[[ xX/]\]\s/.test(line.text)
           ranges.push(
             Decoration.line({ class: `me-list-line me-list-line--indent-${indentLevel}` }).range(
               line.from

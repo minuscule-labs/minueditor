@@ -46,7 +46,7 @@ export interface MarkdownEditorHandle {
 
 function getActiveMarks(lineText: string): MarkdownEditorState['activeMarks'] {
   const heading = /^(#{1,6})\s+/.exec(lineText)
-  const list = /^\s*[-*+]\s+\[[ xX]\]\s+/.test(lineText)
+  const list = /^\s*[-*+]\s+\[[ xX/]\]\s+/.test(lineText)
     ? 'task'
     : /^\s*[-*+]\s+/.test(lineText)
       ? 'bullet'

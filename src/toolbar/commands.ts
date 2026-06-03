@@ -96,7 +96,7 @@ export function enterAfterHiddenInlineSuffix(view: EditorView): boolean {
     if (tail !== "`" && tail !== "*" && tail !== "~") return false;
   }
 
-  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX]\]\s+/);
+  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX/]\]\s+/);
   const unorderedMatch = line.text.match(/^(\s*)([-*+])\s+/);
   const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s+/);
 
@@ -129,7 +129,7 @@ export function enterInMarkdownList(view: EditorView): boolean {
   const line = view.state.doc.lineAt(selection.from);
   if (selection.from !== line.to) return false;
 
-  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX]\]\s+(.*)$/);
+  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX/]\]\s+(.*)$/);
   const unorderedMatch = line.text.match(/^(\s*)([-*+])\s+(.*)$/);
   const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s+(.*)$/);
 

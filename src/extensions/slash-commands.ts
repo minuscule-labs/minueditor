@@ -48,7 +48,7 @@ function setSlashOrderedList(view: EditorView): boolean {
 
 function setSlashCheckboxList(view: EditorView): boolean {
   if (!toggleCheckboxList(view)) return false
-  return moveCursorAfterLineMarker(view, /^\s*[-*+]\s+\[[ xX]\]\s+/) || true
+  return moveCursorAfterLineMarker(view, /^\s*[-*+]\s+\[[ xX/]\]\s+/) || true
 }
 
 function setBlockquote(view: EditorView): boolean {
