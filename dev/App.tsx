@@ -31,12 +31,19 @@ This is the **document** surface with basic live markdown only.
 - Add live decorations
 - Keep advanced widgets out of the default setup
 
-### Table
+### Small table
 
 | Name | Role | Location |
 | --- | --- | --- |
 | Alice | Engineer | NYC |
 | Bob | Designer | LA |
+
+### Wide table
+
+| Name | Role | Location | Project | Notes |
+| --- | --- | --- | --- | --- |
+| Alice Alexandra Johnson | Senior platform engineer | New York City headquarters | Reusable markdown editor table scrolling validation | This is intentionally long table cell text to force horizontal overflow inside the editor container |
+| Bob Benjamin Robertson | Principal product designer | Los Angeles design studio | Interaction polish and editing-state layout review | Another deliberately long value so five columns exceed the available editor width |
 
 ### Code
 

@@ -21,7 +21,7 @@ export const minueditorTheme = EditorView.theme({
   ".cm-scroller": {
     fontFamily: "inherit",
     lineHeight: "inherit",
-    overflowX: "auto",
+    overflowX: "hidden",
   },
 
   ".cm-content": {
@@ -463,6 +463,15 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-table-widget": {
+    display: "block",
+    boxSizing: "border-box",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: "0",
+    contain: "inline-size",
+    overflowX: "auto",
+    overflowY: "hidden",
+    overscrollBehaviorX: "contain",
     margin: "0.75em 0",
   },
 
@@ -471,9 +480,15 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-table-scroller": {
+    display: "block",
+    boxSizing: "border-box",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: "0",
+    contain: "inline-size",
     overflowX: "auto",
     overflowY: "hidden",
-    maxWidth: "100%",
+    overscrollBehaviorX: "contain",
   },
 
   ".me-table-render": {
@@ -539,7 +554,7 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-table-input-sizer::after": {
-    content: "attr(data-value) ' '",
+    content: "attr(data-value)",
     visibility: "hidden",
     whiteSpace: "pre",
   },
