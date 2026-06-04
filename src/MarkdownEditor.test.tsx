@@ -594,12 +594,23 @@ describe('MarkdownEditor', () => {
 
   it('keeps heading markers visible on the active line', async () => {
     const { container } = render(
-      <MarkdownEditor value={'# Heading'} onChange={vi.fn()} />
+      <MarkdownEditor value={'# Heading'} onChange={vi.fn()} autoFocus />
     )
 
     await waitFor(() => {
       expect(container.querySelector('.me-h1')).toBeTruthy()
       expect(container.querySelector('.me-token--block')).toBeFalsy()
+    })
+  })
+
+  it('hides heading markers on initial mount when not focused', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'# Heading'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-h1')).toBeTruthy()
+      expect(container.querySelector('.me-token--block')).toBeTruthy()
     })
   })
 

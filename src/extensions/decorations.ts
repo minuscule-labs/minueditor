@@ -13,6 +13,8 @@ import { syntaxTree } from '@codemirror/language'
 
 function activeLinesSet(view: EditorView): Set<number> {
   const active = new Set<number>()
+  if (!view.hasFocus) return active
+
   for (const range of view.state.selection.ranges) {
     const fromLine = view.state.doc.lineAt(range.from).number
     const toLine = view.state.doc.lineAt(range.to).number
@@ -190,7 +192,8 @@ export const markdownDecorations = ViewPlugin.fromClass(
         forceRefresh ||
         update.docChanged ||
         update.viewportChanged ||
-        update.selectionSet
+        update.selectionSet ||
+        update.focusChanged
       ) {
         this.decorations = buildDecorations(update.view)
         this.needsInitialRefresh = false
