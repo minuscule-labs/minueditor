@@ -527,10 +527,9 @@ export const minueditorTheme = EditorView.theme({
 
   ".me-table-input": {
     appearance: "none",
-    width: "100%",
+    width: "auto",
     display: "block",
     minWidth: "5ch",
-    maxWidth: "100%",
     border: "none",
     outline: "none",
     background: "transparent",

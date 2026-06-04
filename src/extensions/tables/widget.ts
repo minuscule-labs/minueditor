@@ -494,6 +494,10 @@ class TableWidget extends WidgetType {
   }
 }
 
+function syncTableInputWidth(input: HTMLInputElement): void {
+  input.style.width = `${Math.max(input.value.length + 2, 5)}ch`
+}
+
 function createTableInput(
   view: EditorView,
   blockFrom: number,
@@ -509,6 +513,7 @@ function createTableInput(
   input.dataset.rowIndex = String(rowIndex)
   input.dataset.colIndex = String(colIndex)
   input.spellcheck = false
+  syncTableInputWidth(input)
   input.addEventListener('mousedown', (event) => {
     event.stopPropagation()
     startTableSelection(wrapper, rowIndex, colIndex)
@@ -540,6 +545,7 @@ function createTableInput(
     }
   })
   input.addEventListener('input', () => {
+    syncTableInputWidth(input)
     updateTableCell(view, blockFrom, rowIndex, colIndex, input.value)
   })
   input.addEventListener('keydown', (event) => {
