@@ -386,8 +386,13 @@
 }
 
 .me-renderer table {
+    display: block;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    min-width: 100%;
+    width: max-content;
     border-collapse: collapse;
-    width: 100%;
     margin: 0.75em 0;
     font-size: 0.9em;
 }
@@ -397,6 +402,7 @@
     padding: 6px 12px;
     border: 1px solid var(--me-table-border, #e0e0e0);
     text-align: left;
+    white-space: nowrap;
 }
 
 .me-renderer th {
