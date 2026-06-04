@@ -506,9 +506,6 @@ export const minueditorTheme = EditorView.theme({
 
   ".me-table-cell--selected .me-table-input": {
     backgroundColor: "transparent",
-    padding: "0.6rem 0.65rem",
-    minWidth: "5ch",
-    width: "auto",
     boxShadow: "none",
   },
 
@@ -525,19 +522,37 @@ export const minueditorTheme = EditorView.theme({
     textAlign: "right",
   },
 
-  ".me-table-input": {
-    appearance: "none",
-    width: "auto",
-    display: "block",
+  ".me-table-input-sizer": {
+    display: "inline-grid",
+    width: "max-content",
     minWidth: "5ch",
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    color: "inherit",
+    verticalAlign: "top",
+  },
+
+  ".me-table-input-sizer::after, .me-table-input-sizer .me-table-input": {
+    gridArea: "1 / 1",
     font: "inherit",
     lineHeight: "inherit",
     padding: "0.6rem 0.65rem",
     boxSizing: "border-box",
+    minWidth: "5ch",
+  },
+
+  ".me-table-input-sizer::after": {
+    content: "attr(data-value) ' '",
+    visibility: "hidden",
+    whiteSpace: "pre",
+  },
+
+  ".me-table-input": {
+    appearance: "none",
+    width: "100%",
+    minWidth: "0",
+    display: "block",
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    color: "inherit",
     boxShadow: "none",
   },
 

@@ -494,8 +494,11 @@ class TableWidget extends WidgetType {
   }
 }
 
-function syncTableInputWidth(input: HTMLInputElement): void {
-  input.size = Math.max(input.value.length + 2, 5)
+function syncTableInputSizer(input: HTMLInputElement): void {
+  const sizer = input.parentElement
+  if (sizer?.classList.contains('me-table-input-sizer')) {
+    sizer.dataset.value = input.value
+  }
 }
 
 function createTableInput(
@@ -505,15 +508,19 @@ function createTableInput(
   colIndex: number,
   value: string,
   wrapper: HTMLElement,
-): HTMLInputElement {
+): HTMLElement {
+  const sizer = document.createElement('span')
+  sizer.className = 'me-table-input-sizer'
+  sizer.dataset.value = value
+
   const input = document.createElement('input')
   input.className = 'me-table-input'
   input.type = 'text'
+  input.size = 1
   input.value = value
   input.dataset.rowIndex = String(rowIndex)
   input.dataset.colIndex = String(colIndex)
   input.spellcheck = false
-  syncTableInputWidth(input)
   input.addEventListener('mousedown', (event) => {
     event.stopPropagation()
     startTableSelection(wrapper, rowIndex, colIndex)
@@ -545,7 +552,7 @@ function createTableInput(
     }
   })
   input.addEventListener('input', () => {
-    syncTableInputWidth(input)
+    syncTableInputSizer(input)
     updateTableCell(view, blockFrom, rowIndex, colIndex, input.value)
   })
   input.addEventListener('keydown', (event) => {
@@ -639,7 +646,8 @@ function createTableInput(
       focusTableInput(wrapper, rowIndex + 1, 0)
     }
   })
-  return input
+  sizer.appendChild(input)
+  return sizer
 }
 
 export function buildTableDecorations(state: EditorState): DecorationSet {
