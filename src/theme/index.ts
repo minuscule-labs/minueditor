@@ -537,7 +537,7 @@ export const minueditorTheme = EditorView.theme({
     font: "inherit",
     lineHeight: "inherit",
     padding: "0.6rem 0.65rem",
-    boxSizing: "content-box",
+    boxSizing: "border-box",
     boxShadow: "none",
   },
 
