@@ -495,8 +495,7 @@ class TableWidget extends WidgetType {
 }
 
 function syncTableInputWidth(input: HTMLInputElement): void {
-  input.style.width = '5ch'
-  input.style.width = `${Math.max(input.scrollWidth, 1)}px`
+  input.size = Math.max(input.value.length + 2, 5)
 }
 
 function createTableInput(
