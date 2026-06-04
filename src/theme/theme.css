@@ -385,15 +385,17 @@
     border-radius: 4px;
 }
 
-.me-renderer table {
-    display: block;
+.me-renderer-table-scroller {
+    max-width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
-    max-width: 100%;
+    margin: 0.75em 0;
+}
+
+.me-renderer table {
     min-width: 100%;
     width: max-content;
     border-collapse: collapse;
-    margin: 0.75em 0;
     font-size: 0.9em;
 }
 

@@ -45,6 +45,15 @@ export function MarkdownRenderer({
     const container = containerRef.current
     if (!container) return
 
+    container.querySelectorAll<HTMLTableElement>('table').forEach((table) => {
+      if (table.parentElement?.classList.contains('me-renderer-table-scroller')) return
+
+      const scroller = document.createElement('div')
+      scroller.className = 'me-renderer-table-scroller'
+      table.parentNode?.insertBefore(scroller, table)
+      scroller.appendChild(table)
+    })
+
     container.querySelectorAll<HTMLLIElement>('li').forEach((li) => {
       const first = li.firstChild
       if (!first || first.nodeType !== Node.TEXT_NODE) return
