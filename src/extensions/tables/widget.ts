@@ -1,4 +1,5 @@
 import { EditorSelection, EditorState, Prec } from '@codemirror/state'
+import { redo, undo } from '@codemirror/commands'
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from '@codemirror/view'
 import { activeTableField, setActiveTable } from './state'
 import {
@@ -415,17 +416,6 @@ class TableWidget extends WidgetType {
   }
 
   override eq(other: TableWidget): boolean {
-    if (
-      this.isEditing &&
-      other.isEditing &&
-      this.block.from === other.block.from &&
-      this.block.rows.length === other.block.rows.length &&
-      this.block.rows.every((row, index) => row.length === other.block.rows[index]?.length) &&
-      this.block.alignments.length === other.block.alignments.length
-    ) {
-      return true
-    }
-
     return (
       this.block.from === other.block.from &&
       this.block.to === other.block.to &&
@@ -487,6 +477,30 @@ class TableWidget extends WidgetType {
     scroller.appendChild(table)
     wrapper.appendChild(scroller)
     return wrapper
+  }
+
+  override updateDOM(dom: HTMLElement, view: EditorView): boolean {
+    dom.className = `me-table-widget${this.isEditing ? ' me-table-widget--editing' : ''}`
+    dom.dataset.tableFrom = String(this.block.from)
+
+    if (!this.isEditing) return false
+
+    const block = getTableBlockByStart(view.state, this.block.from) ?? this.block
+
+    for (const [rowIndex, row] of block.rows.entries()) {
+      for (const [colIndex, value] of row.entries()) {
+        const input = dom.querySelector(
+          `[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`,
+        ) as HTMLInputElement | null
+        if (!input) return false
+        if (input.value !== value) {
+          input.value = value
+          syncTableInputSizer(input)
+        }
+      }
+    }
+
+    return true
   }
 
   override ignoreEvent(): boolean {
@@ -562,6 +576,20 @@ function createTableInput(
       clearTableSelection(wrapper)
       deactivateTable(view, blockFrom)
       return
+    }
+    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const key = event.key.toLowerCase()
+      if (key === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) redo(view)
+        else undo(view)
+        return
+      }
+      if (key === 'y') {
+        event.preventDefault()
+        redo(view)
+        return
+      }
     }
     if ((event.key === 'Backspace' || event.key === 'Delete') && deleteSelectedStructure(view, blockFrom, wrapper)) {
       event.preventDefault()

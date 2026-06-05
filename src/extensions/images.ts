@@ -111,10 +111,12 @@ function buildImageDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
   const activeLines = new Set<number>()
-  for (const range of view.state.selection.ranges) {
-    const from = doc.lineAt(range.from).number
-    const to = doc.lineAt(range.to).number
-    for (let n = from; n <= to; n++) activeLines.add(n)
+  if (view.hasFocus) {
+    for (const range of view.state.selection.ranges) {
+      const from = doc.lineAt(range.from).number
+      const to = doc.lineAt(range.to).number
+      for (let n = from; n <= to; n++) activeLines.add(n)
+    }
   }
 
   for (const { from, to } of view.visibleRanges) {
@@ -162,7 +164,8 @@ export const imageDecorations = ViewPlugin.fromClass(
       if (
         update.docChanged ||
         update.viewportChanged ||
-        update.selectionSet
+        update.selectionSet ||
+        update.focusChanged
       ) {
         this.decorations = buildImageDecorations(update.view)
       }

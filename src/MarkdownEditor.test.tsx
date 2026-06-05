@@ -614,6 +614,36 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('keeps unfocused heading markers hidden with consumer heading color overrides', async () => {
+    const style = document.createElement('style')
+    style.textContent = `
+      .consumer-editor .me-h1,
+      .consumer-editor .me-h2,
+      .consumer-editor .me-h3 {
+        color: rgb(255, 0, 0);
+      }
+    `
+    document.head.appendChild(style)
+
+    try {
+      const { container } = render(
+        <MarkdownEditor
+          value={'# Heading'}
+          onChange={vi.fn()}
+          className="consumer-editor"
+        />
+      )
+
+      await waitFor(() => {
+        const token = container.querySelector('.me-token--block')
+        expect(token).toBeTruthy()
+        expect(getComputedStyle(token!).color).toBe('rgba(0, 0, 0, 0)')
+      })
+    } finally {
+      style.remove()
+    }
+  })
+
   it('renders horizontal rules as full-width lines on inactive lines', async () => {
     const { container } = render(
       <MarkdownEditor value={'Intro\n\n---'} onChange={vi.fn()} />
@@ -927,6 +957,48 @@ describe('MarkdownEditor', () => {
     )
     expect(view!.state.selection.main.from).toBe(43)
     expect(view!.state.selection.main.to).toBe(43)
+  })
+
+  it('syncs table cell input immediately after editor undo', async () => {
+    let view: EditorView | null = null
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={onChange}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const widget = container.querySelector('.me-table-widget') as HTMLElement
+    fireEvent.mouseDown(widget)
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-input')).toBeTruthy()
+    })
+
+    const input = container.querySelector(
+      '.me-table-input[data-row-index="1"][data-col-index="0"]',
+    ) as HTMLInputElement
+
+    fireEvent.input(input, { target: { value: 'Ada Lovelace' } })
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled()
+      expect(view!.state.doc.toString()).toContain('| Ada Lovelace | 42 |')
+      expect(input.value).toBe('Ada Lovelace')
+    })
+
+    fireEvent.keyDown(input, { key: 'z', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toContain('| Ada | 42 |')
+      expect(input.value).toBe('Ada')
+    })
   })
 
   it('pressing Tab in a table cell moves to the next cell', async () => {

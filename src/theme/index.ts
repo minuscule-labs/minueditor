@@ -462,6 +462,16 @@ export const minueditorTheme = EditorView.theme({
     letterSpacing: "-1ch",
   },
 
+  // Keep marker hiding resilient when consumers style visual heading/link classes.
+  ".me-h1 .me-token, .me-h2 .me-token, .me-h3 .me-token, .me-h4 .me-token, .me-h5 .me-token, .me-h6 .me-token, .me-link .me-token": {
+    color: "transparent",
+  },
+
+  ".me-h1 .me-token--block, .me-h2 .me-token--block, .me-h3 .me-token--block, .me-h4 .me-token--block, .me-h5 .me-token--block, .me-h6 .me-token--block, .me-link .me-token--inline": {
+    fontSize: "1px",
+    letterSpacing: "-1ch",
+  },
+
   ".me-table-widget": {
     display: "block",
     boxSizing: "border-box",

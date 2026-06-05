@@ -9,6 +9,8 @@ import {
   history,
   historyKeymap,
   indentWithTab,
+  redo,
+  undo,
 } from "@codemirror/commands";
 import {
   Decoration,
@@ -302,6 +304,20 @@ function createNestedEditorDom(
       event.preventDefault();
       deactivateCodeBlock(view, widget.blockFrom);
       return;
+    }
+    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const key = event.key.toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo(view);
+        else undo(view);
+        return;
+      }
+      if (key === "y") {
+        event.preventDefault();
+        redo(view);
+        return;
+      }
     }
     if (event.key === "ArrowUp") {
       event.preventDefault();
@@ -600,14 +616,6 @@ class CodeBlockWidget extends WidgetType {
   }
 
   override eq(other: CodeBlockWidget): boolean {
-    if (
-      this.isEditing &&
-      other.isEditing &&
-      this.blockFrom === other.blockFrom
-    ) {
-      return true;
-    }
-
     return (
       this.blockFrom === other.blockFrom &&
       this.blockTo === other.blockTo &&

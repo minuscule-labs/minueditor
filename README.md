@@ -72,6 +72,54 @@ function ReadOnlyExample() {
 }
 ```
 
+## Initial render and focus
+
+`MarkdownEditor` is editable by default, but it does **not** focus itself unless you pass `autoFocus`.
+
+That means this opens as an editable editor surface without showing a cursor:
+
+```tsx
+<MarkdownEditor value={value} onChange={setValue} />
+```
+
+On initial mount, when the editor is not focused, markdown syntax is treated as inactive and rendered visually. For example:
+
+```md
+# Heading
+```
+
+is displayed like a heading instead of showing the raw `# Heading` text.
+
+When the user clicks into the editor, the focused/active line reveals the markdown markers needed for editing. If you want the editor to place the cursor immediately and reveal markers on the first active line, pass `autoFocus`:
+
+```tsx
+<MarkdownEditor value={value} onChange={setValue} autoFocus />
+```
+
+Use `readOnly` only when the surface should not be editable. For a fully static display mode, use `MarkdownRenderer` instead.
+
+## Styling guidance
+
+Prefer MinuEditor CSS variables for app-level theming instead of styling CodeMirror internals directly:
+
+```css
+.my-editor {
+  --me-text: #cdd6f4;
+  --me-heading-color: #cdd6f4;
+  --me-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --me-content-padding: 12px 0 0;
+}
+```
+
+Avoid broad selectors that target generated editor internals, especially with `!important`, such as:
+
+```css
+.cm-line[class*="heading"] { ... }
+.me-h1 { color: ... !important; }
+```
+
+MinuEditor uses internal marker spans like `.me-token` to hide inactive markdown syntax while preserving cursor/layout behavior. Styling through variables keeps heading colors, text colors, and token hiding working together.
+
 ## Fenced code languages
 
 By default, the editor does not bundle CodeMirror language packages for fenced-code editing. Code blocks still work as plain editable Markdown/code blocks.
