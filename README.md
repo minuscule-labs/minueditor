@@ -120,6 +120,51 @@ Avoid broad selectors that target generated editor internals, especially with `!
 
 MinuEditor uses internal marker spans like `.me-token` to hide inactive markdown syntax while preserving cursor/layout behavior. Styling through variables keeps heading colors, text colors, and token hiding working together.
 
+## Editor command API
+
+Use a ref when your app needs to drive the editor from an external toolbar, modal, or command palette. MinuEditor exposes common commands while still keeping the underlying CodeMirror `view` available for advanced integrations.
+
+```tsx
+import { useRef } from 'react'
+import { MarkdownEditor, type MarkdownEditorHandle } from '@dpklabs/minueditor'
+
+function NoteEditor() {
+  const editorRef = useRef<MarkdownEditorHandle>(null)
+
+  return (
+    <>
+      <button onClick={() => editorRef.current?.undo()}>Undo</button>
+      <button onClick={() => editorRef.current?.redo()}>Redo</button>
+      <button onClick={() => editorRef.current?.toggleBold()}>Bold</button>
+      <button onClick={() => editorRef.current?.openImagePicker()}>Image</button>
+
+      <MarkdownEditor ref={editorRef} value={value} onChange={setValue} />
+    </>
+  )
+}
+```
+
+Available handle methods include:
+
+- `focus()` / `blur()`
+- `undo()` / `redo()`
+- `getMarkdown()`
+- `getSelection()` / `setSelection(from, to?)`
+- `insertMarkdown(markdown)`
+- `replaceSelection(markdown)`
+- `insertImage({ src, alt })`
+- `openImagePicker()`
+- `toggleBold()` / `toggleItalic()` / `toggleInlineCode()` / `wrapLink()`
+- `insertTable()` / `insertCodeBlock()`
+
+For custom integrations, the handle also exposes `view`, the underlying CodeMirror `EditorView`:
+
+```tsx
+editorRef.current?.view?.dispatch(...)
+```
+
+Prefer the named commands for common editor actions; use `view` when you need lower-level CodeMirror behavior.
+
 ## Fenced code languages
 
 By default, the editor does not bundle CodeMirror language packages for fenced-code editing. Code blocks still work as plain editable Markdown/code blocks.

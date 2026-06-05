@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
-import type { CodeHighlighter, DocumentAnnotation } from '../src/index'
+import type { CodeHighlighter, DocumentAnnotation, MarkdownEditorHandle } from '../src/index'
 import { createShikiHighlighter } from '../src/shiki'
 import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
@@ -59,6 +59,13 @@ const DESCRIPTION_INITIAL = `A floating toolbar appears when you select text her
 const COMMENT_INITIAL = `No toolbar here. Use \`Cmd+B\` for bold, \`Cmd+I\` for italic. Press \`Cmd+Enter\` to submit.`
 
 const IMAGE_INITIAL = `Paste or drop an image into this surface. The dev app uses an object URL upload handler so you can review the flow without wiring storage.`
+
+const COMMAND_API_INITIAL = `# Command API demo
+
+Use the bottom toolbar to drive the editor through the public ref handle.
+
+Select some text, then try **Bold**, *Italic*, Link, Image, Table, or Code.
+`
 
 const COMMENT_DOC = `# Commented draft
 
@@ -216,6 +223,50 @@ function CommentAnnotationsDemo({ codeHighlighter }: { codeHighlighter: CodeHigh
       codeHighlighter={codeHighlighter}
       onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
     />
+  )
+}
+
+function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
+  const editorRef = useRef<MarkdownEditorHandle>(null)
+  const [value, setValue] = useState(COMMAND_API_INITIAL)
+  const [status, setStatus] = useState('Ready')
+
+  function run(label: string, command: () => boolean | undefined) {
+    const handled = command() === true
+    setStatus(`${label}: ${handled ? 'handled' : 'not handled'}`)
+  }
+
+  return (
+    <section className="surface">
+      <h2>Command API surface</h2>
+      <p className="surface-desc">Bottom app toolbar wired through MarkdownEditorHandle commands.</p>
+      <div className="editor-frame command-api-frame">
+        <MarkdownEditor
+          ref={editorRef}
+          value={value}
+          onChange={setValue}
+          placeholder="Try the command API…"
+          minHeight={220}
+          codeHighlighter={codeHighlighter}
+          onImageUpload={async (file) => URL.createObjectURL(file)}
+        />
+        <div className="command-api-toolbar" aria-label="Command API toolbar">
+          <button type="button" onClick={() => run('Undo', () => editorRef.current?.undo())}>Undo</button>
+          <button type="button" onClick={() => run('Redo', () => editorRef.current?.redo())}>Redo</button>
+          <span className="command-api-separator" />
+          <button type="button" onClick={() => run('Bold', () => editorRef.current?.toggleBold())}>Bold</button>
+          <button type="button" onClick={() => run('Italic', () => editorRef.current?.toggleItalic())}>Italic</button>
+          <button type="button" onClick={() => run('Code', () => editorRef.current?.toggleInlineCode())}>Code</button>
+          <button type="button" onClick={() => run('Link', () => editorRef.current?.wrapLink())}>Link</button>
+          <span className="command-api-separator" />
+          <button type="button" onClick={() => run('Image picker', () => editorRef.current?.openImagePicker())}>Image</button>
+          <button type="button" onClick={() => run('Insert image', () => editorRef.current?.insertImage({ src: 'https://placehold.co/640x240', alt: 'Placeholder' }))}>Insert image</button>
+          <button type="button" onClick={() => run('Table', () => editorRef.current?.insertTable())}>Table</button>
+          <button type="button" onClick={() => run('Code block', () => editorRef.current?.insertCodeBlock())}>Code block</button>
+          <span className="command-api-status">{status}</span>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -403,6 +454,8 @@ export default function App() {
             />
           </div>
         </section>
+
+        <CommandApiDemo codeHighlighter={codeHighlighter} />
 
         <CommentAnnotationsDemo codeHighlighter={codeHighlighter} />
 

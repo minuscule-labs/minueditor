@@ -86,6 +86,51 @@ body {
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
 }
 
+.command-api-frame {
+  position: relative;
+  padding-bottom: 54px;
+}
+
+.command-api-toolbar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #e5eaf0;
+  border-radius: 0 0 10px 10px;
+  background: color-mix(in srgb, var(--me-bg, #fff) 92%, #f8fafc);
+  box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.command-api-toolbar button {
+  border: 1px solid #d7dce3;
+  border-radius: 999px;
+  background: #fff;
+  color: #202735;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.command-api-toolbar button:hover {
+  background: #f3f6fa;
+}
+
+.command-api-separator {
+  width: 1px;
+  height: 22px;
+  background: #dbe2ea;
+}
+
+.command-api-status {
+  margin-left: auto;
+  font-size: 12px;
+  color: #64748b;
+}
+
 .annotation-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
@@ -195,6 +240,29 @@ pre {
   background: #111827;
   border-color: #334155;
   color: #e5e7eb;
+}
+
+.app--theme-dark .command-api-toolbar {
+  border-top-color: #1f2937;
+  background: #0f1115;
+}
+
+.app--theme-dark .command-api-toolbar button {
+  background: #111827;
+  border-color: #334155;
+  color: #e5e7eb;
+}
+
+.app--theme-dark .command-api-toolbar button:hover {
+  background: #1f2937;
+}
+
+.app--theme-dark .command-api-separator {
+  background: #334155;
+}
+
+.app--theme-dark .command-api-status {
+  color: #94a3b8;
 }
 
 .app--theme-dark .annotation-panel {

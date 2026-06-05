@@ -3,7 +3,7 @@ import { createRef, useEffect, useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import type { CompletionContext } from '@codemirror/autocomplete'
 import type { EditorView } from '@codemirror/view'
-import { MarkdownEditor } from './MarkdownEditor'
+import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
 import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
 import { toggleBold, toggleItalic } from './toolbar/commands'
 
@@ -54,6 +54,99 @@ describe('MarkdownEditor', () => {
     const view = onViewReady.mock.calls[0][0]
     // The view should expose .state
     expect(view).toHaveProperty('state')
+  })
+
+  it('exposes common editor commands through the ref handle', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor value={'Hello'} onChange={onChange} ref={ref} />
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.getMarkdown()).toBe('Hello')
+    expect(ref.current?.setSelection(5)).toBe(true)
+    expect(ref.current?.insertMarkdown(' world')).toBe(true)
+
+    await waitFor(() => {
+      expect(ref.current?.getMarkdown()).toBe('Hello world')
+      expect(onChange).toHaveBeenCalledWith('Hello world')
+    })
+
+    expect(ref.current?.undo()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('Hello'))
+
+    expect(ref.current?.redo()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('Hello world'))
+
+    expect(ref.current?.setSelection(0, 5)).toBe(true)
+    expect(ref.current?.replaceSelection('Hi')).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('Hi world'))
+
+    expect(ref.current?.setSelection(ref.current.getMarkdown()!.length)).toBe(true)
+    expect(ref.current?.insertImage({ src: 'https://example.com/a.png', alt: 'A' })).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('Hi world![A](https://example.com/a.png)'))
+
+    expect(ref.current?.openImagePicker()).toBe(true)
+    await waitFor(() => expect(container.querySelector('.me-image-picker')).toBeTruthy())
+  })
+
+  it('exposes formatting and block insertion commands through the ref handle', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    render(<MarkdownEditor value={'Hello'} onChange={vi.fn()} ref={ref} />)
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.setSelection(0, 5)).toBe(true)
+    expect(ref.current?.toggleBold()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('**Hello**'))
+
+    expect(ref.current?.setSelection(2, 7)).toBe(true)
+    expect(ref.current?.toggleItalic()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toContain('*Hello*'))
+
+    expect(ref.current?.setSelection(ref.current.getMarkdown()!.length)).toBe(true)
+    expect(ref.current?.toggleInlineCode()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toContain('``'))
+
+    expect(ref.current?.insertTable()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toContain('| --- | --- |'))
+
+    expect(ref.current?.insertCodeBlock()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toContain('```'))
+  })
+
+  it('returns false for mutating ref commands in readOnly mode', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onChange = vi.fn()
+    render(<MarkdownEditor value={'Hello'} onChange={onChange} ref={ref} readOnly />)
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.focus()).toBe(true)
+    expect(ref.current?.getMarkdown()).toBe('Hello')
+    expect(ref.current?.setSelection(5)).toBe(true)
+    expect(ref.current?.insertMarkdown(' world')).toBe(false)
+    expect(ref.current?.replaceSelection('Hi')).toBe(false)
+    expect(ref.current?.insertImage({ src: 'https://example.com/a.png' })).toBe(false)
+    expect(ref.current?.openImagePicker()).toBe(false)
+    expect(ref.current?.toggleBold()).toBe(false)
+    expect(ref.current?.insertTable()).toBe(false)
+    expect(ref.current?.insertCodeBlock()).toBe(false)
+    expect(ref.current?.undo()).toBe(false)
+    expect(ref.current?.redo()).toBe(false)
+    expect(ref.current?.getMarkdown()).toBe('Hello')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('returns false for ref commands after unmount', () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const { unmount } = render(<MarkdownEditor value={'Hello'} onChange={vi.fn()} ref={ref} />)
+
+    expect(ref.current?.focus()).toBe(true)
+    unmount()
+    expect(ref.current).toBeNull()
   })
 
   it('reports editor state on mount and external value changes', async () => {
