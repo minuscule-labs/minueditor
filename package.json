@@ -1,6 +1,6 @@
 {
   "name": "@dpklabs/minueditor",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Reusable React markdown editor built on CodeMirror 6 with Obsidian-style live editing",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -64,6 +64,7 @@
     "shiki": "^4.0.2"
   },
   "devDependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

@@ -117,7 +117,10 @@ export function getCodeLanguageExtension(lang: string): Promise<Extension> {
   if (cached) return cached
 
   const promise = (async () => {
-    const description = LanguageDescription.matchLanguageName([...configuredCodeLanguages], normalized, true)
+    const languages = [...configuredCodeLanguages]
+    const description =
+      LanguageDescription.matchLanguageName(languages, normalized, true) ??
+      LanguageDescription.matchLanguageName(languages, normalized, false)
     if (!description) return []
     try {
       return await description.load()

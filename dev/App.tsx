@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { LanguageDescription } from '@codemirror/language'
+import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
@@ -9,6 +11,19 @@ import lightThemeUrl from '../src/theme/themes/light.css?url'
 import darkThemeUrl from '../src/theme/themes/dark.css?url'
 
 type ThemeChoice = 'base' | 'light' | 'dark'
+
+const devCodeLanguages = [
+  LanguageDescription.of({
+    name: 'JavaScript',
+    alias: ['js', 'jsx', 'javascript'],
+    load: async () => javascript({ jsx: true }),
+  }),
+  LanguageDescription.of({
+    name: 'TypeScript',
+    alias: ['ts', 'tsx', 'typescript'],
+    load: async () => javascript({ jsx: true, typescript: true }),
+  }),
+]
 
 const THEME_URLS: Record<Exclude<ThemeChoice, 'base'>, string> = {
   light: lightThemeUrl,
@@ -149,6 +164,7 @@ function AnnotationSurface({
             minHeight={240}
             slashCommands={false}
             codeHighlighter={codeHighlighter}
+            codeLanguages={devCodeLanguages}
           />
         </div>
         <aside className="annotation-panel">
@@ -250,6 +266,7 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           placeholder="Try the command API…"
           minHeight={220}
           codeHighlighter={codeHighlighter}
+          codeLanguages={devCodeLanguages}
           onImageUpload={async (file) => URL.createObjectURL(file)}
         />
         <div className="command-api-toolbar" aria-label="Command API toolbar">
@@ -411,6 +428,7 @@ export default function App() {
               minHeight={300}
               onViewReady={setDocView}
               codeHighlighter={codeHighlighter}
+              codeLanguages={devCodeLanguages}
               readOnly={!docEditing}
             />
           </div>

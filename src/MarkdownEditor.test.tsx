@@ -2,6 +2,8 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { createRef, useEffect, useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import type { CompletionContext } from '@codemirror/autocomplete'
+import { LanguageDescription } from '@codemirror/language'
+import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
 import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
@@ -1411,6 +1413,36 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||\n| Bob | 30 |'
     )
+  })
+
+  it('syntax highlights the active nested code block editor', async () => {
+    const codeLanguages = [
+      LanguageDescription.of({
+        name: 'TypeScript',
+        alias: ['ts', 'typescript'],
+        load: async () => javascript({ typescript: true }),
+      }),
+    ]
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'```ts\nconst x = 1\n```'}
+        onChange={vi.fn()}
+        codeLanguages={codeLanguages}
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-widget')!)
+
+    await waitFor(() => {
+      const nestedContent = container.querySelector('.me-codeblock-editor-host .cm-content')
+      expect(nestedContent).toBeTruthy()
+      expect(nestedContent?.querySelectorAll('span').length).toBeGreaterThan(0)
+    })
   })
 
   it('renders code blocks with the code block widget in read-only mode', async () => {
