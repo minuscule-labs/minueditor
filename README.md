@@ -180,6 +180,26 @@ editorRef.current?.view?.dispatch(...)
 
 Prefer the named commands for common editor actions; use `view` when you need lower-level CodeMirror behavior.
 
+## Table keyboard shortcuts
+
+When editing markdown tables, the editor supports:
+
+| Shortcut | Action |
+| --- | --- |
+| `Tab` / `Shift+Tab` | Move to next / previous cell |
+| `Arrow` keys at cell edges | Move between cells in the active table widget |
+| `Shift+Arrow` | Extend table cell selection |
+| `Mod+ArrowLeft` / `Mod+ArrowRight` | Insert column left / right in source table editing |
+| `Mod+ArrowUp` / `Mod+ArrowDown` | Insert row above / below in source table editing |
+| `Ctrl+Mod+ArrowLeft` / `Ctrl+Mod+ArrowRight` | Insert column left / right in the active table widget |
+| `Ctrl+Mod+ArrowUp` / `Ctrl+Mod+ArrowDown` | Insert row above / below in the active table widget |
+| `Backspace` / `Delete` with selected cells | Clear selected cells, or remove selected full rows/columns |
+| `Shift+Mod+Backspace` | Remove current column in the active table widget |
+| `Ctrl+Mod+Backspace` | Remove current row in the active table widget |
+| `Escape` | Leave the active table widget |
+
+`Mod` is `Cmd` on macOS/iOS and `Ctrl` on Windows/Linux.
+
 ## Fenced code languages
 
 By default, the editor does not bundle CodeMirror language packages for fenced-code editing. Code blocks still work as plain editable Markdown/code blocks.

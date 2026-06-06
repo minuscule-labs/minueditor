@@ -4,11 +4,10 @@ import {
   type CompletionContext,
   type CompletionResult,
 } from '@codemirror/autocomplete'
-import type { Extension } from '@codemirror/state'
+import { EditorSelection, type Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import type { SlashCommand } from '../types'
 import {
-  insertCodeBlock,
   insertHR,
   insertImage,
   setHeading,
@@ -17,6 +16,9 @@ import {
   toggleUnorderedList,
 } from '../toolbar/commands'
 import { insertImagePicker } from './images'
+import { setActiveCodeBlock } from './codeblock/state'
+import { createEmptyTableMarkdown } from './tables/model'
+import { setActiveTable } from './tables/state'
 
 function moveCursorAfterLineMarker(view: EditorView, markerPattern: RegExp): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
@@ -73,11 +75,37 @@ function setSlashBlockquote(view: EditorView): boolean {
 
 function insertSlashTable(view: EditorView): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
-  const table = '|||\n| --- | --- |\n|||'
+  const table = createEmptyTableMarkdown(2, 1)
+  const blockFrom = line.from + 1
 
   view.dispatch({
-    changes: { from: line.from, to: line.to, insert: table },
-    selection: { anchor: line.from + 1 },
+    changes: { from: line.from, to: line.to, insert: `\n${table}\n` },
+    effects: setActiveTable.of(blockFrom),
+    selection: { anchor: blockFrom },
+    scrollIntoView: true,
+  })
+
+  requestAnimationFrame(() => {
+    const input = view.dom.querySelector(
+      `.me-table-widget[data-table-from="${blockFrom}"] .me-table-input[data-row-index="0"][data-col-index="0"]`,
+    ) as HTMLInputElement | null
+    input?.focus()
+    input?.select()
+  })
+
+  return true
+}
+
+function insertSlashCodeBlock(view: EditorView): boolean {
+  const line = view.state.doc.lineAt(view.state.selection.main.from)
+  const block = '```\n\n```'
+  const blockFrom = line.from + 1
+  const contentFrom = blockFrom + 4
+
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert: `\n${block}\n` },
+    effects: setActiveCodeBlock.of(blockFrom),
+    selection: EditorSelection.cursor(contentFrom),
     scrollIntoView: true,
   })
 
@@ -132,7 +160,7 @@ export function createDefaultSlashCommands(
   {
     label: 'Code Block',
     keywords: ['code', 'pre'],
-    run: insertCodeBlock,
+    run: insertSlashCodeBlock,
   },
   {
     label: 'Table',

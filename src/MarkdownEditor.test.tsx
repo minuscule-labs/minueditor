@@ -371,6 +371,92 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('inserts and focuses a live table from the editor slash table command', async () => {
+    let view: EditorView | null = null
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'/table'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 6 } })
+      applyEditorSlashCommand(view!, 'Table')
+    })
+
+    await waitFor(() => {
+      const input = container.querySelector(
+        '.me-table-input[data-row-index="0"][data-col-index="0"]',
+      ) as HTMLInputElement | null
+      expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+      expect(document.activeElement).toBe(input)
+    })
+
+    expect(view!.state.doc.toString()).toBe('\n|  |  |\n| --- | --- |\n|  |  |\n')
+  })
+
+  it('inserts and focuses a live code block from the editor slash code command', async () => {
+    let view: EditorView | null = null
+
+    const { container } = render(
+      <MarkdownEditor
+        value={'/code'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 5 } })
+      applyEditorSlashCommand(view!, 'Code Block')
+    })
+
+    await waitFor(() => {
+      const nestedContent = container.querySelector('.me-codeblock-editor-host .cm-content')
+      expect(container.querySelector('.me-codeblock-widget--editing')).toBeTruthy()
+      expect(document.activeElement).toBe(nestedContent)
+    })
+
+    expect(view!.state.doc.toString()).toBe('\n```\n\n```\n')
+  })
+
+  it('focuses inserted table and code widgets from ref block commands', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const { container } = render(<MarkdownEditor value={'Hello'} onChange={vi.fn()} ref={ref} />)
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.setSelection(5)).toBe(true)
+    expect(ref.current?.insertTable()).toBe(true)
+
+    await waitFor(() => {
+      const input = container.querySelector(
+        '.me-table-input[data-row-index="0"][data-col-index="0"]',
+      ) as HTMLInputElement | null
+      expect(document.activeElement).toBe(input)
+    })
+    expect(ref.current?.getMarkdown()).toContain('\n\n|  |  |\n| --- | --- |\n|  |  |\n\n')
+
+    expect(ref.current?.setSelection(ref.current.getMarkdown()!.length)).toBe(true)
+    expect(ref.current?.insertCodeBlock()).toBe(true)
+
+    await waitFor(() => {
+      const nestedContent = container.querySelector('.me-codeblock-editor-host .cm-content')
+      expect(document.activeElement).toBe(nestedContent)
+    })
+  })
+
   it('opens the image picker from the editor slash image command', async () => {
     let view: EditorView | null = null
 

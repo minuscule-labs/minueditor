@@ -116,6 +116,22 @@ export function getAdjacentTableBlock(
   return null
 }
 
+export function createEmptyTableMarkdown(columns = 2, bodyRows = 1): string {
+  const columnCount = Math.max(1, columns)
+  const rowCount = Math.max(0, bodyRows)
+  return formatTableMarkdown({
+    from: 0,
+    to: 0,
+    startLine: 0,
+    endLine: 0,
+    rows: [
+      Array(columnCount).fill(''),
+      ...Array.from({ length: rowCount }, () => Array(columnCount).fill('')),
+    ],
+    alignments: Array(columnCount).fill(null),
+  })
+}
+
 export function formatTableMarkdown(block: TableBlock): string {
   const lines = [formatContentLine(block.rows[0]), formatDelimiterLine(block.alignments)]
   for (const row of block.rows.slice(1)) {

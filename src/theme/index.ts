@@ -37,8 +37,8 @@ export const minueditorTheme = EditorView.theme({
 
   ".me-widget-boundary": {
     display: "block",
-    height: "1.5em",
-    minHeight: "24px",
+    height: "0.75em",
+    minHeight: "10px",
     cursor: "text",
     backgroundColor: "transparent",
   },
@@ -501,11 +501,16 @@ export const minueditorTheme = EditorView.theme({
     overflowX: "auto",
     overflowY: "hidden",
     overscrollBehaviorX: "contain",
-    margin: "0.75em 0",
+    margin: "0",
   },
 
   ".me-table-widget--editing": {
-    borderRadius: "8px",
+    borderRadius: "0",
+  },
+
+  ".me-table-boundary": {
+    height: "0.5em",
+    minHeight: "8px",
   },
 
   ".me-table-scroller": {
@@ -528,12 +533,12 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-table-render th, .me-table-render td": {
-    border: "1px solid var(--me-table-border, #d1d5db)",
-    padding: "0.6rem 0.65rem",
+    border: "1px solid var(--me-table-border, rgba(127,127,127,0.28))",
+    padding: "0.3rem 0.45rem",
     verticalAlign: "top",
     whiteSpace: "nowrap",
     textAlign: "left",
-    minWidth: "5ch",
+    minWidth: "4ch",
   },
 
   ".me-table-widget--editing .me-table-render th, .me-table-widget--editing .me-table-render td": {
@@ -554,8 +559,8 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-table-render th": {
-    fontWeight: "600",
-    backgroundColor: "var(--me-table-header-bg, rgba(0,0,0,0.03))",
+    fontWeight: "inherit",
+    backgroundColor: "transparent",
   },
 
   '.me-table-render th[data-align="center"], .me-table-render td[data-align="center"]': {
@@ -569,7 +574,7 @@ export const minueditorTheme = EditorView.theme({
   ".me-table-input-sizer": {
     display: "inline-grid",
     width: "max-content",
-    minWidth: "5ch",
+    minWidth: "4ch",
     verticalAlign: "top",
   },
 
@@ -577,9 +582,9 @@ export const minueditorTheme = EditorView.theme({
     gridArea: "1 / 1",
     font: "inherit",
     lineHeight: "inherit",
-    padding: "0.6rem 0.65rem",
+    padding: "0.3rem 0.45rem",
     boxSizing: "border-box",
-    minWidth: "5ch",
+    minWidth: "4ch",
   },
 
   ".me-table-input-sizer::after": {

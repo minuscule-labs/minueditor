@@ -1,5 +1,8 @@
 import type { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
+import { setActiveCodeBlock } from "../extensions/codeblock/state";
+import { createEmptyTableMarkdown } from "../extensions/tables/model";
+import { setActiveTable } from "../extensions/tables/state";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1136,15 +1139,20 @@ export function insertCodeBlock(view: EditorView): boolean {
   const range = state.selection.main;
   const selectedText = state.doc.sliceString(range.from, range.to);
 
-  const insert = selectedText
+  const block = selectedText
     ? `\`\`\`\n${selectedText}\n\`\`\``
     : "```\n\n```";
+  const insert = `\n\n${block}\n\n`;
+
+  const blockFrom = range.from + 2;
+  const contentFrom = blockFrom + 4;
 
   view.dispatch({
     changes: { from: range.from, to: range.to, insert },
+    effects: setActiveCodeBlock.of(blockFrom),
     // Place cursor on the blank line inside the fence
     selection: {
-      anchor: range.from + 4 + (selectedText ? selectedText.length + 1 : 0),
+      anchor: contentFrom + (selectedText ? selectedText.length + 1 : 0),
     },
     scrollIntoView: true,
   });
@@ -1156,13 +1164,23 @@ export function insertTable(view: EditorView): boolean {
   const { state } = view;
   const line = state.doc.lineAt(state.selection.main.from);
 
-  const table = "|||\n| --- | --- |\n|||\n";
+  const table = createEmptyTableMarkdown(2, 1);
   const insertAt = line.to;
+  const blockFrom = insertAt + 2;
 
   view.dispatch({
-    changes: { from: insertAt, insert: `\n${table}` },
-    selection: { anchor: insertAt + 2 }, // cursor at start of first cell
+    changes: { from: insertAt, insert: `\n\n${table}\n\n` },
+    effects: setActiveTable.of(blockFrom),
+    selection: { anchor: blockFrom },
     scrollIntoView: true,
+  });
+
+  requestAnimationFrame(() => {
+    const input = view.dom.querySelector(
+      `.me-table-widget[data-table-from="${blockFrom}"] .me-table-input[data-row-index="0"][data-col-index="0"]`,
+    ) as HTMLInputElement | null;
+    input?.focus();
+    input?.select();
   });
 
   return true;
