@@ -120,6 +120,21 @@ Avoid broad selectors that target generated editor internals, especially with `!
 
 MinuEditor uses internal marker spans like `.me-token` to hide inactive markdown syntax while preserving cursor/layout behavior. Styling through variables keeps heading colors, text colors, and token hiding working together.
 
+## Editor modes
+
+`MarkdownEditor` supports two editing modes:
+
+```tsx
+<MarkdownEditor value={value} onChange={setValue} mode="live" />
+<MarkdownEditor value={value} onChange={setValue} mode="source" />
+```
+
+`live` is the default. It provides Obsidian/Notion-style live preview editing: inactive markdown renders visually, widgets render for images/tables/code blocks, and active lines reveal source markdown as needed.
+
+`source` shows raw markdown everywhere. It disables live widgets and token hiding, so images, tables, code fences, and formatting markers remain visible as plain markdown while editing.
+
+Use `MarkdownRenderer` separately for a fully rendered reading view, such as hosted pages, published notes, previews, or exports.
+
 ## Editor command API
 
 Use a ref when your app needs to drive the editor from an external toolbar, modal, or command palette. MinuEditor exposes common commands while still keeping the underlying CodeMirror `view` available for advanced integrations.

@@ -229,6 +229,7 @@ function CommentAnnotationsDemo({ codeHighlighter }: { codeHighlighter: CodeHigh
 function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const [value, setValue] = useState(COMMAND_API_INITIAL)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
   const [status, setStatus] = useState('Ready')
 
   function run(label: string, command: () => boolean | undefined) {
@@ -245,12 +246,17 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           ref={editorRef}
           value={value}
           onChange={setValue}
+          mode={mode}
           placeholder="Try the command API…"
           minHeight={220}
           codeHighlighter={codeHighlighter}
           onImageUpload={async (file) => URL.createObjectURL(file)}
         />
         <div className="command-api-toolbar" aria-label="Command API toolbar">
+          <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>
+            Mode: {mode}
+          </button>
+          <span className="command-api-separator" />
           <button type="button" onClick={() => run('Undo', () => editorRef.current?.undo())}>Undo</button>
           <button type="button" onClick={() => run('Redo', () => editorRef.current?.redo())}>Redo</button>
           <span className="command-api-separator" />

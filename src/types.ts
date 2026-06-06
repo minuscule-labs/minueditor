@@ -56,6 +56,8 @@ export interface DocumentAnnotation {
   className?: string
 }
 
+export type MarkdownEditorMode = 'live' | 'source'
+
 export interface MarkdownEditorProps {
   value: string
   onChange: (markdown: string) => void
@@ -65,6 +67,8 @@ export interface MarkdownEditorProps {
   onAnnotationClick?: (annotation: DocumentAnnotation, view: EditorView) => void
   placeholder?: string
   readOnly?: boolean
+  /** Visual editing mode. `live` hides inactive markdown syntax and renders widgets; `source` shows raw markdown. Defaults to `live`. */
+  mode?: MarkdownEditorMode
   floatingToolbar?: boolean
   autoFocus?: boolean
   minHeight?: number

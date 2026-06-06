@@ -282,6 +282,13 @@ class ImagePickerWidget extends WidgetType {
     linkInput.type = 'url'
     linkInput.placeholder = 'Paste the image link…'
     linkInput.className = 'me-image-picker__input'
+    linkInput.autocomplete = 'off'
+    linkInput.autocapitalize = 'off'
+    linkInput.spellcheck = false
+    linkInput.setAttribute('autocorrect', 'off')
+    linkInput.setAttribute('data-form-type', 'other')
+    linkInput.setAttribute('data-lpignore', 'true')
+    linkInput.setAttribute('data-1p-ignore', 'true')
 
     const linkButton = document.createElement('button')
     linkButton.type = 'submit'

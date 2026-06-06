@@ -295,6 +295,12 @@ function createNestedEditorDom(
   langInput.value = widget.lang;
   langInput.placeholder = "language";
   langInput.spellcheck = false;
+  langInput.autocomplete = "off";
+  langInput.autocapitalize = "off";
+  langInput.setAttribute("autocorrect", "off");
+  langInput.setAttribute("data-form-type", "other");
+  langInput.setAttribute("data-lpignore", "true");
+  langInput.setAttribute("data-1p-ignore", "true");
   langInput.setAttribute("aria-label", "Code block language");
   langInput.addEventListener("mousedown", (event) => event.stopPropagation());
   langInput.addEventListener("click", (event) => event.stopPropagation());

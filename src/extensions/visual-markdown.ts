@@ -48,7 +48,10 @@ const rules: MarkdownRule[] = [
 ]
 
 const linkDecorator = new MatchDecorator({
-  regexp: /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
+  // Do not decorate markdown images. Active image lines should show full raw
+  // source (`![alt](src)`), while inactive image lines are handled by the
+  // image widget decoration.
+  regexp: /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
 
   decorate(add, from, to, match, view) {
     const label = match[1]

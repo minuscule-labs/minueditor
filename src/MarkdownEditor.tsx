@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
   EditorView,
   placeholder as cmPlaceholder,
@@ -142,6 +142,7 @@ export const MarkdownEditor = forwardRef<
     slashCommands = true,
     placeholder,
     readOnly = false,
+    mode = 'live',
     floatingToolbar = false,
     autoFocus = false,
     minHeight,
@@ -164,6 +165,7 @@ export const MarkdownEditor = forwardRef<
   const baselineValueRef = useRef(baselineValue ?? value)
   const readOnlyRef = useRef(readOnly)
   const readOnlyCompartment = useRef(new Compartment());
+  const modeCompartment = useRef(new Compartment())
   const annotationsCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
@@ -306,6 +308,18 @@ export const MarkdownEditor = forwardRef<
     onViewReadyRef.current = onViewReady
   }, [onViewReady])
 
+  const buildModeExtensions = useCallback((): Extension[] => {
+    if (mode === 'source') return []
+    return [
+      visualMarkdown,
+      tableDecorations,
+      codeBlockDecorations(codeLanguages, codeHighlighter),
+      markdownDecorations,
+      checkboxDecorations,
+      imageDecorations,
+    ]
+  }, [codeHighlighter, codeLanguages, mode])
+
   // ── Init CM6 ──────────────────────────────────────────────────────────
   useEffect(() => {
     const container = containerRef.current
@@ -376,6 +390,15 @@ export const MarkdownEditor = forwardRef<
 
     const extensions = [
       EditorState.tabSize.of(4),
+      EditorView.contentAttributes.of({
+        autocomplete: 'off',
+        autocorrect: 'off',
+        autocapitalize: 'off',
+        spellcheck: 'false',
+        'data-form-type': 'other',
+        'data-lpignore': 'true',
+        'data-1p-ignore': 'true',
+      }),
       history(),
       markdownKeymap,
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -385,12 +408,7 @@ export const MarkdownEditor = forwardRef<
         codeLanguages: codeLanguages ? [...codeLanguages] : [],
       }),
       minueditorTheme,
-      visualMarkdown,
-      tableDecorations,
-      codeBlockDecorations(codeLanguages, codeHighlighter),
-      markdownDecorations,
-      checkboxDecorations,
-      imageDecorations,
+      modeCompartment.current.of(buildModeExtensions()),
       imagePickerExtension(() => onImageUploadRef.current),
       annotationsCompartment.current.of(documentAnnotationExtension(annotations, handleAnnotationClick)),
       EditorView.lineWrapping,
@@ -459,6 +477,15 @@ export const MarkdownEditor = forwardRef<
       },
     })
   }, [value])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: modeCompartment.current.reconfigure(buildModeExtensions()),
+    })
+  }, [buildModeExtensions])
 
   useEffect(() => {
     const view = viewRef.current

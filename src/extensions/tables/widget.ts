@@ -535,6 +535,12 @@ function createTableInput(
   input.dataset.rowIndex = String(rowIndex)
   input.dataset.colIndex = String(colIndex)
   input.spellcheck = false
+  input.autocomplete = 'off'
+  input.autocapitalize = 'off'
+  input.setAttribute('autocorrect', 'off')
+  input.setAttribute('data-form-type', 'other')
+  input.setAttribute('data-lpignore', 'true')
+  input.setAttribute('data-1p-ignore', 'true')
   input.addEventListener('mousedown', (event) => {
     event.stopPropagation()
     startTableSelection(wrapper, rowIndex, colIndex)

@@ -232,6 +232,103 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('uses live mode by default for visual widgets and markdown token hiding', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'# Heading\n\n![test](https://example.com/test.png)'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-h1')).toBeTruthy()
+      expect(container.querySelector('.me-token--block')).toBeTruthy()
+      expect(container.querySelector('.me-image-wrapper')).toBeTruthy()
+    })
+  })
+
+  it('shows raw markdown in source mode without live widgets or hidden tokens', async () => {
+    const value = [
+      '# Heading',
+      '',
+      '![test](https://example.com/test.png)',
+      '',
+      '| Name | Age |',
+      '| --- | --- |',
+      '| Ada | 42 |',
+      '',
+      '```ts',
+      'const x = 1',
+      '```',
+    ].join('\n')
+
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} mode="source" />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-wrapper')).toBeFalsy()
+      expect(container.querySelector('.me-table-widget')).toBeFalsy()
+      expect(container.querySelector('.me-codeblock-widget')).toBeFalsy()
+      expect(container.querySelector('.me-token')).toBeFalsy()
+      expect(container.querySelector('.cm-content')?.textContent).toContain('![test](https://example.com/test.png)')
+      expect(container.querySelector('.cm-content')?.textContent).toContain('| Name | Age |')
+      expect(container.querySelector('.cm-content')?.textContent).toContain('```ts')
+    })
+  })
+
+  it('switches between live and source modes', async () => {
+    const value = '![test](https://example.com/test.png)\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container, rerender } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} mode="live" />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-wrapper')).toBeTruthy()
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+    })
+
+    rerender(<MarkdownEditor value={value} onChange={vi.fn()} mode="source" />)
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-wrapper')).toBeFalsy()
+      expect(container.querySelector('.me-table-widget')).toBeFalsy()
+      expect(container.querySelector('.cm-content')?.textContent).toContain('![test](https://example.com/test.png)')
+    })
+
+    rerender(<MarkdownEditor value={value} onChange={vi.fn()} mode="live" />)
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-wrapper')).toBeTruthy()
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+    })
+  })
+
+  it('renders inactive image lines as previews and active image lines as raw markdown', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'![test](https://example.com/test.png)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-wrapper')).toBeTruthy()
+    })
+
+    act(() => {
+      view!.focus()
+      view!.dispatch({ selection: { anchor: 2 } })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-wrapper')).toBeFalsy()
+      expect(container.querySelector('.me-token--inline')).toBeFalsy()
+      expect(container.querySelector('.cm-content')?.textContent).toContain('![test](https://example.com/test.png)')
+    })
+  })
+
   it('opens the image picker from the editor slash image command', async () => {
     let view: EditorView | null = null
 
