@@ -100,7 +100,7 @@ describe('slashCommandExtension', () => {
 
     applySlashCommand(view, 'Table')
 
-    expect(view.state.doc.toString()).toBe('|||\n| --- | --- |\n|||')
+    expect(view.state.doc.toString()).toBe('\n|  |  |\n| --- | --- |\n|  |  |\n')
     expect(view.state.selection.main.from).toBe(1)
   })
 
