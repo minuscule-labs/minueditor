@@ -274,6 +274,46 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('adds table widget boundaries for cursor navigation', async () => {
+    let view: EditorView | null = null
+    const value = 'Before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter'
+    const tableFrom = value.indexOf('| A | B |')
+    const tableTo = value.indexOf('\n\nAfter')
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-table-boundary--before')!)
+    expect(view!.state.selection.main.from).toBe(tableFrom)
+
+    fireEvent.mouseDown(container.querySelector('.me-table-boundary--after')!)
+    expect(view!.state.selection.main.from).toBe(tableTo)
+  })
+
+  it('adds code block widget boundaries for cursor navigation', async () => {
+    let view: EditorView | null = null
+    const value = 'Before\n\n```ts\nconst x = 1\n```\n\nAfter'
+    const blockFrom = value.indexOf('```ts')
+    const blockTo = value.indexOf('\n\nAfter')
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-boundary--before')!)
+    expect(view!.state.selection.main.from).toBe(blockFrom)
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-boundary--after')!)
+    expect(view!.state.selection.main.from).toBe(blockTo)
+  })
+
   it('switches between live and source modes', async () => {
     const value = '![test](https://example.com/test.png)\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |'
     const { container, rerender } = render(

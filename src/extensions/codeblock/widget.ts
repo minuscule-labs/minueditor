@@ -270,6 +270,28 @@ function syncNestedEditorFromOuter(
   mount.currentCode = widget.code;
 }
 
+function createCodeBlockBoundary(
+  view: EditorView,
+  widget: CodeBlockWidget,
+  side: "before" | "after",
+): HTMLElement {
+  const boundary = document.createElement("div");
+  boundary.className = `me-widget-boundary me-widget-boundary--${side} me-codeblock-boundary me-codeblock-boundary--${side}`;
+  boundary.setAttribute("role", "button");
+  boundary.setAttribute("aria-label", side === "before" ? "Place cursor before code block" : "Place cursor after code block");
+  boundary.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    view.dispatch({
+      effects: setActiveCodeBlock.of(null),
+      selection: EditorSelection.cursor(side === "before" ? widget.blockFrom : widget.blockTo),
+      scrollIntoView: true,
+    });
+    view.focus();
+  });
+  return boundary;
+}
+
 function createNestedEditorDom(
   view: EditorView,
   widget: CodeBlockWidget,
@@ -450,7 +472,9 @@ function createNestedEditorDom(
   });
   body.appendChild(bottomFence);
 
+  wrapper.appendChild(createCodeBlockBoundary(view, widget, "before"));
   wrapper.appendChild(body);
+  wrapper.appendChild(createCodeBlockBoundary(view, widget, "after"));
 
   const langCompartment = new Compartment();
   const nestedView = new EditorView({
@@ -676,6 +700,7 @@ class CodeBlockWidget extends WidgetType {
       }
     });
     header.appendChild(btn);
+    wrapper.appendChild(createCodeBlockBoundary(view, this, "before"));
     wrapper.appendChild(header);
 
     const body = document.createElement("div");
@@ -695,6 +720,7 @@ class CodeBlockWidget extends WidgetType {
     }
 
     wrapper.appendChild(body);
+    wrapper.appendChild(createCodeBlockBoundary(view, this, "after"));
     return wrapper;
   }
 

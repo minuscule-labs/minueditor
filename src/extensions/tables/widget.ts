@@ -407,6 +407,28 @@ function clearTableCellRangeInWidget(
   return true
 }
 
+function createTableBoundary(
+  view: EditorView,
+  block: TableBlock,
+  side: 'before' | 'after',
+): HTMLElement {
+  const boundary = document.createElement('div')
+  boundary.className = `me-widget-boundary me-widget-boundary--${side} me-table-boundary me-table-boundary--${side}`
+  boundary.setAttribute('role', 'button')
+  boundary.setAttribute('aria-label', side === 'before' ? 'Place cursor before table' : 'Place cursor after table')
+  boundary.addEventListener('mousedown', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    view.dispatch({
+      effects: setActiveTable.of(null),
+      selection: EditorSelection.cursor(side === 'before' ? block.from : block.to),
+      scrollIntoView: true,
+    })
+    view.focus()
+  })
+  return boundary
+}
+
 class TableWidget extends WidgetType {
   constructor(
     readonly block: TableBlock,
@@ -475,7 +497,9 @@ class TableWidget extends WidgetType {
     }
 
     scroller.appendChild(table)
+    wrapper.appendChild(createTableBoundary(view, this.block, 'before'))
     wrapper.appendChild(scroller)
+    wrapper.appendChild(createTableBoundary(view, this.block, 'after'))
     return wrapper
   }
 

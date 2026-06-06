@@ -35,6 +35,25 @@ export const minueditorTheme = EditorView.theme({
     paddingBottom: "0.08em",
   },
 
+  ".me-widget-boundary": {
+    display: "block",
+    height: "1.5em",
+    minHeight: "24px",
+    cursor: "text",
+    backgroundColor: "transparent",
+  },
+
+  ".me-widget-boundary::before": {
+    content: '""',
+    display: "block",
+    height: "100%",
+  },
+
+  ".me-widget-boundary:focus-visible": {
+    outline: "1px solid var(--me-cursor, #1a1a1a)",
+    outlineOffset: "-2px",
+  },
+
   ".me-list-line": {
     paddingLeft: "var(--me-list-indent-base, 0px)",
   },
