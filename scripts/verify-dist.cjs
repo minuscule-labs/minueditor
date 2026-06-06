@@ -32,4 +32,13 @@ if (maps.length > 0) {
   process.exit(1)
 }
 
+const bundledCodeMirrorMarker = 'multiple instances of @codemirror/state are loaded'
+for (const file of ['dist/index.js', 'dist/index.cjs']) {
+  const contents = fs.readFileSync(file, 'utf8')
+  if (contents.includes(bundledCodeMirrorMarker)) {
+    console.error(`CodeMirror appears to be bundled in ${file}. @codemirror/* must stay external.`)
+    process.exit(1)
+  }
+}
+
 console.log('dist verified')

@@ -15,6 +15,13 @@ function copyThemeFiles() {
   }
 }
 
+const external = (id: string): boolean =>
+  id === 'react' ||
+  id === 'react-dom' ||
+  id === 'react/jsx-runtime' ||
+  id.startsWith('@codemirror/') ||
+  id.startsWith('@lezer/')
+
 export default defineConfig({
   plugins: [
     react(),
@@ -35,7 +42,7 @@ export default defineConfig({
       fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      external,
       output: {
         globals: {
           react: 'React',

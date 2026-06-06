@@ -8,6 +8,8 @@ Controlled React markdown editor built on CodeMirror 6.
 npm install @dpklabs/minueditor
 ```
 
+MinuEditor uses CodeMirror as peer dependencies so host-provided CodeMirror extensions, such as fenced-code language support, share the same CodeMirror runtime as the editor. If your package manager does not install peers automatically, install the listed `@codemirror/*` peer packages alongside MinuEditor.
+
 Install directly from a GitHub release tag:
 
 ```bash
