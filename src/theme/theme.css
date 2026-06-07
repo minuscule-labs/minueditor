@@ -83,6 +83,8 @@
 
     /* ── List markers ──────────────────────────────────────── */
     --me-list-marker-color: var(--me-text, #1a1a1a);
+    --me-list-hanging-indent-base: 3.25ch;
+    --me-task-list-hanging-indent-base: 4.75ch;
 
     /* ── Links ─────────────────────────────────────────────── */
     --me-link-color: #2563eb;

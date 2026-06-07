@@ -1024,6 +1024,7 @@ describe('MarkdownEditor', () => {
       expect(container.querySelector('.me-checkbox')).toBeTruthy()
       expect(container.querySelector('.me-unordered-list-marker')).toBeFalsy()
       expect(container.querySelector('.me-token--block')).toBeTruthy()
+      expect(container.querySelector('.cm-line.me-list-line--task')).toBeTruthy()
     })
   })
 

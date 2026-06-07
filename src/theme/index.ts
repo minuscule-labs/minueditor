@@ -55,35 +55,42 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-list-line": {
-    paddingLeft: "var(--me-list-indent-base, 0px)",
+    "--me-list-hanging-indent": "var(--me-list-hanging-indent-base, 3.25ch)",
+    boxSizing: "border-box",
+    paddingLeft: "var(--me-list-hanging-indent)",
+    textIndent: "calc(-1 * var(--me-list-hanging-indent))",
+  },
+
+  ".me-list-line--task": {
+    "--me-list-hanging-indent": "var(--me-task-list-hanging-indent-base, 4.75ch)",
   },
 
   ".me-list-line--indent-0": {
-    paddingLeft: "0px",
+    paddingLeft: "var(--me-list-hanging-indent)",
   },
 
   ".me-list-line--indent-1": {
-    paddingLeft: "0.5rem",
+    paddingLeft: "calc(0.5rem + var(--me-list-hanging-indent))",
   },
 
   ".me-list-line--indent-2": {
-    paddingLeft: "1rem",
+    paddingLeft: "calc(1rem + var(--me-list-hanging-indent))",
   },
 
   ".me-list-line--indent-3": {
-    paddingLeft: "1.5rem",
+    paddingLeft: "calc(1.5rem + var(--me-list-hanging-indent))",
   },
 
   ".me-list-line--indent-4": {
-    paddingLeft: "2rem",
+    paddingLeft: "calc(2rem + var(--me-list-hanging-indent))",
   },
 
   ".me-list-line--indent-5": {
-    paddingLeft: "2.5rem",
+    paddingLeft: "calc(2.5rem + var(--me-list-hanging-indent))",
   },
 
   ".me-list-line--indent-6": {
-    paddingLeft: "3rem",
+    paddingLeft: "calc(3rem + var(--me-list-hanging-indent))",
   },
 
   ".cm-cursor, .cm-dropCursor": {

@@ -101,7 +101,7 @@ function buildDecorations(view: EditorView): DecorationSet {
           const indentLevel = Math.min(listIndentLevel(line.text), 6)
           const isTaskLine = /^\s*[-*+]\s+\[[ xX/]\]\s/.test(line.text)
           ranges.push(
-            Decoration.line({ class: `me-list-line me-list-line--indent-${indentLevel}` }).range(
+            Decoration.line({ class: `me-list-line me-list-line--indent-${indentLevel}${isTaskLine ? ' me-list-line--task' : ''}` }).range(
               line.from
             )
           )
