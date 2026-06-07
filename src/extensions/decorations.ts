@@ -23,14 +23,31 @@ function activeLinesSet(view: EditorView): Set<number> {
   return active
 }
 
-function listIndentLevel(line: string): number {
+function leadingWhitespaceWidth(line: string): number {
   let width = 0
   for (const ch of line) {
     if (ch === ' ') width += 1
     else if (ch === '\t') width += 4
     else break
   }
-  return Math.floor(width / 4)
+  return width
+}
+
+function listIndentLevel(line: string): number {
+  return Math.floor(leadingWhitespaceWidth(line) / 4)
+}
+
+function textWidth(text: string): number {
+  let width = 0
+  for (const ch of text) width += ch === '\t' ? 4 : 1
+  return width
+}
+
+function listHangingIndent(line: string): string | null {
+  const match = line.match(/^(\s*)((?:[-*+]|\d+\.)\s+(?:\[[ xX/]\]\s+)?)/)
+  if (!match) return null
+
+  return `${textWidth(match[2])}ch`
 }
 
 // ── Main decoration builder ───────────────────────────────────────────────────
@@ -100,10 +117,14 @@ function buildDecorations(view: EditorView): DecorationSet {
           const line = doc.lineAt(node.from)
           const indentLevel = Math.min(listIndentLevel(line.text), 6)
           const isTaskLine = /^\s*[-*+]\s+\[[ xX/]\]\s/.test(line.text)
+          const hangingIndent = listHangingIndent(line.text)
           ranges.push(
-            Decoration.line({ class: `me-list-line me-list-line--indent-${indentLevel}${isTaskLine ? ' me-list-line--task' : ''}` }).range(
-              line.from
-            )
+            Decoration.line({
+              class: `me-list-line me-list-line--indent-${indentLevel}${isTaskLine ? ' me-list-line--task' : ''}`,
+              ...(hangingIndent
+                ? { attributes: { style: `--me-list-hanging-indent: ${hangingIndent};` } }
+                : {}),
+            }).range(line.from)
           )
 
           const marker = doc.sliceString(node.from, node.to)

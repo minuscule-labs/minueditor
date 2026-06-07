@@ -1028,6 +1028,21 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('sets hanging indents from the current list text position', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'- bullet\n1. ordered\n- [ ] task'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      const lines = Array.from(container.querySelectorAll('.cm-line.me-list-line')) as HTMLElement[]
+      expect(lines).toHaveLength(3)
+      expect(lines[0].getAttribute('style')).toContain('--me-list-hanging-indent: 2ch')
+      expect(lines[1].getAttribute('style')).toContain('--me-list-hanging-indent: 3ch')
+      expect(lines[2].getAttribute('style')).toContain('--me-list-hanging-indent: 6ch')
+      expect(lines[2].classList.contains('me-list-line--task')).toBe(true)
+    })
+  })
+
   it('toggles indented task checkboxes without corrupting markdown text', async () => {
     const onChange = vi.fn()
     const { container } = render(
