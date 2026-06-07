@@ -30,6 +30,9 @@ class CheckboxWidget extends WidgetType {
   }
 
   override toDOM(view: EditorView): HTMLElement {
+    const marker = document.createElement('span')
+    marker.className = 'me-list-marker-widget me-task-list-marker-widget'
+
     const checkbox = document.createElement('button')
     checkbox.type = 'button'
     checkbox.className = `me-checkbox me-checkbox--${this.state}`
@@ -59,7 +62,8 @@ class CheckboxWidget extends WidgetType {
       })
     })
 
-    return checkbox
+    marker.appendChild(checkbox)
+    return marker
   }
 
   override ignoreEvent(): boolean {

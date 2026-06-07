@@ -40,11 +40,20 @@ This is the **document** surface with basic live markdown only.
 - Syntax tokens hide off the active line
 - **Bold**, *italic*, ~~strikethrough~~, \`inline code\`
 
-### Tasks
+### Lists
 
 - Build the editor core
 - Add live decorations
-- Keep advanced widgets out of the default setup
+- Keep advanced widgets out of the default setup with enough extra descriptive text to verify that wrapped list lines align with the list item text instead of jumping back to the left edge
+    - Nested list items should also wrap cleanly with their own marker gutter and text column, including enough prose to force wrapping across several visual lines in a narrow editor
+        - Deeply nested list items keep increasing the standard list indent while preserving hanging wraps for long content that spans more than one line
+
+### Task lists
+
+- [ ] Build the editor core
+- [/] Add live decorations with a task checkbox and enough extra descriptive text to verify that wrapped task lines align with the task text rather than the checkbox gutter
+    - [x] Nested task list items should use the same list gutter model as bullets while preserving clear checkbox alignment and clean wrapping for long task descriptions
+        - [ ] Deeply nested task list items keep the checkbox in the marker gutter and wrap the task text under itself across multiple visual lines
 
 ### Small table
 

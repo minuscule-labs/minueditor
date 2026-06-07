@@ -1028,7 +1028,7 @@ describe('MarkdownEditor', () => {
     })
   })
 
-  it('sets hanging indents from the current list text position', async () => {
+  it('applies standard list layout classes for bullets, ordered lists, and tasks', async () => {
     const { container } = render(
       <MarkdownEditor value={'- bullet\n1. ordered\n- [ ] task'} onChange={vi.fn()} />
     )
@@ -1036,10 +1036,10 @@ describe('MarkdownEditor', () => {
     await waitFor(() => {
       const lines = Array.from(container.querySelectorAll('.cm-line.me-list-line')) as HTMLElement[]
       expect(lines).toHaveLength(3)
-      expect(lines[0].getAttribute('style')).toContain('--me-list-hanging-indent: 2ch')
-      expect(lines[1].getAttribute('style')).toContain('--me-list-hanging-indent: 3ch')
-      expect(lines[2].getAttribute('style')).toContain('--me-list-hanging-indent: 6ch')
+      expect(lines[0].classList.contains('me-list-line--indent-0')).toBe(true)
+      expect(lines[1].classList.contains('me-list-line--indent-0')).toBe(true)
       expect(lines[2].classList.contains('me-list-line--task')).toBe(true)
+      expect(lines[2].getAttribute('style')).toBeFalsy()
     })
   })
 

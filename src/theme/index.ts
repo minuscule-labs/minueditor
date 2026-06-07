@@ -55,42 +55,58 @@ export const minueditorTheme = EditorView.theme({
   },
 
   ".me-list-line": {
-    "--me-list-hanging-indent": "var(--me-list-hanging-indent-base, 3.25ch)",
+    "--me-list-marker-offset": "var(--me-list-marker-offset-base, 0rem)",
+    "--me-list-marker-gutter": "var(--me-list-marker-gutter-base, 2rem)",
+    "--me-list-indent": "0rem",
     boxSizing: "border-box",
-    paddingLeft: "var(--me-list-hanging-indent)",
-    textIndent: "calc(-1 * var(--me-list-hanging-indent))",
-  },
-
-  ".me-list-line--task": {
-    "--me-list-hanging-indent": "var(--me-task-list-hanging-indent-base, 4.75ch)",
+    position: "relative",
+    paddingLeft: "calc(var(--me-list-marker-offset) + var(--me-list-indent) + var(--me-list-marker-gutter))",
+    textIndent: "0",
   },
 
   ".me-list-line--indent-0": {
-    paddingLeft: "var(--me-list-hanging-indent)",
+    "--me-list-indent": "0rem",
   },
 
   ".me-list-line--indent-1": {
-    paddingLeft: "calc(0.5rem + var(--me-list-hanging-indent))",
+    "--me-list-indent": "1.5rem",
   },
 
   ".me-list-line--indent-2": {
-    paddingLeft: "calc(1rem + var(--me-list-hanging-indent))",
+    "--me-list-indent": "3rem",
   },
 
   ".me-list-line--indent-3": {
-    paddingLeft: "calc(1.5rem + var(--me-list-hanging-indent))",
+    "--me-list-indent": "4.5rem",
   },
 
   ".me-list-line--indent-4": {
-    paddingLeft: "calc(2rem + var(--me-list-hanging-indent))",
+    "--me-list-indent": "6rem",
   },
 
   ".me-list-line--indent-5": {
-    paddingLeft: "calc(2.5rem + var(--me-list-hanging-indent))",
+    "--me-list-indent": "7.5rem",
   },
 
   ".me-list-line--indent-6": {
-    paddingLeft: "calc(3rem + var(--me-list-hanging-indent))",
+    "--me-list-indent": "9rem",
+  },
+
+  ".me-list-line .me-list-marker-widget, .me-list-line .me-ordered-list-marker": {
+    position: "absolute",
+    left: "calc(var(--me-list-marker-offset) + var(--me-list-indent))",
+    top: "0",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    width: "calc(var(--me-list-marker-gutter) - 0.5ch)",
+    height: "calc(var(--me-line-height, 1.6) * 1em)",
+    textAlign: "right",
+  },
+
+  ".me-list-leading-space": {
+    fontSize: "0",
+    letterSpacing: "0",
   },
 
   ".cm-cursor, .cm-dropCursor": {
@@ -445,21 +461,18 @@ export const minueditorTheme = EditorView.theme({
     userSelect: "none",
   },
 
-  ".me-unordered-list-marker": {
-    color: "transparent",
+  ".me-unordered-list-marker, .me-list-marker-widget": {
+    color: "var(--me-list-marker-color, var(--me-text, #1a1a1a))",
     display: "inline-block",
     userSelect: "none",
-    fontSize: "0",
-    lineHeight: "1",
-    verticalAlign: "baseline",
-  },
-
-  ".me-unordered-list-marker::before": {
-    content: '"• "',
-    color: "var(--me-list-marker-color, var(--me-text, #1a1a1a))",
     fontSize: "var(--me-font-size, 15px)",
     lineHeight: "1",
     letterSpacing: "normal",
+  },
+
+  ".me-list-marker-widget.me-unordered-list-marker": {
+    boxSizing: "border-box",
+    paddingRight: "0.5ch",
   },
 
   ".me-ordered-list-marker": {
@@ -649,6 +662,14 @@ export const minueditorTheme = EditorView.theme({
     background: "transparent",
     position: "relative",
     boxSizing: "border-box",
+  },
+
+  ".me-task-list-marker-widget": {
+    left: "calc(var(--me-list-marker-offset) + var(--me-list-indent))",
+  },
+
+  ".me-list-line--task .me-checkbox": {
+    margin: "0 0.5ch 0 0",
   },
 
   ".me-checkbox--partial": {

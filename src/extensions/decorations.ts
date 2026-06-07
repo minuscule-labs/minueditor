@@ -6,6 +6,7 @@ import {
   EditorView,
   ViewPlugin,
   type ViewUpdate,
+  WidgetType,
 } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 
@@ -37,17 +38,25 @@ function listIndentLevel(line: string): number {
   return Math.floor(leadingWhitespaceWidth(line) / 4)
 }
 
-function textWidth(text: string): number {
-  let width = 0
-  for (const ch of text) width += ch === '\t' ? 4 : 1
-  return width
-}
+class ListMarkerWidget extends WidgetType {
+  constructor(readonly marker: string) {
+    super()
+  }
 
-function listHangingIndent(line: string): string | null {
-  const match = line.match(/^(\s*)((?:[-*+]|\d+\.)\s+(?:\[[ xX/]\]\s+)?)/)
-  if (!match) return null
+  override eq(other: ListMarkerWidget): boolean {
+    return this.marker === other.marker
+  }
 
-  return `${textWidth(match[2])}ch`
+  override toDOM(): HTMLElement {
+    const marker = document.createElement('span')
+    marker.className = 'me-list-marker-widget me-unordered-list-marker'
+    marker.textContent = this.marker
+    return marker
+  }
+
+  override ignoreEvent(): boolean {
+    return true
+  }
 }
 
 // ── Main decoration builder ───────────────────────────────────────────────────
@@ -117,18 +126,23 @@ function buildDecorations(view: EditorView): DecorationSet {
           const line = doc.lineAt(node.from)
           const indentLevel = Math.min(listIndentLevel(line.text), 6)
           const isTaskLine = /^\s*[-*+]\s+\[[ xX/]\]\s/.test(line.text)
-          const hangingIndent = listHangingIndent(line.text)
           ranges.push(
             Decoration.line({
               class: `me-list-line me-list-line--indent-${indentLevel}${isTaskLine ? ' me-list-line--task' : ''}`,
-              ...(hangingIndent
-                ? { attributes: { style: `--me-list-hanging-indent: ${hangingIndent};` } }
-                : {}),
             }).range(line.from)
           )
 
           const marker = doc.sliceString(node.from, node.to)
           const markerTo = doc.sliceString(node.to, node.to + 1) === ' ' ? node.to + 1 : node.to
+
+          if (node.from > line.from) {
+            ranges.push(
+              Decoration.mark({ class: 'me-list-leading-space' }).range(
+                line.from,
+                node.from
+              )
+            )
+          }
 
           if (isTaskLine && /^[-*+]$/.test(marker)) {
             ranges.push(
@@ -139,10 +153,9 @@ function buildDecorations(view: EditorView): DecorationSet {
             )
           } else if (/^[-*+]$/.test(marker)) {
             ranges.push(
-              Decoration.mark({ class: 'me-unordered-list-marker' }).range(
-                node.from,
-                markerTo
-              )
+              Decoration.replace({
+                widget: new ListMarkerWidget('•'),
+              }).range(node.from, markerTo)
             )
           } else if (/^\d+\.$/.test(marker)) {
             ranges.push(
