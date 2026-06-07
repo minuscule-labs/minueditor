@@ -1,5 +1,5 @@
 import { StateField, type EditorState } from '@codemirror/state'
-import type { LanguageDescription } from '@codemirror/language'
+import type { HighlightStyle, LanguageDescription } from '@codemirror/language'
 import type { DecorationSet } from '@codemirror/view'
 import type { CodeHighlighter } from '../../types'
 import { EditorView } from '@codemirror/view'
@@ -28,8 +28,9 @@ const codeBlockDecorationField = StateField.define<DecorationSet>({
 export function codeBlockDecorations(
   codeLanguages: readonly LanguageDescription[] = [],
   codeHighlighter?: CodeHighlighter,
+  codeHighlightStyle?: HighlightStyle,
 ) {
-  setCodeBlockOptions({ codeLanguages, codeHighlighter })
+  setCodeBlockOptions({ codeLanguages, codeHighlighter, codeHighlightStyle })
   return [
     activeCodeBlockField,
     codeBlockDecorationField,

@@ -220,6 +220,26 @@ import { languages } from '@codemirror/language-data'
 
 This keeps language bundle cost under the consuming app's control.
 
+Active fenced-code editing uses CodeMirror highlighting. MinuEditor ships a default active-code palette aligned with Shiki's `github-dark` theme so active and inactive code blocks look consistent when paired with the default Shiki helper themes. If your app needs a different active palette, pass a CodeMirror `HighlightStyle` via `codeHighlightStyle`:
+
+```tsx
+import { HighlightStyle } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
+import { MarkdownEditor } from '@dpklabs/minueditor'
+
+const codeHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: '#ff7b72' },
+  { tag: tags.string, color: '#a5d6ff' },
+])
+
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  codeLanguages={languages}
+  codeHighlightStyle={codeHighlightStyle}
+/>
+```
+
 To enable only specific languages, filter the language descriptions before passing them to the editor:
 
 ```tsx

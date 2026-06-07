@@ -1,4 +1,4 @@
-import type { LanguageDescription } from '@codemirror/language'
+import type { HighlightStyle, LanguageDescription } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 
 export interface MarkdownEditorState {
@@ -79,6 +79,8 @@ export interface MarkdownEditorProps {
   codeLanguages?: readonly LanguageDescription[]
   /** Optional syntax highlighter for rendered fenced code. Defaults to plain escaped code. */
   codeHighlighter?: CodeHighlighter
+  /** Optional CodeMirror highlight style for active fenced-code editing. Defaults to a GitHub Dark-aligned palette. */
+  codeHighlightStyle?: HighlightStyle
   onStateChange?: (state: MarkdownEditorState) => void
   /** Called with the EditorView instance after CM6 mounts (or re-mounts). */
   onViewReady?: (view: EditorView) => void

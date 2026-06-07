@@ -151,6 +151,7 @@ export const MarkdownEditor = forwardRef<
     onImageUpload,
     codeLanguages,
     codeHighlighter,
+    codeHighlightStyle,
     onStateChange,
     annotations,
     onAnnotationClick,
@@ -313,12 +314,12 @@ export const MarkdownEditor = forwardRef<
     return [
       visualMarkdown,
       tableDecorations,
-      codeBlockDecorations(codeLanguages, codeHighlighter),
+      codeBlockDecorations(codeLanguages, codeHighlighter, codeHighlightStyle),
       markdownDecorations,
       checkboxDecorations,
       imageDecorations,
     ]
-  }, [codeHighlighter, codeLanguages, mode])
+  }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode])
 
   // ── Init CM6 ──────────────────────────────────────────────────────────
   useEffect(() => {

@@ -1,25 +1,32 @@
 import type { Extension, EditorSelection, EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
-import { LanguageDescription, syntaxTree } from '@codemirror/language'
+import { HighlightStyle, LanguageDescription, syntaxTree } from '@codemirror/language'
 import { renderCodeHtml as renderStaticCodeHtml } from '../highlight'
 import type { CodeHighlighter } from '../../types'
 import type { FencedBlockInfo } from './types'
 
 let configuredCodeLanguages: readonly LanguageDescription[] = []
 let configuredCodeHighlighter: CodeHighlighter | undefined
+let configuredCodeHighlightStyle: HighlightStyle | undefined
 const languageExtensionCache = new Map<string, Promise<Extension>>()
 
 export function setCodeBlockOptions(options: {
   codeLanguages?: readonly LanguageDescription[]
   codeHighlighter?: CodeHighlighter | undefined
+  codeHighlightStyle?: HighlightStyle | undefined
 }): void {
   configuredCodeLanguages = options.codeLanguages ?? []
   configuredCodeHighlighter = options.codeHighlighter
+  configuredCodeHighlightStyle = options.codeHighlightStyle
   languageExtensionCache.clear()
 }
 
 export function getCodeHighlighter(): CodeHighlighter | undefined {
   return configuredCodeHighlighter
+}
+
+export function getCodeHighlightStyle(): HighlightStyle | undefined {
+  return configuredCodeHighlightStyle
 }
 
 export function renderCodeHtml(code: string, lang: string, highlighted: string | null): string {

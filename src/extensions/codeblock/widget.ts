@@ -20,13 +20,13 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import {
-  defaultHighlightStyle,
   syntaxTree,
   syntaxHighlighting,
 } from "@codemirror/language";
 import {
   getAdjacentFencedBlock,
   getCodeHighlighter,
+  getCodeHighlightStyle,
   getCodeLanguageExtension,
   getFencedBlockByStart,
   getFencedBlockInfo,
@@ -35,6 +35,7 @@ import {
 } from './model';
 import { highlightCodeHtml } from '../highlight';
 import { activeCodeBlockField, setActiveCodeBlock } from './state';
+import { githubDarkCodeHighlightStyle } from './highlight-style';
 import { nestedEditorTheme } from './theme';
 import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
 
@@ -549,7 +550,7 @@ function createNestedEditorDom(
           },
         ]),
         nestedEditorTheme,
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(getCodeHighlightStyle() ?? githubDarkCodeHighlightStyle, { fallback: true }),
         langCompartment.of([]),
         EditorView.updateListener.of((update) => {
           const mount = wrapper.__meCodeBlockEditor;
