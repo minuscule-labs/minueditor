@@ -507,6 +507,12 @@ export const MarkdownEditor = forwardRef<
       }),
       history(),
       markdownKeymap,
+      keymap.of([
+        {
+          key: 'Enter',
+          run: (view) => enterInMarkdownTable(view) || enterInMarkdownList(view) || enterAfterHiddenInlineSuffix(view),
+        },
+      ]),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       submitKeymap,
       markdown({
