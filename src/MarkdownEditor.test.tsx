@@ -1095,6 +1095,125 @@ describe('MarkdownEditor', () => {
     expect(clipboard['text/plain']).toBe('`ce-5028` already contains `2851`')
   })
 
+  it('expands full inline-code content selections to include markdown markers when copying', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'`ce-5028` already contains text'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 1, head: 8 } })
+    })
+
+    const clipboard: Record<string, string> = {}
+    const content = container.querySelector('.cm-content')!
+    fireEvent.copy(content, {
+      clipboardData: {
+        setData: (type: string, value: string) => {
+          clipboard[type] = value
+        },
+      },
+    })
+
+    expect(clipboard['text/plain']).toBe('`ce-5028`')
+  })
+
+  it('includes opening inline markdown markers when copying a larger selection from formatted content', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'`ce-5028` already contains the `2851` implementation'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 2, head: view!.state.doc.length } })
+    })
+
+    const clipboard: Record<string, string> = {}
+    const content = container.querySelector('.cm-content')!
+    fireEvent.copy(content, {
+      clipboardData: {
+        setData: (type: string, value: string) => {
+          clipboard[type] = value
+        },
+      },
+    })
+
+    expect(clipboard['text/plain']).toBe('`ce-5028` already contains the `2851` implementation')
+  })
+
+  it('includes opening inline markdown markers when copying a multi-line selection from formatted content', async () => {
+    let view: EditorView | null = null
+    const value = '`ce-5028` already contains the `2851` implementation\n- Merge main\n- Rebase branch'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 2, head: view!.state.doc.length } })
+    })
+
+    const clipboard: Record<string, string> = {}
+    const content = container.querySelector('.cm-content')!
+    fireEvent.copy(content, {
+      clipboardData: {
+        setData: (type: string, value: string) => {
+          clipboard[type] = value
+        },
+      },
+    })
+
+    expect(clipboard['text/plain']).toBe(value)
+  })
+
+  it('expands mouse selections to include inline markdown markers visually', async () => {
+    let view: EditorView | null = null
+    const value = '`ce-5028` already contains text\n- Merge main'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 2, head: view!.state.doc.length } })
+    })
+
+    fireEvent.mouseUp(container.querySelector('.cm-content')!)
+
+    expect(view!.state.selection.main.from).toBe(0)
+    expect(view!.state.selection.main.to).toBe(value.length)
+  })
+
   it('wraps selected text as a markdown link when a URL is pasted', async () => {
     let view: EditorView | null = null
     const { container } = render(

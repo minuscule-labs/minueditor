@@ -68,6 +68,73 @@ function markdownImage(alt: string, src: string): string {
   return `![${alt}](${src})`
 }
 
+type SourceRange = { from: number; to: number }
+
+type InlineMarkdownSpan = SourceRange & {
+  contentFrom: number
+  contentTo: number
+}
+
+function inlineMarkdownSpans(lineText: string, lineFrom: number): InlineMarkdownSpan[] {
+  const spans: InlineMarkdownSpan[] = []
+  const patterns = [
+    { regexp: /\*\*([^*]+)\*\*/g, openLen: 2, closeLen: 2 },
+    { regexp: /(?<!\*)\*(?!\*)([^*]+)\*(?!\*)/g, openLen: 1, closeLen: 1 },
+    { regexp: /~~([^~]+)~~/g, openLen: 2, closeLen: 2 },
+    { regexp: /(?<!`)`([^`\n]+)`(?!`)/g, openLen: 1, closeLen: 1 },
+    { regexp: /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, openLen: 1, closeLen: 0 },
+  ]
+
+  for (const { regexp, openLen, closeLen } of patterns) {
+    regexp.lastIndex = 0
+    for (const match of lineText.matchAll(regexp)) {
+      if (match.index == null || !match[1]) continue
+      const from = lineFrom + match.index
+      const to = from + match[0].length
+      const contentFrom = from + openLen
+      const contentTo = closeLen > 0 ? to - closeLen : contentFrom + match[1].length
+      spans.push({ from, to, contentFrom, contentTo })
+    }
+  }
+
+  return spans.sort((a, b) => a.from - b.from)
+}
+
+function expandInlineMarkdownRange(state: EditorState, range: SourceRange): SourceRange {
+  if (range.from === range.to) return range
+
+  const fromLine = state.doc.lineAt(range.from)
+  const toLine = state.doc.lineAt(range.to)
+  let expanded = range
+
+  for (const span of inlineMarkdownSpans(fromLine.text, fromLine.from)) {
+    if (expanded.from >= span.contentFrom && expanded.from <= span.contentTo) {
+      expanded = { ...expanded, from: span.from }
+      break
+    }
+  }
+
+  for (const span of inlineMarkdownSpans(toLine.text, toLine.from)) {
+    if (expanded.to >= span.contentFrom && expanded.to <= span.contentTo) {
+      expanded = { ...expanded, to: span.to }
+      break
+    }
+  }
+
+  return expanded
+}
+
+function selectedMarkdownText(state: EditorState): { text: string; ranges: SourceRange[] } {
+  const ranges = state.selection.ranges
+    .filter((range) => !range.empty)
+    .map((range) => expandInlineMarkdownRange(state, { from: range.from, to: range.to }))
+
+  return {
+    ranges,
+    text: ranges.map((range) => state.doc.sliceString(range.from, range.to)).join('\n'),
+  }
+}
+
 function getActiveMarks(lineText: string): MarkdownEditorState['activeMarks'] {
   const heading = /^(#{1,6})\s+/.exec(lineText)
   const list = /^\s*[-*+]\s+\[[ xX/]\]\s+/.test(lineText)
@@ -363,10 +430,25 @@ export const MarkdownEditor = forwardRef<
 
         return false
       },
+      mouseup(_event, view) {
+        const selection = view.state.selection.main
+        if (selection.empty) return false
+
+        const expanded = expandInlineMarkdownRange(view.state, {
+          from: selection.from,
+          to: selection.to,
+        })
+        if (expanded.from === selection.from && expanded.to === selection.to) return false
+
+        view.dispatch({
+          selection: selection.anchor <= selection.head
+            ? { anchor: expanded.from, head: expanded.to }
+            : { anchor: expanded.to, head: expanded.from },
+        })
+        return false
+      },
       copy(event, view) {
-        const text = view.state.selection.ranges
-          .map((range) => view.state.doc.sliceString(range.from, range.to))
-          .join('\n')
+        const { text } = selectedMarkdownText(view.state)
         if (!text) return false
 
         event.preventDefault()
@@ -375,12 +457,9 @@ export const MarkdownEditor = forwardRef<
       },
       cut(event, view) {
         if (!view.state.facet(EditorView.editable)) return false
-        const ranges = view.state.selection.ranges.filter((range) => !range.empty)
-        if (ranges.length === 0) return false
+        const { text, ranges } = selectedMarkdownText(view.state)
+        if (!text) return false
 
-        const text = ranges
-          .map((range) => view.state.doc.sliceString(range.from, range.to))
-          .join('\n')
         event.preventDefault()
         event.clipboardData?.setData('text/plain', text)
         view.dispatch({
@@ -440,6 +519,7 @@ export const MarkdownEditor = forwardRef<
       annotationsCompartment.current.of(documentAnnotationExtension(annotations, handleAnnotationClick)),
       EditorView.lineWrapping,
       updateListener,
+      EditorView.clipboardOutputFilter.of((text, state) => selectedMarkdownText(state).text || text),
       shortcutGuard,
       autolinkPaste,
       linkClickNavigation,
