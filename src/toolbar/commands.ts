@@ -139,8 +139,8 @@ export function enterInMarkdownList(view: EditorView): boolean {
   if (taskMatch) {
     if (taskMatch[3].length === 0) {
       view.dispatch({
-        changes: { from: line.from, to: line.to, insert: taskMatch[1] },
-        selection: EditorSelection.cursor(line.from + taskMatch[1].length),
+        changes: { from: line.from, to: line.to, insert: "" },
+        selection: EditorSelection.cursor(line.from),
         scrollIntoView: true,
       });
       return true;
@@ -158,8 +158,8 @@ export function enterInMarkdownList(view: EditorView): boolean {
   if (unorderedMatch) {
     if (unorderedMatch[3].length === 0) {
       view.dispatch({
-        changes: { from: line.from, to: line.to, insert: unorderedMatch[1] },
-        selection: EditorSelection.cursor(line.from + unorderedMatch[1].length),
+        changes: { from: line.from, to: line.to, insert: "" },
+        selection: EditorSelection.cursor(line.from),
         scrollIntoView: true,
       });
       return true;
@@ -177,8 +177,8 @@ export function enterInMarkdownList(view: EditorView): boolean {
   if (orderedMatch) {
     if (orderedMatch[3].length === 0) {
       view.dispatch({
-        changes: { from: line.from, to: line.to, insert: orderedMatch[1] },
-        selection: EditorSelection.cursor(line.from + orderedMatch[1].length),
+        changes: { from: line.from, to: line.to, insert: "" },
+        selection: EditorSelection.cursor(line.from),
         scrollIntoView: true,
       });
       return true;
