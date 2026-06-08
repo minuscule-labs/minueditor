@@ -1,6 +1,7 @@
 import { EditorView } from '@codemirror/view'
 
 const URL_REGEX = /^https?:\/\/[^\s]+$/
+const EMPTY_LIST_ITEM_REGEX = /^\s*(?:[-*+]|\d+\.)\s+(?:\[[ xX/]\]\s+)?$/
 
 /**
  * Intercepts paste events. When a plain-text URL is pasted:
@@ -41,14 +42,16 @@ export const autolinkPaste = EditorView.domEventHandlers({
     const line = state.doc.lineAt(sel.from)
     const lineContent = line.text.trim()
 
-    if (lineContent === '') {
-      // Empty line → insert [url](url)
+    if (lineContent === '' || EMPTY_LIST_ITEM_REGEX.test(line.text)) {
+      // Empty line/list item → insert [url](url)
       view.dispatch({
-        changes: {
-          from: line.from,
-          to: line.to,
-          insert: `[${text}](${text})`,
-        },
+        changes: lineContent === ''
+          ? {
+              from: line.from,
+              to: line.to,
+              insert: `[${text}](${text})`,
+            }
+          : { from: sel.from, insert: `[${text}](${text})` },
       })
     } else {
       // Mid-line → raw URL

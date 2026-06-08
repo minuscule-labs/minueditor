@@ -1120,6 +1120,64 @@ describe('MarkdownEditor', () => {
     )
   })
 
+  it('inserts [url](url) when a URL is pasted into an empty list item', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- '}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 2 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        getData: (type: string) =>
+          type === 'text/plain' ? 'https://example.com' : '',
+      },
+    })
+
+    expect(view!.state.doc.toString()).toBe(
+      '- [https://example.com](https://example.com)'
+    )
+  })
+
+  it('opens markdown links on ctrl-click', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    try {
+      await waitFor(() => expect(view).toBeTruthy())
+
+      vi.spyOn(view!, 'posAtCoords').mockReturnValue(3)
+
+      const content = container.querySelector('.cm-content')!
+      fireEvent.click(content, { ctrlKey: true, clientX: 1, clientY: 1 })
+
+      expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer')
+    } finally {
+      open.mockRestore()
+    }
+  })
+
   it('uploads pasted images with the provided upload handler', async () => {
     const onChange = vi.fn()
     const onImageUpload = vi.fn(async () => 'https://cdn.example.com/note.png')

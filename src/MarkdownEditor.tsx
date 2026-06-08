@@ -20,6 +20,7 @@ import { markdownDecorations } from './extensions/decorations'
 import { documentAnnotationExtension } from './extensions/annotations'
 import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
+import { linkClickNavigation } from './extensions/link-click'
 import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageDecorations, imagePasteHandler, imagePickerExtension, insertImagePicker } from './extensions/images'
@@ -416,6 +417,7 @@ export const MarkdownEditor = forwardRef<
       updateListener,
       shortcutGuard,
       autolinkPaste,
+      linkClickNavigation,
       imagePasteHandler(() => onImageUploadRef.current),
       ...(slashCommands !== false
         ? [slashCommandExtension(Array.isArray(slashCommands) ? slashCommands : editorSlashCommands)]
