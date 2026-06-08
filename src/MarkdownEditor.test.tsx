@@ -1064,6 +1064,37 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('copies selected markdown from the document instead of decorated DOM text', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'`ce-5028` already contains `2851`'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 0, head: view!.state.doc.length } })
+    })
+
+    const clipboard: Record<string, string> = {}
+    const content = container.querySelector('.cm-content')!
+    fireEvent.copy(content, {
+      clipboardData: {
+        setData: (type: string, value: string) => {
+          clipboard[type] = value
+        },
+      },
+    })
+
+    expect(clipboard['text/plain']).toBe('`ce-5028` already contains `2851`')
+  })
+
   it('wraps selected text as a markdown link when a URL is pasted', async () => {
     let view: EditorView | null = null
     const { container } = render(

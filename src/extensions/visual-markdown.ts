@@ -47,45 +47,50 @@ const rules: MarkdownRule[] = [
   },
 ]
 
-const linkDecorator = new MatchDecorator({
-  // Do not decorate markdown images. Active image lines should show full raw
-  // source (`![alt](src)`), while inactive image lines are handled by the
-  // image widget decoration.
-  regexp: /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
+function createLinkDecorator(revealMarkers: boolean) {
+  return new MatchDecorator({
+    // Do not decorate markdown images. Active image lines should show full raw
+    // source (`![alt](src)`), while inactive image lines are handled by the
+    // image widget decoration.
+    regexp: /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
 
-  decorate(add, from, to, match, view) {
-    const label = match[1]
-    if (!label) return
+    decorate(add, from, to, match, view) {
+      const label = match[1]
+      if (!label) return
 
-    const contentStart = from + 1
-    const contentEnd = contentStart + label.length
+      const contentStart = from + 1
+      const contentEnd = contentStart + label.length
 
-    if (
-      selectionTouchesRange(view, from, contentStart) ||
-      selectionTouchesRange(view, contentEnd, to)
-    ) {
-      return
-    }
+      if (
+        selectionOverlapsRange(view, from, to, revealMarkers) ||
+        selectionTouchesRange(view, from, contentStart, revealMarkers) ||
+        selectionTouchesRange(view, contentEnd, to, revealMarkers)
+      ) {
+        return
+      }
 
-    add(
-      from,
-      contentStart,
-      Decoration.mark({ class: 'me-token me-token--inline' })
-    )
-    add(
-      contentStart,
-      contentEnd,
-      Decoration.mark({ class: 'me-link' })
-    )
-    add(
-      contentEnd,
-      to,
-      Decoration.mark({ class: 'me-token me-token--inline' })
-    )
-  },
-})
+      add(
+        from,
+        contentStart,
+        Decoration.mark({ class: 'me-token me-token--inline' })
+      )
+      add(
+        contentStart,
+        contentEnd,
+        Decoration.mark({ class: 'me-link' })
+      )
+      add(
+        contentEnd,
+        to,
+        Decoration.mark({ class: 'me-token me-token--inline' })
+      )
+    },
+  })
+}
 
-function selectionTouchesRange(view: EditorView, from: number, to: number): boolean {
+function selectionTouchesRange(view: EditorView, from: number, to: number, revealMarkers = true): boolean {
+  if (!revealMarkers) return false
+
   for (const range of view.state.selection.ranges) {
     if (range.empty) {
       if (range.from > from && range.from < to) return true
@@ -96,6 +101,11 @@ function selectionTouchesRange(view: EditorView, from: number, to: number): bool
   }
 
   return false
+}
+
+function selectionOverlapsRange(view: EditorView, from: number, to: number, revealMarkers = true): boolean {
+  if (!revealMarkers) return false
+  return view.state.selection.ranges.some((range) => !range.empty && range.from < to && range.to > from)
 }
 
 function isEmptyPairAtCursor(view: EditorView, rule: MarkdownRule, cursor: number): boolean {
@@ -147,7 +157,7 @@ function buildPendingPairDecorations(view: EditorView): Range<Decoration>[] {
   return ranges
 }
 
-function createDecorator(rule: MarkdownRule) {
+function createDecorator(rule: MarkdownRule, revealMarkers: boolean) {
   return new MatchDecorator({
     regexp: rule.regexp,
 
@@ -156,8 +166,9 @@ function createDecorator(rule: MarkdownRule) {
       const contentEnd = to - rule.closeLen
 
       if (
-        selectionTouchesRange(view, from, contentStart) ||
-        selectionTouchesRange(view, contentEnd, to)
+        selectionOverlapsRange(view, from, to, revealMarkers) ||
+        selectionTouchesRange(view, from, contentStart, revealMarkers) ||
+        selectionTouchesRange(view, contentEnd, to, revealMarkers)
       ) {
         return
       }
@@ -183,12 +194,14 @@ function createDecorator(rule: MarkdownRule) {
   })
 }
 
-const decorators = [...rules.map(createDecorator), linkDecorator]
+function decorators(revealMarkers: boolean) {
+  return [...rules.map((rule) => createDecorator(rule, revealMarkers)), createLinkDecorator(revealMarkers)]
+}
 
-function buildDecorations(view: EditorView): DecorationSet {
+function buildDecorations(view: EditorView, revealMarkers = true): DecorationSet {
   const all: Range<Decoration>[] = buildPendingPairDecorations(view)
 
-  for (const decorator of decorators) {
+  for (const decorator of decorators(revealMarkers)) {
     const set = decorator.createDeco(view)
     set.between(0, view.state.doc.length, (from, to, value) => {
       all.push(value.range(from, to))
@@ -201,15 +214,45 @@ function buildDecorations(view: EditorView): DecorationSet {
 export const visualMarkdown = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
+    pointerSelecting = false
+    removePointerListeners: (() => void) | null = null
 
     constructor(view: EditorView) {
       this.decorations = buildDecorations(view)
+
+      const startPointerSelection = () => {
+        this.pointerSelecting = true
+      }
+      const endPointerSelection = () => {
+        if (!this.pointerSelecting) return
+        this.pointerSelecting = false
+        this.decorations = buildDecorations(view, true)
+        view.dispatch({})
+      }
+
+      view.dom.addEventListener('mousedown', startPointerSelection)
+      window.addEventListener('mouseup', endPointerSelection)
+      window.addEventListener('blur', endPointerSelection)
+      this.removePointerListeners = () => {
+        view.dom.removeEventListener('mousedown', startPointerSelection)
+        window.removeEventListener('mouseup', endPointerSelection)
+        window.removeEventListener('blur', endPointerSelection)
+      }
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet) {
+      if (update.docChanged) {
         this.decorations = buildDecorations(update.view)
+        return
       }
+
+      if (update.selectionSet) {
+        this.decorations = buildDecorations(update.view, !this.pointerSelecting)
+      }
+    }
+
+    destroy() {
+      this.removePointerListeners?.()
     }
   },
   {

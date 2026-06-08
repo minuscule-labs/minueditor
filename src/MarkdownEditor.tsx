@@ -363,6 +363,31 @@ export const MarkdownEditor = forwardRef<
 
         return false
       },
+      copy(event, view) {
+        const text = view.state.selection.ranges
+          .map((range) => view.state.doc.sliceString(range.from, range.to))
+          .join('\n')
+        if (!text) return false
+
+        event.preventDefault()
+        event.clipboardData?.setData('text/plain', text)
+        return true
+      },
+      cut(event, view) {
+        if (!view.state.facet(EditorView.editable)) return false
+        const ranges = view.state.selection.ranges.filter((range) => !range.empty)
+        if (ranges.length === 0) return false
+
+        const text = ranges
+          .map((range) => view.state.doc.sliceString(range.from, range.to))
+          .join('\n')
+        event.preventDefault()
+        event.clipboardData?.setData('text/plain', text)
+        view.dispatch({
+          changes: ranges.map((range) => ({ from: range.from, to: range.to, insert: '' })),
+        })
+        return true
+      },
       beforeinput(event) {
         if (
           event.inputType === 'formatBold' ||
