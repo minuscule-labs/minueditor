@@ -132,12 +132,12 @@ export function enterInMarkdownList(view: EditorView): boolean {
   const line = view.state.doc.lineAt(selection.from);
   if (selection.from !== line.to) return false;
 
-  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX/]\]\s+(.*)$/);
-  const unorderedMatch = line.text.match(/^(\s*)([-*+])\s+(.*)$/);
-  const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s+(.*)$/);
+  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX/]\](?:\s+(.*))?$/);
+  const unorderedMatch = line.text.match(/^(\s*)([-*+])(?:\s+(.*))?$/);
+  const orderedMatch = line.text.match(/^(\s*)(\d+)\.(?:\s+(.*))?$/);
 
   if (taskMatch) {
-    if (taskMatch[3].length === 0) {
+    if ((taskMatch[3] ?? "").length === 0) {
       view.dispatch({
         changes: { from: line.from, to: line.to, insert: "" },
         selection: EditorSelection.cursor(line.from),
@@ -156,7 +156,7 @@ export function enterInMarkdownList(view: EditorView): boolean {
   }
 
   if (unorderedMatch) {
-    if (unorderedMatch[3].length === 0) {
+    if ((unorderedMatch[3] ?? "").length === 0) {
       view.dispatch({
         changes: { from: line.from, to: line.to, insert: "" },
         selection: EditorSelection.cursor(line.from),
@@ -175,7 +175,7 @@ export function enterInMarkdownList(view: EditorView): boolean {
   }
 
   if (orderedMatch) {
-    if (orderedMatch[3].length === 0) {
+    if ((orderedMatch[3] ?? "").length === 0) {
       view.dispatch({
         changes: { from: line.from, to: line.to, insert: "" },
         selection: EditorSelection.cursor(line.from),

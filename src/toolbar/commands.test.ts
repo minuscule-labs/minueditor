@@ -204,6 +204,25 @@ describe('list indentation commands', () => {
     })
   })
 
+  it('exits nested unordered lists without a trailing marker space to the true line beginning', () => {
+    const view = createMockView(['- one', '    -'], {
+      from: 11,
+      to: 11,
+      anchor: 11,
+      head: 11,
+      empty: true,
+    })
+
+    const handled = enterInMarkdownList(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 6, to: 11, insert: '' },
+      selection: expect.anything(),
+      scrollIntoView: true,
+    })
+  })
+
   it('indents existing unordered list lines on Tab', () => {
     const view = createMockView(['- one', '- two'])
     const handled = indentList(view)
