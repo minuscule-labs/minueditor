@@ -71,6 +71,14 @@ export interface MarkdownEditorProps {
   mode?: MarkdownEditorMode
   floatingToolbar?: boolean
   autoFocus?: boolean
+  /** Enables browser/OS spellcheck for the editable document body. Defaults to true. */
+  spellCheck?: boolean
+  /** Controls browser/OS autocorrect for the editable document body. Defaults to 'on'. */
+  autoCorrect?: 'on' | 'off'
+  /** Controls browser autocomplete for the editable document body. Defaults to 'on'. */
+  autoComplete?: string
+  /** Controls browser/OS autocapitalization for the editable document body. Defaults to 'sentences'. */
+  autoCapitalize?: string
   minHeight?: number
   maxHeight?: number
   onSubmit?: () => void

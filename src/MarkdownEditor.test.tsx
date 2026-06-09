@@ -41,6 +41,37 @@ describe('MarkdownEditor', () => {
     expect(container.querySelector('.cm-editor')).toBeTruthy()
   })
 
+  it('allows native writing assistance by default', () => {
+    const { container } = render(
+      <MarkdownEditor value={'Hello'} onChange={vi.fn()} />
+    )
+    const content = container.querySelector('.cm-content')!
+
+    expect(content.getAttribute('spellcheck')).toBe('true')
+    expect(content.getAttribute('autocorrect')).toBe('on')
+    expect(content.getAttribute('autocomplete')).toBe('on')
+    expect(content.getAttribute('autocapitalize')).toBe('sentences')
+  })
+
+  it('allows consumers to disable native writing assistance', () => {
+    const { container } = render(
+      <MarkdownEditor
+        value={'Hello'}
+        onChange={vi.fn()}
+        spellCheck={false}
+        autoCorrect="off"
+        autoComplete="off"
+        autoCapitalize="off"
+      />
+    )
+    const content = container.querySelector('.cm-content')!
+
+    expect(content.getAttribute('spellcheck')).toBe('false')
+    expect(content.getAttribute('autocorrect')).toBe('off')
+    expect(content.getAttribute('autocomplete')).toBe('off')
+    expect(content.getAttribute('autocapitalize')).toBe('off')
+  })
+
   it('passes className to the wrapper in editing mode', () => {
     const { container } = render(
       <MarkdownEditor value={'Hello'} onChange={vi.fn()} className={'foo'} />
