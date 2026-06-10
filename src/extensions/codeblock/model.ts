@@ -5,28 +5,10 @@ import { renderCodeHtml as renderStaticCodeHtml } from '../highlight'
 import type { CodeHighlighter } from '../../types'
 import type { FencedBlockInfo } from './types'
 
-let configuredCodeLanguages: readonly LanguageDescription[] = []
-let configuredCodeHighlighter: CodeHighlighter | undefined
-let configuredCodeHighlightStyle: HighlightStyle | undefined
-const languageExtensionCache = new Map<string, Promise<Extension>>()
-
-export function setCodeBlockOptions(options: {
-  codeLanguages?: readonly LanguageDescription[]
+export type CodeBlockOptions = {
+  codeLanguages: readonly LanguageDescription[]
   codeHighlighter?: CodeHighlighter | undefined
   codeHighlightStyle?: HighlightStyle | undefined
-}): void {
-  configuredCodeLanguages = options.codeLanguages ?? []
-  configuredCodeHighlighter = options.codeHighlighter
-  configuredCodeHighlightStyle = options.codeHighlightStyle
-  languageExtensionCache.clear()
-}
-
-export function getCodeHighlighter(): CodeHighlighter | undefined {
-  return configuredCodeHighlighter
-}
-
-export function getCodeHighlightStyle(): HighlightStyle | undefined {
-  return configuredCodeHighlightStyle
 }
 
 export function renderCodeHtml(code: string, lang: string, highlighted: string | null): string {
@@ -116,28 +98,19 @@ export function getSelectionForBlockClick(
   return createSelection(block.contentFrom + offset)
 }
 
-export function getCodeLanguageExtension(lang: string): Promise<Extension> {
+export function getCodeLanguageExtension(
+  codeLanguages: readonly LanguageDescription[],
+  lang: string,
+): Promise<Extension> {
   const normalized = lang.trim().toLowerCase()
   if (!normalized) return Promise.resolve([])
 
-  const cached = languageExtensionCache.get(normalized)
-  if (cached) return cached
-
-  const promise = (async () => {
-    const languages = [...configuredCodeLanguages]
-    const description =
-      LanguageDescription.matchLanguageName(languages, normalized, true) ??
-      LanguageDescription.matchLanguageName(languages, normalized, false)
-    if (!description) return []
-    try {
-      return await description.load()
-    } catch {
-      return []
-    }
-  })()
-
-  languageExtensionCache.set(normalized, promise)
-  return promise
+  const languages = [...codeLanguages]
+  const description =
+    LanguageDescription.matchLanguageName(languages, normalized, true) ??
+    LanguageDescription.matchLanguageName(languages, normalized, false)
+  if (!description) return Promise.resolve([])
+  return description.load().catch(() => [])
 }
 
 export function getAdjacentFencedBlock(

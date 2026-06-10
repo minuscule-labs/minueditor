@@ -1,4 +1,5 @@
 import type { Compartment } from '@codemirror/state'
+import type { LanguageDescription } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
 
 export type FencedBlockInfo = {
@@ -24,6 +25,7 @@ export type CodeBlockEditorMount = {
   isDestroyed: boolean
   languageLoadId: number
   pendingFocusTarget: 'language' | 'code-start' | 'code-end' | null
+  codeLanguages: readonly LanguageDescription[]
 }
 
 export type CodeBlockElement = HTMLDivElement & {

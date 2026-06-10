@@ -2073,6 +2073,30 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('keeps code language configuration isolated between editor instances', async () => {
+    const loadA = vi.fn(async () => javascript())
+    const loadB = vi.fn(async () => javascript())
+    const langA = LanguageDescription.of({ name: 'LangA', alias: ['aaa'], load: loadA })
+    const langB = LanguageDescription.of({ name: 'LangB', alias: ['bbb'], load: loadB })
+
+    const { container } = render(
+      <div>
+        <MarkdownEditor value={'```aaa\na\n```'} onChange={vi.fn()} codeLanguages={[langA]} />
+        <MarkdownEditor value={'```bbb\nb\n```'} onChange={vi.fn()} codeLanguages={[langB]} />
+      </div>
+    )
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.me-codeblock-widget').length).toBe(2)
+    })
+
+    fireEvent.mouseDown(container.querySelectorAll('.me-codeblock-widget')[1])
+    await waitFor(() => expect(loadB).toHaveBeenCalled())
+
+    fireEvent.mouseDown(container.querySelectorAll('.me-codeblock-widget')[0])
+    await waitFor(() => expect(loadA).toHaveBeenCalled())
+  })
+
   it('renders code blocks with the code block widget in read-only mode', async () => {
     const { container } = render(
       <MarkdownEditor

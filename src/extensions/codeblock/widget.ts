@@ -25,8 +25,7 @@ import {
 } from "@codemirror/language";
 import {
   getAdjacentFencedBlock,
-  getCodeHighlighter,
-  getCodeHighlightStyle,
+  type CodeBlockOptions,
   getCodeLanguageExtension,
   getFencedBlockByStart,
   getFencedBlockInfo,
@@ -55,7 +54,7 @@ function reconfigureNestedLanguage(
   mount.currentLang = lang;
   const loadId = mount.languageLoadId + 1;
   mount.languageLoadId = loadId;
-  void getCodeLanguageExtension(lang).then((extension) => {
+  void getCodeLanguageExtension(mount.codeLanguages, lang).then((extension) => {
     if (mount.isDestroyed || mount.languageLoadId !== loadId) return;
     mount.view.dispatch({
       effects: mount.langCompartment.reconfigure(extension),
@@ -535,7 +534,7 @@ function createNestedEditorDom(
           },
         ]),
         nestedEditorTheme,
-        syntaxHighlighting(getCodeHighlightStyle() ?? githubDarkCodeHighlightStyle, { fallback: true }),
+        syntaxHighlighting(widget.options.codeHighlightStyle ?? githubDarkCodeHighlightStyle, { fallback: true }),
         langCompartment.of([]),
         EditorView.updateListener.of((update) => {
           const mount = wrapper.__meCodeBlockEditor;
@@ -588,6 +587,7 @@ function createNestedEditorDom(
     isDestroyed: false,
     languageLoadId: 0,
     pendingFocusTarget: null,
+    codeLanguages: widget.options.codeLanguages,
   };
 
   const mount = wrapper.__meCodeBlockEditor;
@@ -627,6 +627,7 @@ class CodeBlockWidget extends WidgetType {
     readonly lang: string,
     readonly highlighted: string | null,
     readonly isEditing: boolean,
+    readonly options: CodeBlockOptions,
   ) {
     super();
   }
@@ -698,7 +699,7 @@ class CodeBlockWidget extends WidgetType {
     if (!this.highlighted && this.lang) {
       const code = this.code;
       const lang = this.lang;
-      void highlightCodeHtml(getCodeHighlighter(), code, lang).then((html) => {
+      void highlightCodeHtml(this.options.codeHighlighter, code, lang).then((html) => {
         if (!html || body.dataset.code !== code || body.dataset.lang !== lang) return;
         body.innerHTML = html;
         normalizeRenderedCodeBlock(body);
@@ -736,7 +737,7 @@ class CodeBlockWidget extends WidgetType {
   }
 }
 
-export function buildCodeBlockDecorations(state: EditorState): DecorationSet {
+export function buildCodeBlockDecorations(state: EditorState, options: CodeBlockOptions): DecorationSet {
   const ranges: ReturnType<Decoration["range"]>[] = [];
   const doc = state.doc;
   const activeBlockFrom = state.facet(EditorView.editable)
@@ -765,6 +766,7 @@ export function buildCodeBlockDecorations(state: EditorState): DecorationSet {
             block.lang,
             highlighted,
             activeBlockFrom === block.blockFrom,
+            options,
           ),
           block: true,
           inclusive: true,
