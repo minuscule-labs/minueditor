@@ -348,6 +348,40 @@ describe('MarkdownEditor', () => {
     expect(view!.state.selection.main.from).toBe(blockTo)
   })
 
+  it('creates an editable trailing line when navigating after a table at document end', async () => {
+    let view: EditorView | null = null
+    const value = '| A | B |\n| --- | --- |\n| 1 | 2 |'
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-table-boundary--after')!)
+
+    expect(view!.state.doc.toString()).toBe(`${value}\n`)
+    expect(view!.state.selection.main.from).toBe(value.length + 1)
+  })
+
+  it('creates an editable trailing line when navigating after a code block at document end', async () => {
+    let view: EditorView | null = null
+    const value = '```ts\nconst x = 1\n```'
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-boundary--after')!)
+
+    expect(view!.state.doc.toString()).toBe(`${value}\n`)
+    expect(view!.state.selection.main.from).toBe(value.length + 1)
+  })
+
   it('switches between live and source modes', async () => {
     const value = '![test](https://example.com/test.png)\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |'
     const { container, rerender } = render(

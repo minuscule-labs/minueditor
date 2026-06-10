@@ -21,9 +21,22 @@ export function placeCursorAtWidgetBoundary(
   target: Extract<WidgetNavigationTarget, 'before' | 'after'>,
   effects?: StateEffect<unknown> | readonly StateEffect<unknown>[],
 ): boolean {
+  const position = widgetBoundaryPosition(range, target)
+
+  if (target === 'after' && position >= view.state.doc.length) {
+    view.dispatch({
+      ...(effects ? { effects } : {}),
+      changes: { from: view.state.doc.length, insert: '\n' },
+      selection: EditorSelection.cursor(view.state.doc.length + 1),
+      scrollIntoView: true,
+    })
+    view.focus()
+    return true
+  }
+
   view.dispatch({
     ...(effects ? { effects } : {}),
-    selection: EditorSelection.cursor(widgetBoundaryPosition(range, target)),
+    selection: EditorSelection.cursor(position),
     scrollIntoView: true,
   })
   view.focus()
