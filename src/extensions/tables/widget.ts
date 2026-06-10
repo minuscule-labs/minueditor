@@ -20,7 +20,11 @@ import {
 } from '../../internal/table-commands'
 import { handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../../internal/widget-navigation'
 
-function activateTable(view: EditorView, block: TableBlock): boolean {
+function activateTable(
+  view: EditorView,
+  block: TableBlock,
+  target: { rowIndex: number; colIndex: number } = { rowIndex: 0, colIndex: 0 },
+): boolean {
   view.dispatch({
     effects: setActiveTable.of(block.from),
     selection: EditorSelection.cursor(block.from),
@@ -32,7 +36,7 @@ function activateTable(view: EditorView, block: TableBlock): boolean {
       `.me-table-widget[data-table-from="${block.from}"]`,
     ) as HTMLElement | null
     if (!widget) return
-    focusTableInput(widget, 0, 0)
+    focusTableInput(widget, target.rowIndex, target.colIndex)
   })
 
   return true
@@ -546,7 +550,7 @@ export const tableArrowNavigation = Prec.high(
         if (!selection.empty) return false
         const block = getAdjacentTableBlock(view.state, selection.head, 'down')
         if (!block) return false
-        return activateTable(view, block)
+        return activateTable(view, block, { rowIndex: 0, colIndex: 0 })
       },
     },
     {
@@ -556,7 +560,10 @@ export const tableArrowNavigation = Prec.high(
         if (!selection.empty) return false
         const block = getAdjacentTableBlock(view.state, selection.head, 'up')
         if (!block) return false
-        return activateTable(view, block)
+        return activateTable(view, block, {
+          rowIndex: Math.max(0, block.rows.length - 1),
+          colIndex: 0,
+        })
       },
     },
   ]),

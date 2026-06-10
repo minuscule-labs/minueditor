@@ -2002,6 +2002,9 @@ describe('MarkdownEditor', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+      expect(document.activeElement).toBe(
+        container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]'),
+      )
     })
   })
 
@@ -2056,6 +2059,9 @@ describe('MarkdownEditor', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+      expect(document.activeElement).toBe(
+        container.querySelector('.me-table-input[data-row-index="0"][data-col-index="0"]'),
+      )
     })
   })
 
