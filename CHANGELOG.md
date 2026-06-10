@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.9.8
+
+- Improved block-widget cursor navigation across tables, code blocks, and standalone images.
+- Added stable before/after widget cursor boundaries, including editable trailing-line creation when exiting a widget at the end of the document.
+- Improved table keyboard UX:
+  - ArrowUp/ArrowDown can enter and exit table widgets from neighboring lines.
+  - Vertical movement between table cells preserves the caret offset, clamped to target cell length.
+  - Modified arrow keys such as Cmd/Ctrl+Arrow are no longer hijacked for table structure edits.
+  - Table widgets no longer enter editing mode in `readOnly` editors.
+- Improved code block widget behavior:
+  - ArrowUp/ArrowDown can exit code block widgets cleanly to surrounding document lines.
+  - Code block language loaders, highlighters, and highlight styles are isolated per editor instance.
+- Improved standalone image previews with shared widget boundary navigation.
+- Added native writing-assistance configuration to `MarkdownEditorProps`:
+  - `spellCheck?: boolean` — defaults to `true`.
+  - `autoCorrect?: 'on' | 'off'` — defaults to `'on'`.
+  - `autoComplete?: string` — defaults to `'on'`.
+  - `autoCapitalize?: string` — defaults to `'sentences'`.
+- Added internal widget/control-plane groundwork:
+  - Shared editor command factory.
+  - Shared widget context.
+  - Shared table command helpers.
+  - Shared widget navigation helpers.
+- Added `onRequestImage?: (context: MinuWidgetContext) => void` for host-provided image request flows.
+- Improved inline markdown marker handling for visual selections and copy/cut serialization.
+- Improved markdown link UX with URL paste handling and Ctrl/Cmd-click link navigation.
+- Improved list/task-list marker gutter layout for wrapped and nested items.
+
+Verified with typecheck, targeted editor/toolbar tests, release build, and dist verification.
+
 ## 0.3.3
 
 - Added a Notion-style `/Image` picker with Upload and Link flows.
