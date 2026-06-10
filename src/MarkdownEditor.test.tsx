@@ -1653,11 +1653,12 @@ describe('MarkdownEditor', () => {
     expect(view!.state.selection.main.to).toBe(37)
   })
 
-  it('pressing Cmd+Right inserts a table column to the right', async () => {
+  it('does not hijack modified arrow keys for table structure edits in the main editor', async () => {
     let view: EditorView | null = null
+    const value = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
     const { container } = render(
       <MarkdownEditor
-        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        value={value}
         onChange={vi.fn()}
         onViewReady={(nextView) => {
           view = nextView
@@ -1673,88 +1674,11 @@ describe('MarkdownEditor', () => {
 
     const content = container.querySelector('.cm-content')!
     fireEvent.keyDown(content, { key: 'ArrowRight', ctrlKey: true })
-
-    expect(view!.state.doc.toString()).toBe(
-      '| Name || Age |\n| --- | --- | --- |\n| Ada || 42 |'
-    )
-  })
-
-  it('pressing Cmd+Left inserts a table column to the left', async () => {
-    let view: EditorView | null = null
-    const { container } = render(
-      <MarkdownEditor
-        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
-        onChange={vi.fn()}
-        onViewReady={(nextView) => {
-          view = nextView
-        }}
-      />
-    )
-
-    await waitFor(() => expect(view).toBeTruthy())
-
-    act(() => {
-      view!.dispatch({ selection: { anchor: 37 } })
-    })
-
-    const content = container.querySelector('.cm-content')!
     fireEvent.keyDown(content, { key: 'ArrowLeft', ctrlKey: true })
-
-    expect(view!.state.doc.toString()).toBe(
-      '| Name || Age |\n| --- | --- | --- |\n| Ada || 42 |'
-    )
-  })
-
-  it('pressing Cmd+Down inserts a table row below', async () => {
-    let view: EditorView | null = null
-    const { container } = render(
-      <MarkdownEditor
-        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
-        onChange={vi.fn()}
-        onViewReady={(nextView) => {
-          view = nextView
-        }}
-      />
-    )
-
-    await waitFor(() => expect(view).toBeTruthy())
-
-    act(() => {
-      view!.dispatch({ selection: { anchor: 31 } })
-    })
-
-    const content = container.querySelector('.cm-content')!
     fireEvent.keyDown(content, { key: 'ArrowDown', ctrlKey: true })
-
-    expect(view!.state.doc.toString()).toBe(
-      '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||'
-    )
-  })
-
-  it('pressing Cmd+Up inserts a table row above', async () => {
-    let view: EditorView | null = null
-    const { container } = render(
-      <MarkdownEditor
-        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Bob | 30 |'}
-        onChange={vi.fn()}
-        onViewReady={(nextView) => {
-          view = nextView
-        }}
-      />
-    )
-
-    await waitFor(() => expect(view).toBeTruthy())
-
-    act(() => {
-      view!.dispatch({ selection: { anchor: 44 } })
-    })
-
-    const content = container.querySelector('.cm-content')!
     fireEvent.keyDown(content, { key: 'ArrowUp', ctrlKey: true })
 
-    expect(view!.state.doc.toString()).toBe(
-      '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|||\n| Bob | 30 |'
-    )
+    expect(view!.state.doc.toString()).toBe(value)
   })
 
   it('syntax highlights the active nested code block editor', async () => {
