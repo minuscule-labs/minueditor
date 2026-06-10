@@ -516,6 +516,32 @@ describe('MarkdownEditor', () => {
     expect(container.querySelector('.me-image-picker__upload')).toHaveAttribute('disabled')
   })
 
+  it('routes image commands to a custom image requester with editor context', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onRequestImage = vi.fn((context) => {
+      expect(context.getMarkdown()).toBe('Hello')
+      expect(context.getSelection()).toEqual({ from: 5, to: 5, empty: true })
+      context.commands.insertImage({ src: 'https://example.com/custom.png', alt: 'custom' })
+    })
+
+    render(
+      <MarkdownEditor
+        value={'Hello'}
+        onChange={vi.fn()}
+        ref={ref}
+        onRequestImage={onRequestImage}
+      />
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.setSelection(5)).toBe(true)
+    expect(ref.current?.openImagePicker()).toBe(true)
+
+    expect(onRequestImage).toHaveBeenCalledOnce()
+    expect(ref.current?.getMarkdown()).toBe('Hello![custom](https://example.com/custom.png)')
+  })
+
   it('uploads an image file from the slash image picker', async () => {
     const onChange = vi.fn()
     const onImageUpload = vi.fn(async () => 'https://cdn.example.com/file.png')

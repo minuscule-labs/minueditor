@@ -24,7 +24,7 @@ import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
-import { editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
+import { createDefaultSlashCommands, editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import type { MarkdownEditorProps, MarkdownEditorState } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
@@ -38,7 +38,8 @@ import {
   wrapLink,
 } from './toolbar/commands'
 import { expandInlineMarkdownRange, type SourceRange } from './internal/inline-markdown'
-import { createEditorCommands } from './internal/editor-commands'
+import { createEditorCommands, type MinuEditorCommands } from './internal/editor-commands'
+import { createWidgetContext } from './internal/editor-context'
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
@@ -160,6 +161,7 @@ export const MarkdownEditor = forwardRef<
     maxHeight,
     onSubmit,
     onImageUpload,
+    onRequestImage,
     codeLanguages,
     codeHighlighter,
     codeHighlightStyle,
@@ -182,6 +184,8 @@ export const MarkdownEditor = forwardRef<
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
   const onImageUploadRef = useRef(onImageUpload)
+  const onRequestImageRef = useRef(onRequestImage)
+  const commandsRef = useRef<MinuEditorCommands | null>(null)
   const onStateChangeRef = useRef(onStateChange)
   const onAnnotationClickRef = useRef(onAnnotationClick)
   const editorStateRef = useRef<MarkdownEditorState | null>(null)
@@ -208,7 +212,21 @@ export const MarkdownEditor = forwardRef<
 
   // Expose the EditorView and common editor actions via ref.
   useImperativeHandle(ref, () => {
-    const commands = createEditorCommands(viewRef, readOnlyRef)
+    const commands = createEditorCommands(viewRef, readOnlyRef, {
+      requestImage: (context) => {
+        const handler = onRequestImageRef.current
+        if (!handler) return false
+        handler(context)
+        return true
+      },
+      createWidgetContext: () => {
+        const view = viewRef.current
+        const currentCommands = commandsRef.current
+        if (!view || !currentCommands) return null
+        return createWidgetContext(view, currentCommands, readOnlyRef.current)
+      },
+    })
+    commandsRef.current = commands
     const withView = (run: (view: EditorView) => boolean): boolean => {
       const view = viewRef.current
       if (!view) return false
@@ -267,6 +285,9 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     onImageUploadRef.current = onImageUpload
   }, [onImageUpload])
+  useEffect(() => {
+    onRequestImageRef.current = onRequestImage
+  }, [onRequestImage])
   useEffect(() => {
     onStateChangeRef.current = onStateChange
   }, [onStateChange])
@@ -391,6 +412,27 @@ export const MarkdownEditor = forwardRef<
       },
     })
 
+    let initCommands: MinuEditorCommands | null = null
+    const getCommands = () => {
+      if (initCommands) return initCommands
+      initCommands = createEditorCommands(viewRef, readOnlyRef, {
+        requestImage: (context) => {
+          const handler = onRequestImageRef.current
+          if (!handler) return false
+          handler(context)
+          return true
+        },
+        createWidgetContext: () => {
+          const view = viewRef.current
+          const currentCommands = commandsRef.current ?? initCommands
+          if (!view || !currentCommands) return null
+          return createWidgetContext(view, currentCommands, readOnlyRef.current)
+        },
+      })
+      commandsRef.current = initCommands
+      return initCommands
+    }
+
     const submitKeymap = onSubmit
       ? keymap.of([
           {
@@ -440,7 +482,15 @@ export const MarkdownEditor = forwardRef<
       linkClickNavigation,
       imagePasteHandler(() => onImageUploadRef.current),
       ...(slashCommands !== false
-        ? [slashCommandExtension(Array.isArray(slashCommands) ? slashCommands : editorSlashCommands)]
+        ? [
+            slashCommandExtension(
+              Array.isArray(slashCommands)
+                ? slashCommands
+                : onRequestImageRef.current
+                  ? createDefaultSlashCommands({ imageCommand: () => getCommands().openImagePicker() })
+                  : editorSlashCommands,
+            ),
+          ]
         : []),
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
@@ -481,6 +531,7 @@ export const MarkdownEditor = forwardRef<
     return () => {
       view.destroy()
       viewRef.current = null
+      commandsRef.current = null
       setCmView(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

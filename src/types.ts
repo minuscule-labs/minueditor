@@ -1,5 +1,6 @@
 import type { HighlightStyle, LanguageDescription } from '@codemirror/language'
 import type { EditorView } from '@codemirror/view'
+import type { MinuWidgetContext } from './internal/editor-context'
 
 export interface MarkdownEditorState {
   value: string
@@ -83,6 +84,8 @@ export interface MarkdownEditorProps {
   maxHeight?: number
   onSubmit?: () => void
   onImageUpload?: (file: File) => Promise<string>
+  /** Optional host-provided image picker. When present, image commands call this instead of the built-in picker. */
+  onRequestImage?: (context: MinuWidgetContext) => void
   /** Optional CodeMirror language loaders for fenced-code editing. Defaults to none. */
   codeLanguages?: readonly LanguageDescription[]
   /** Optional syntax highlighter for rendered fenced code. Defaults to plain escaped code. */

@@ -1,6 +1,7 @@
 import { redo, undo } from '@codemirror/commands'
 import type { EditorView } from '@codemirror/view'
 import { insertImagePicker } from '../extensions/images'
+import type { MinuWidgetContext } from './editor-context'
 import {
   insertCodeBlock,
   insertTable,
@@ -31,9 +32,15 @@ function markdownImage(alt: string, src: string): string {
   return `![${alt}](${src})`
 }
 
+export interface EditorCommandOptions {
+  requestImage?: (context: MinuWidgetContext) => boolean
+  createWidgetContext?: () => MinuWidgetContext | null
+}
+
 export function createEditorCommands(
   viewRef: RefLike<EditorView | null>,
   readOnlyRef: RefLike<boolean>,
+  options: EditorCommandOptions = {},
 ): MinuEditorCommands {
   const withView = (run: (view: EditorView) => boolean): boolean => {
     const view = viewRef.current
@@ -63,7 +70,16 @@ export function createEditorCommands(
     insertMarkdown: replaceSelectionWith,
     replaceSelection: replaceSelectionWith,
     insertImage: ({ src, alt = '' }) => replaceSelectionWith(markdownImage(alt, src)),
-    openImagePicker: () => writeWithView(insertImagePicker),
+    openImagePicker: () => writeWithView((view) => {
+      if (options.requestImage) {
+        const context = options.createWidgetContext?.()
+        if (context && options.requestImage(context)) {
+          view.focus()
+          return true
+        }
+      }
+      return insertImagePicker(view)
+    }),
     toggleBold: () => writeWithView(toggleBold),
     toggleItalic: () => writeWithView(toggleItalic),
     toggleInlineCode: () => writeWithView(toggleInlineCode),
