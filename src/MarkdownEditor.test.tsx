@@ -2169,6 +2169,34 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('does not activate table editing in read-only mode', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'top\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\nbottom'}
+        onChange={vi.fn()}
+        readOnly
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
+    expect(container.querySelector('.me-table-widget--editing')).toBeNull()
+    expect(container.querySelector('.me-table-input')).toBeNull()
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'ArrowDown' })
+
+    expect(container.querySelector('.me-table-widget--editing')).toBeNull()
+    expect(container.querySelector('.me-table-input')).toBeNull()
+  })
+
   it('activates table on ArrowUp from any cursor position on the line below', async () => {
     let view: EditorView | null = null
     const { container } = render(

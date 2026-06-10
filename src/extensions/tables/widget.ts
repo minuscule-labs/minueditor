@@ -524,6 +524,8 @@ export function buildTableDecorations(state: EditorState): DecorationSet {
 
 export const tableClickHandlers = EditorView.domEventHandlers({
   mousedown(event, view) {
+    if (!view.state.facet(EditorView.editable)) return false
+
     const target = event.target as HTMLElement | null
     const widget = target?.closest('.me-table-widget') as HTMLElement | null
     const activeFrom = view.state.field(activeTableField, false)
@@ -556,6 +558,8 @@ export const tableArrowNavigation = Prec.high(
     {
       key: 'ArrowDown',
       run(view) {
+        if (!view.state.facet(EditorView.editable)) return false
+
         const selection = view.state.selection.main
         if (!selection.empty) return false
         const block = getAdjacentTableBlock(view.state, selection.head, 'down')
@@ -566,6 +570,8 @@ export const tableArrowNavigation = Prec.high(
     {
       key: 'ArrowUp',
       run(view) {
+        if (!view.state.facet(EditorView.editable)) return false
+
         const selection = view.state.selection.main
         if (!selection.empty) return false
         const block = getAdjacentTableBlock(view.state, selection.head, 'up')
