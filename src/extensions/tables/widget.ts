@@ -53,13 +53,21 @@ function deactivateTable(view: EditorView, blockFrom: number): boolean {
   return true
 }
 
-function focusTableInput(wrapper: HTMLElement, rowIndex: number, colIndex: number): boolean {
+function focusTableInput(
+  wrapper: HTMLElement,
+  rowIndex: number,
+  colIndex: number,
+  cursorOffset?: number,
+): boolean {
   const input = wrapper.querySelector(
     `[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`,
   ) as HTMLInputElement | null
   if (!input) return false
+  const offset = cursorOffset == null
+    ? input.value.length
+    : Math.max(0, Math.min(cursorOffset, input.value.length))
   input.focus()
-  input.setSelectionRange(input.value.length, input.value.length)
+  input.setSelectionRange(offset, offset)
   return true
 }
 
@@ -445,7 +453,8 @@ function createTableInput(
       return
     }
     if (event.key === 'ArrowDown') {
-      if (focusTableInput(wrapper, rowIndex + 1, colIndex)) {
+      const cursorOffset = input.selectionStart ?? input.value.length
+      if (focusTableInput(wrapper, rowIndex + 1, colIndex, cursorOffset)) {
         event.preventDefault()
         return
       }
@@ -463,7 +472,8 @@ function createTableInput(
       return
     }
     if (event.key === 'ArrowUp') {
-      if (focusTableInput(wrapper, rowIndex - 1, colIndex)) {
+      const cursorOffset = input.selectionStart ?? input.value.length
+      if (focusTableInput(wrapper, rowIndex - 1, colIndex, cursorOffset)) {
         event.preventDefault()
         return
       }

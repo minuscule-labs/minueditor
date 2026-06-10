@@ -1825,6 +1825,43 @@ describe('MarkdownEditor', () => {
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 
+  it('preserves table cell cursor offset when moving vertically', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada Lovelace | 42 |\n| Bob | 30 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    fireEvent.mouseDown(container.querySelector('.me-table-widget') as HTMLElement)
+    const adaInput = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]') as HTMLInputElement,
+    )
+    adaInput.focus()
+    adaInput.setSelectionRange(3, 3)
+
+    fireEvent.keyDown(adaInput, { key: 'ArrowDown' })
+
+    const bobInput = container.querySelector(
+      '.me-table-input[data-row-index="2"][data-col-index="0"]',
+    ) as HTMLInputElement
+    expect(document.activeElement).toBe(bobInput)
+    expect(bobInput.selectionStart).toBe(3)
+    expect(bobInput.selectionEnd).toBe(3)
+
+    fireEvent.keyDown(bobInput, { key: 'ArrowUp' })
+
+    expect(document.activeElement).toBe(adaInput)
+    expect(adaInput.selectionStart).toBe(3)
+    expect(adaInput.selectionEnd).toBe(3)
+  })
+
   it('exits a table widget upward to the line above the table', async () => {
     let view: EditorView | null = null
     const value = 'top text\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\nbottom text'
