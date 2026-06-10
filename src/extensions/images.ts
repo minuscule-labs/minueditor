@@ -1,8 +1,9 @@
-import { EditorView, WidgetType, Decoration } from '@codemirror/view'
+import { EditorView, WidgetType, Decoration, keymap } from '@codemirror/view'
 import type { DecorationSet } from '@codemirror/view'
 import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
-import { RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
+import { Prec, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
+import { handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../internal/widget-navigation'
 
 let uploadPlaceholderId = 0
 let imagePickerId = 0
@@ -61,25 +62,32 @@ function insertUploadPlaceholder(
 class ImageWidget extends WidgetType {
   constructor(
     readonly alt: string,
-    readonly src: string
+    readonly src: string,
+    readonly from: number,
+    readonly to: number,
   ) {
     super()
   }
 
   override eq(other: ImageWidget): boolean {
-    return this.alt === other.alt && this.src === other.src
+    return this.alt === other.alt && this.src === other.src && this.from === other.from && this.to === other.to
   }
 
-  override toDOM(): HTMLElement {
-    const wrapper = document.createElement('span')
-    wrapper.className = 'me-image-wrapper'
+  override toDOM(view: EditorView): HTMLElement {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'me-image-widget'
+
+    wrapper.appendChild(createImageBoundary(view, { from: this.from, to: this.to }, 'before'))
+
+    const content = document.createElement('div')
+    content.className = 'me-image-wrapper'
 
     if (this.src.startsWith('__uploading__')) {
       // Uploading placeholder
       const placeholder = document.createElement('span')
       placeholder.className = 'me-image-uploading'
       placeholder.textContent = `Uploading ${this.alt}…`
-      wrapper.appendChild(placeholder)
+      content.appendChild(placeholder)
     } else {
       const img = document.createElement('img')
       img.src = this.src
@@ -91,11 +99,29 @@ class ImageWidget extends WidgetType {
         img.replaceWith(brokenImagePlaceholder(this.alt))
       })
 
-      wrapper.appendChild(img)
+      content.appendChild(img)
     }
+
+    wrapper.appendChild(content)
+    wrapper.appendChild(createImageBoundary(view, { from: this.from, to: this.to }, 'after'))
 
     return wrapper
   }
+}
+
+function createImageBoundary(
+  view: EditorView,
+  range: { from: number; to: number },
+  side: 'before' | 'after',
+): HTMLElement {
+  const boundary = document.createElement('div')
+  boundary.className = `me-widget-boundary me-widget-boundary--${side} me-image-boundary me-image-boundary--${side}`
+  boundary.setAttribute('role', 'button')
+  boundary.setAttribute('aria-label', side === 'before' ? 'Place cursor before image' : 'Place cursor after image')
+  boundary.addEventListener('mousedown', (event) => {
+    handleWidgetBoundaryMouseDown(event, view, range, side)
+  })
+  return boundary
 }
 
 function brokenImagePlaceholder(alt: string): HTMLElement {
@@ -126,21 +152,24 @@ function buildImageDecorations(view: EditorView): DecorationSet {
       enter(node) {
         if (node.name !== 'Image') return
 
-        const lineNum = doc.lineAt(node.from).number
-        if (activeLines.has(lineNum)) return
+        const line = doc.lineAt(node.from)
+        if (activeLines.has(line.number)) return
 
         const rawText = doc.sliceString(node.from, node.to)
         // Standard markdown image: ![alt](src)
         const match = rawText.match(/^!\[([^\]]*)\]\(([^)]*)\)$/)
         if (!match) return
 
+        // Block widget navigation is only safe for standalone image lines.
+        if (line.text.trim() !== rawText) return
+
         const [, alt, src] = match
 
         builder.add(
-          node.from,
-          node.to,
+          line.from,
+          line.to,
           Decoration.replace({
-            widget: new ImageWidget(alt, src),
+            widget: new ImageWidget(alt, src, line.from, line.to),
           })
         )
       },
@@ -149,6 +178,41 @@ function buildImageDecorations(view: EditorView): DecorationSet {
 
   return builder.finish()
 }
+
+function imageLineRangeAtLine(view: EditorView, lineNumber: number): { from: number; to: number } | null {
+  if (lineNumber < 1 || lineNumber > view.state.doc.lines) return null
+  const line = view.state.doc.line(lineNumber)
+  const trimmed = line.text.trim()
+  if (!/^!\[[^\]]*\]\([^)]+\)$/.test(trimmed)) return null
+  return { from: line.from, to: line.to }
+}
+
+export const imageArrowNavigation = Prec.high(
+  keymap.of([
+    {
+      key: 'ArrowDown',
+      run(view) {
+        const selection = view.state.selection.main
+        if (!selection.empty) return false
+        const line = view.state.doc.lineAt(selection.head)
+        const imageRange = imageLineRangeAtLine(view, line.number + 1)
+        if (!imageRange) return false
+        return placeCursorAtWidgetBoundary(view, imageRange, 'after')
+      },
+    },
+    {
+      key: 'ArrowUp',
+      run(view) {
+        const selection = view.state.selection.main
+        if (!selection.empty) return false
+        const line = view.state.doc.lineAt(selection.head)
+        const imageRange = imageLineRangeAtLine(view, line.number - 1)
+        if (!imageRange) return false
+        return placeCursorAtWidgetBoundary(view, imageRange, 'before')
+      },
+    },
+  ]),
+)
 
 // ── ViewPlugin ────────────────────────────────────────────────────────────────
 

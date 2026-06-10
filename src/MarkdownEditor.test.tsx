@@ -382,6 +382,43 @@ describe('MarkdownEditor', () => {
     expect(view!.state.selection.main.from).toBe(value.length + 1)
   })
 
+  it('adds image widget boundaries for cursor navigation', async () => {
+    let view: EditorView | null = null
+    const value = 'Before\n\n![alt](https://example.com/image.png)\n\nAfter'
+    const imageFrom = value.indexOf('![alt]')
+    const imageTo = value.indexOf('\n\nAfter')
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-image-boundary--before')!)
+    expect(view!.state.selection.main.from).toBe(imageFrom)
+
+    fireEvent.mouseDown(container.querySelector('.me-image-boundary--after')!)
+    expect(view!.state.selection.main.from).toBe(imageTo)
+  })
+
+  it('creates an editable trailing line when navigating after an image at document end', async () => {
+    let view: EditorView | null = null
+    const value = '![alt](https://example.com/image.png)'
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-image-widget')).toBeTruthy()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-image-boundary--after')!)
+
+    expect(view!.state.doc.toString()).toBe(`${value}\n`)
+    expect(view!.state.selection.main.from).toBe(value.length + 1)
+  })
+
   it('switches between live and source modes', async () => {
     const value = '![test](https://example.com/test.png)\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |'
     const { container, rerender } = render(

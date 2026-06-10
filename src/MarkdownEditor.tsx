@@ -22,7 +22,7 @@ import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
-import { imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
+import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
 import { createDefaultSlashCommands, editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
@@ -481,6 +481,7 @@ export const MarkdownEditor = forwardRef<
       autolinkPaste,
       linkClickNavigation,
       imagePasteHandler(() => onImageUploadRef.current),
+      imageArrowNavigation,
       ...(slashCommands !== false
         ? [
             slashCommandExtension(
