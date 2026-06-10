@@ -13,11 +13,20 @@
   - ArrowUp/ArrowDown can exit code block widgets cleanly to surrounding document lines.
   - Code block language loaders, highlighters, and highlight styles are isolated per editor instance.
 - Improved standalone image previews with shared widget boundary navigation.
-- Added native writing-assistance configuration to `MarkdownEditorProps`:
+- Replaced the previously hardcoded editor content attributes:
+  - `autocomplete: 'off'`
+  - `autocorrect: 'off'`
+  - `autocapitalize: 'off'`
+  - `spellcheck: 'false'`
+- Added native writing-assistance configuration to `MarkdownEditorProps` so hosts can opt in/out explicitly:
   - `spellCheck?: boolean` — defaults to `true`.
   - `autoCorrect?: 'on' | 'off'` — defaults to `'on'`.
   - `autoComplete?: string` — defaults to `'on'`.
   - `autoCapitalize?: string` — defaults to `'sentences'`.
+- Kept password-manager suppression attributes on the editor content:
+  - `data-form-type="other"`
+  - `data-lpignore="true"`
+  - `data-1p-ignore="true"`
 - Added internal widget/control-plane groundwork:
   - Shared editor command factory.
   - Shared widget context.
