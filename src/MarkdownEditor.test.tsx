@@ -1771,6 +1771,115 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('exits a table widget before the table with ArrowUp from the first row', async () => {
+    let view: EditorView | null = null
+    const value = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    fireEvent.mouseDown(container.querySelector('.me-table-widget') as HTMLElement)
+    const input = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="0"][data-col-index="0"]') as HTMLInputElement,
+    )
+
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+
+    expect(view!.state.selection.main.from).toBe(0)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
+  it('exits a table widget after the table with ArrowDown from the last row', async () => {
+    let view: EditorView | null = null
+    const value = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    fireEvent.mouseDown(container.querySelector('.me-table-widget') as HTMLElement)
+    const input = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="1"][data-col-index="1"]') as HTMLInputElement,
+    )
+    input.focus()
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+
+    expect(view!.state.doc.toString()).toBe(`${value}\n`)
+    expect(view!.state.selection.main.from).toBe(value.length + 1)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
+  it('exits a code block widget before the block with ArrowUp from the language input', async () => {
+    let view: EditorView | null = null
+    const value = '```ts\nconst x = 1\n```'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-widget') as HTMLElement)
+    const langInput = await waitFor(() =>
+      container.querySelector('.me-codeblock-lang-input') as HTMLInputElement,
+    )
+    langInput.focus()
+
+    fireEvent.keyDown(langInput, { key: 'ArrowUp' })
+
+    expect(view!.state.selection.main.from).toBe(0)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
+  it('exits a code block widget after the block with ArrowDown from the closing fence', async () => {
+    let view: EditorView | null = null
+    const value = '```ts\nconst x = 1\n```'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-widget') as HTMLElement)
+    const closeFence = await waitFor(() =>
+      container.querySelector('.me-codeblock-fence--close') as HTMLElement,
+    )
+    closeFence.focus()
+
+    fireEvent.keyDown(closeFence, { key: 'ArrowDown' })
+
+    expect(view!.state.doc.toString()).toBe(`${value}\n\n`)
+    expect(view!.state.selection.main.from).toBe(value.length + 2)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
   it('syntax highlights the active nested code block editor', async () => {
     const codeLanguages = [
       LanguageDescription.of({

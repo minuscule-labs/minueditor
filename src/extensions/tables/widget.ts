@@ -18,7 +18,7 @@ import {
   removeTableRowRange,
   updateTableCell,
 } from '../../internal/table-commands'
-import { handleWidgetBoundaryMouseDown } from '../../internal/widget-navigation'
+import { handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../../internal/widget-navigation'
 
 function activateTable(view: EditorView, block: TableBlock): boolean {
   view.dispatch({
@@ -441,11 +441,39 @@ function createTableInput(
       return
     }
     if (event.key === 'ArrowDown') {
-      if (focusTableInput(wrapper, rowIndex + 1, colIndex)) event.preventDefault()
+      if (focusTableInput(wrapper, rowIndex + 1, colIndex)) {
+        event.preventDefault()
+        return
+      }
+
+      const block = getTableBlockByStart(view.state, blockFrom)
+      if (!block) return
+      event.preventDefault()
+      clearTableSelection(wrapper)
+      placeCursorAtWidgetBoundary(
+        view,
+        { from: block.from, to: block.to },
+        'after',
+        setActiveTable.of(null),
+      )
       return
     }
     if (event.key === 'ArrowUp') {
-      if (focusTableInput(wrapper, rowIndex - 1, colIndex)) event.preventDefault()
+      if (focusTableInput(wrapper, rowIndex - 1, colIndex)) {
+        event.preventDefault()
+        return
+      }
+
+      const block = getTableBlockByStart(view.state, blockFrom)
+      if (!block) return
+      event.preventDefault()
+      clearTableSelection(wrapper)
+      placeCursorAtWidgetBoundary(
+        view,
+        { from: block.from, to: block.to },
+        'before',
+        setActiveTable.of(null),
+      )
       return
     }
     if (event.key === 'Tab') {
