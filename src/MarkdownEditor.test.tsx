@@ -1707,6 +1707,36 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(value)
   })
 
+  it('routes table widget structure shortcuts through shared table commands', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const widget = container.querySelector('.me-table-widget') as HTMLElement
+    fireEvent.mouseDown(widget)
+
+    const input = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]') as HTMLInputElement,
+    )
+
+    fireEvent.keyDown(input, { key: 'ArrowRight', metaKey: true, ctrlKey: true })
+
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toBe(
+        '| Name |  | Age |\n| --- | --- | --- |\n| Ada |  | 42 |',
+      )
+    })
+  })
+
   it('syntax highlights the active nested code block editor', async () => {
     const codeLanguages = [
       LanguageDescription.of({

@@ -4,196 +4,20 @@ import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from '
 import { activeTableField, setActiveTable } from './state'
 import {
   findTableBlocks,
-  formatTableMarkdown,
   getAdjacentTableBlock,
   getTableBlockByStart,
   type TableBlock,
 } from './model'
-
-function updateTableCell(
-  view: EditorView,
-  blockFrom: number,
-  rowIndex: number,
-  colIndex: number,
-  value: string,
-): void {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return
-  const nextRows = block.rows.map((row) => [...row])
-  if (!nextRows[rowIndex] || nextRows[rowIndex][colIndex] === undefined) return
-  nextRows[rowIndex][colIndex] = value
-  const nextMarkdown = formatTableMarkdown({ ...block, rows: nextRows })
-
-  view.dispatch({
-    changes: { from: block.from, to: block.to, insert: nextMarkdown },
-    effects: setActiveTable.of(block.from),
-    selection: EditorSelection.cursor(block.from),
-  })
-}
-
-function applyTableBlockUpdate(
-  view: EditorView,
-  block: TableBlock,
-  nextBlock: TableBlock | null,
-  nextSelection: EditorSelection,
-): void {
-  view.dispatch({
-    changes: {
-      from: block.from,
-      to: block.to,
-      insert: nextBlock ? formatTableMarkdown(nextBlock) : '',
-    },
-    effects: setActiveTable.of(nextBlock ? block.from : null),
-    selection: nextSelection,
-    scrollIntoView: true,
-  })
-}
-
-function focusTableInputAfterUpdate(
-  view: EditorView,
-  blockFrom: number,
-  rowIndex: number,
-  colIndex: number,
-): void {
-  requestAnimationFrame(() => {
-    const widget = view.dom.querySelector(
-      `.me-table-widget[data-table-from="${blockFrom}"]`,
-    ) as HTMLElement | null
-    if (!widget) return
-    focusTableInput(widget, rowIndex, colIndex)
-  })
-}
-
-function insertTableColumnInWidget(
-  view: EditorView,
-  blockFrom: number,
-  rowIndex: number,
-  colIndex: number,
-  side: 'left' | 'right',
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-
-  const insertIndex = side === 'left' ? colIndex : colIndex + 1
-  const nextRows = block.rows.map((row) => {
-    const nextRow = [...row]
-    nextRow.splice(insertIndex, 0, '')
-    return nextRow
-  })
-  const nextAlignments = [...block.alignments]
-  nextAlignments.splice(insertIndex, 0, null)
-  const nextBlock = { ...block, rows: nextRows, alignments: nextAlignments }
-
-  applyTableBlockUpdate(
-    view,
-    block,
-    nextBlock,
-    EditorSelection.create([EditorSelection.cursor(block.from)]),
-  )
-  focusTableInputAfterUpdate(view, block.from, rowIndex, insertIndex)
-  return true
-}
-
-function removeTableColumnInWidget(
-  view: EditorView,
-  blockFrom: number,
-  rowIndex: number,
-  colIndex: number,
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-
-  if (block.rows[0]?.length === 1) {
-    applyTableBlockUpdate(
-      view,
-      block,
-      null,
-      EditorSelection.create([EditorSelection.cursor(block.from)]),
-    )
-    return true
-  }
-
-  const nextRows = block.rows.map((row) => {
-    const nextRow = [...row]
-    nextRow.splice(colIndex, 1)
-    return nextRow
-  })
-  const nextAlignments = [...block.alignments]
-  nextAlignments.splice(colIndex, 1)
-  const nextBlock = { ...block, rows: nextRows, alignments: nextAlignments }
-  const nextColIndex = Math.max(0, Math.min(colIndex, nextRows[0].length - 1))
-
-  applyTableBlockUpdate(
-    view,
-    block,
-    nextBlock,
-    EditorSelection.create([EditorSelection.cursor(block.from)]),
-  )
-  focusTableInputAfterUpdate(view, block.from, rowIndex, nextColIndex)
-  return true
-}
-
-function removeTableRowInWidget(
-  view: EditorView,
-  blockFrom: number,
-  rowIndex: number,
-  colIndex: number,
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-
-  if (rowIndex === 0 || block.rows.length === 1) {
-    applyTableBlockUpdate(
-      view,
-      block,
-      null,
-      EditorSelection.create([EditorSelection.cursor(block.from)]),
-    )
-    return true
-  }
-
-  const nextRows = block.rows.map((row) => [...row])
-  nextRows.splice(rowIndex, 1)
-  const nextBlock = { ...block, rows: nextRows }
-  const nextRowIndex = Math.max(0, Math.min(rowIndex, nextRows.length - 1))
-  const nextColIndex = Math.max(0, Math.min(colIndex, nextRows[nextRowIndex].length - 1))
-
-  applyTableBlockUpdate(
-    view,
-    block,
-    nextBlock,
-    EditorSelection.create([EditorSelection.cursor(block.from)]),
-  )
-  focusTableInputAfterUpdate(view, block.from, nextRowIndex, nextColIndex)
-  return true
-}
-
-function insertTableRowInWidget(
-  view: EditorView,
-  blockFrom: number,
-  rowIndex: number,
-  side: 'above' | 'below',
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-
-  const insertIndex = side === 'above' ? rowIndex : rowIndex + 1
-  const columnCount = block.rows[0]?.length ?? 0
-  if (columnCount < 1) return false
-
-  const nextRows = block.rows.map((row) => [...row])
-  nextRows.splice(insertIndex, 0, Array(columnCount).fill(''))
-  const nextBlock = { ...block, rows: nextRows }
-
-  applyTableBlockUpdate(
-    view,
-    block,
-    nextBlock,
-    EditorSelection.create([EditorSelection.cursor(block.from)]),
-  )
-  focusTableInputAfterUpdate(view, block.from, insertIndex, 0)
-  return true
-}
+import {
+  clearTableCellRange,
+  insertTableColumn,
+  insertTableRow,
+  removeTableColumn,
+  removeTableColumnRange,
+  removeTableRow,
+  removeTableRowRange,
+  updateTableCell,
+} from '../../internal/table-commands'
 
 function activateTable(view: EditorView, block: TableBlock): boolean {
   view.dispatch({
@@ -321,14 +145,14 @@ function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: H
   const colCount = block.rows[0]?.length ?? 0
 
   if (bounds.colStart === 0 && bounds.colEnd === colCount - 1) {
-    return removeTableRowRangeInWidget(view, blockFrom, bounds.rowStart, bounds.rowEnd)
+    return removeTableRowRange(view, blockFrom, bounds.rowStart, bounds.rowEnd)
   }
 
   if (bounds.rowStart === 0 && bounds.rowEnd === rowCount - 1) {
-    return removeTableColumnRangeInWidget(view, blockFrom, bounds.colStart, bounds.colEnd)
+    return removeTableColumnRange(view, blockFrom, bounds.colStart, bounds.colEnd)
   }
 
-  return clearTableCellRangeInWidget(
+  return clearTableCellRange(
     view,
     blockFrom,
     bounds.rowStart,
@@ -336,75 +160,6 @@ function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: H
     bounds.colStart,
     bounds.colEnd,
   )
-}
-
-function removeTableColumnRangeInWidget(
-  view: EditorView,
-  blockFrom: number,
-  colStart: number,
-  colEnd: number,
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-  const removeCount = colEnd - colStart + 1
-  if ((block.rows[0]?.length ?? 0) <= removeCount) {
-    applyTableBlockUpdate(view, block, null, EditorSelection.create([EditorSelection.cursor(block.from)]))
-    return true
-  }
-  const nextRows = block.rows.map((row) => {
-    const nextRow = [...row]
-    nextRow.splice(colStart, removeCount)
-    return nextRow
-  })
-  const nextAlignments = [...block.alignments]
-  nextAlignments.splice(colStart, removeCount)
-  const nextBlock = { ...block, rows: nextRows, alignments: nextAlignments }
-  applyTableBlockUpdate(view, block, nextBlock, EditorSelection.create([EditorSelection.cursor(block.from)]))
-  focusTableInputAfterUpdate(view, block.from, 0, Math.max(0, Math.min(colStart, nextRows[0].length - 1)))
-  return true
-}
-
-function removeTableRowRangeInWidget(
-  view: EditorView,
-  blockFrom: number,
-  rowStart: number,
-  rowEnd: number,
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-  const removeCount = rowEnd - rowStart + 1
-  if (rowStart === 0 || block.rows.length <= removeCount) {
-    applyTableBlockUpdate(view, block, null, EditorSelection.create([EditorSelection.cursor(block.from)]))
-    return true
-  }
-  const nextRows = block.rows.map((row) => [...row])
-  nextRows.splice(rowStart, removeCount)
-  const nextBlock = { ...block, rows: nextRows }
-  applyTableBlockUpdate(view, block, nextBlock, EditorSelection.create([EditorSelection.cursor(block.from)]))
-  focusTableInputAfterUpdate(view, block.from, Math.max(0, Math.min(rowStart, nextRows.length - 1)), 0)
-  return true
-}
-
-function clearTableCellRangeInWidget(
-  view: EditorView,
-  blockFrom: number,
-  rowStart: number,
-  rowEnd: number,
-  colStart: number,
-  colEnd: number,
-): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!block) return false
-  const nextRows = block.rows.map((row) => [...row])
-  for (let row = rowStart; row <= rowEnd; row += 1) {
-    for (let col = colStart; col <= colEnd; col += 1) {
-      if (nextRows[row]?.[col] !== undefined) nextRows[row][col] = ''
-    }
-  }
-  const nextBlock = { ...block, rows: nextRows }
-  applyTableBlockUpdate(view, block, nextBlock, EditorSelection.create([EditorSelection.cursor(block.from)]))
-  focusTableInputAfterUpdate(view, block.from, rowStart, colStart)
-  return true
 }
 
 function createTableBoundary(
@@ -597,7 +352,7 @@ function createTableInput(
   })
   input.addEventListener('input', () => {
     syncTableInputSizer(input)
-    updateTableCell(view, blockFrom, rowIndex, colIndex, input.value)
+    updateTableCell(view, { blockFrom, rowIndex, colIndex }, input.value)
   })
   input.addEventListener('keydown', (event) => {
     event.stopPropagation()
@@ -649,32 +404,32 @@ function createTableInput(
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowLeft') {
       event.preventDefault()
-      insertTableColumnInWidget(view, blockFrom, rowIndex, colIndex, 'left')
+      insertTableColumn(view, { blockFrom, rowIndex, colIndex }, 'left')
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowRight') {
       event.preventDefault()
-      insertTableColumnInWidget(view, blockFrom, rowIndex, colIndex, 'right')
+      insertTableColumn(view, { blockFrom, rowIndex, colIndex }, 'right')
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowUp') {
       event.preventDefault()
-      insertTableRowInWidget(view, blockFrom, rowIndex, 'above')
+      insertTableRow(view, { blockFrom, rowIndex, colIndex }, 'above')
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowDown') {
       event.preventDefault()
-      insertTableRowInWidget(view, blockFrom, rowIndex, 'below')
+      insertTableRow(view, { blockFrom, rowIndex, colIndex }, 'below')
       return
     }
     if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'Backspace') {
       event.preventDefault()
-      removeTableColumnInWidget(view, blockFrom, rowIndex, colIndex)
+      removeTableColumn(view, { blockFrom, rowIndex, colIndex })
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'Backspace') {
       event.preventDefault()
-      removeTableRowInWidget(view, blockFrom, rowIndex, colIndex)
+      removeTableRow(view, { blockFrom, rowIndex, colIndex })
       return
     }
     if (event.key === 'ArrowRight' && input.selectionStart === input.value.length) {
