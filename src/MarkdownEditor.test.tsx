@@ -1859,6 +1859,41 @@ describe('MarkdownEditor', () => {
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 
+  it('exits a table widget downward to the line below the table', async () => {
+    let view: EditorView | null = null
+    const value = 'top text\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\nbottom text'
+    const bottomFrom = value.indexOf('bottom text')
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'ArrowDown' })
+
+    const headerInput = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="0"][data-col-index="0"]') as HTMLInputElement,
+    )
+    fireEvent.keyDown(headerInput, { key: 'ArrowDown' })
+
+    const bodyInput = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]') as HTMLInputElement,
+    )
+    fireEvent.keyDown(bodyInput, { key: 'ArrowDown' })
+
+    expect(view!.state.selection.main.from).toBe(bottomFrom)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
   it('exits a code block widget before the block with ArrowUp from the language input', async () => {
     let view: EditorView | null = null
     const value = '```ts\nconst x = 1\n```'
@@ -1909,8 +1944,8 @@ describe('MarkdownEditor', () => {
 
     fireEvent.keyDown(closeFence, { key: 'ArrowDown' })
 
-    expect(view!.state.doc.toString()).toBe(`${value}\n\n`)
-    expect(view!.state.selection.main.from).toBe(value.length + 2)
+    expect(view!.state.doc.toString()).toBe(`${value}\n`)
+    expect(view!.state.selection.main.from).toBe(value.length + 1)
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 
@@ -1941,6 +1976,37 @@ describe('MarkdownEditor', () => {
     fireEvent.keyDown(langInput, { key: 'ArrowUp' })
 
     expect(view!.state.selection.main.from).toBe('top text'.length)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
+  it('exits a code block widget downward to the line below the block', async () => {
+    let view: EditorView | null = null
+    const value = 'top text\n```ts\nconst x = 1\n```\nbottom text'
+    const bottomFrom = value.indexOf('bottom text')
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'ArrowDown' })
+
+    const closeFence = await waitFor(() =>
+      container.querySelector('.me-codeblock-fence--close') as HTMLElement,
+    )
+    closeFence.focus()
+    fireEvent.keyDown(closeFence, { key: 'ArrowDown' })
+
+    expect(view!.state.selection.main.from).toBe(bottomFrom)
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 

@@ -50,7 +50,18 @@ export function exitWidgetWithArrowKey(
   effects?: StateEffect<unknown> | readonly StateEffect<unknown>[],
 ): boolean {
   if (target === 'after') {
-    return placeCursorAtWidgetBoundary(view, range, target, effects)
+    if (range.to >= view.state.doc.length) {
+      return placeCursorAtWidgetBoundary(view, range, target, effects)
+    }
+
+    const position = view.state.doc.lineAt(range.to + 1).from
+    view.dispatch({
+      ...(effects ? { effects } : {}),
+      selection: EditorSelection.cursor(position),
+      scrollIntoView: true,
+    })
+    view.focus()
+    return true
   }
 
   const position = range.from <= 0

@@ -130,19 +130,12 @@ function moveSelectionAfterCodeBlock(
   const block = getFencedBlockByStart(parentView.state, blockFrom);
   if (!block) return false;
 
-  const doc = parentView.state.doc;
-  if (block.blockTo >= doc.length) {
-    return insertLineAfterCodeBlock(parentView, blockFrom);
-  }
-
-  const nextLine = doc.lineAt(block.blockTo + 1);
-  parentView.dispatch({
-    effects: setActiveCodeBlock.of(null),
-    selection: EditorSelection.cursor(nextLine.from),
-    scrollIntoView: true,
-  });
-  parentView.focus();
-  return true;
+  return exitWidgetWithArrowKey(
+    parentView,
+    { from: block.blockFrom, to: block.blockTo },
+    "after",
+    setActiveCodeBlock.of(null),
+  );
 }
 
 function activateCodeBlock(
