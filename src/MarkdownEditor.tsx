@@ -39,6 +39,7 @@ import {
   toggleItalic,
   wrapLink,
 } from './toolbar/commands'
+import { expandInlineMarkdownRange, type SourceRange } from './internal/inline-markdown'
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
@@ -65,62 +66,6 @@ export interface MarkdownEditorHandle {
 
 function markdownImage(alt: string, src: string): string {
   return `![${alt}](${src})`
-}
-
-type SourceRange = { from: number; to: number }
-
-type InlineMarkdownSpan = SourceRange & {
-  contentFrom: number
-  contentTo: number
-}
-
-function inlineMarkdownSpans(lineText: string, lineFrom: number): InlineMarkdownSpan[] {
-  const spans: InlineMarkdownSpan[] = []
-  const patterns = [
-    { regexp: /\*\*([^*]+)\*\*/g, openLen: 2, closeLen: 2 },
-    { regexp: /(?<!\*)\*(?!\*)([^*]+)\*(?!\*)/g, openLen: 1, closeLen: 1 },
-    { regexp: /~~([^~]+)~~/g, openLen: 2, closeLen: 2 },
-    { regexp: /(?<!`)`([^`\n]+)`(?!`)/g, openLen: 1, closeLen: 1 },
-    { regexp: /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, openLen: 1, closeLen: 0 },
-  ]
-
-  for (const { regexp, openLen, closeLen } of patterns) {
-    regexp.lastIndex = 0
-    for (const match of lineText.matchAll(regexp)) {
-      if (match.index == null || !match[1]) continue
-      const from = lineFrom + match.index
-      const to = from + match[0].length
-      const contentFrom = from + openLen
-      const contentTo = closeLen > 0 ? to - closeLen : contentFrom + match[1].length
-      spans.push({ from, to, contentFrom, contentTo })
-    }
-  }
-
-  return spans.sort((a, b) => a.from - b.from)
-}
-
-function expandInlineMarkdownRange(state: EditorState, range: SourceRange): SourceRange {
-  if (range.from === range.to) return range
-
-  const fromLine = state.doc.lineAt(range.from)
-  const toLine = state.doc.lineAt(range.to)
-  let expanded = range
-
-  for (const span of inlineMarkdownSpans(fromLine.text, fromLine.from)) {
-    if (expanded.from >= span.contentFrom && expanded.from <= span.contentTo) {
-      expanded = { ...expanded, from: span.from }
-      break
-    }
-  }
-
-  for (const span of inlineMarkdownSpans(toLine.text, toLine.from)) {
-    if (expanded.to >= span.contentFrom && expanded.to <= span.contentTo) {
-      expanded = { ...expanded, to: span.to }
-      break
-    }
-  }
-
-  return expanded
 }
 
 function selectedMarkdownText(state: EditorState): { text: string; ranges: SourceRange[] } {

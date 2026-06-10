@@ -3,6 +3,7 @@ import { EditorSelection } from "@codemirror/state";
 import { setActiveCodeBlock } from "../extensions/codeblock/state";
 import { createEmptyTableMarkdown } from "../extensions/tables/model";
 import { setActiveTable } from "../extensions/tables/state";
+import { hiddenInlineSuffixTarget } from "../internal/inline-markdown";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,71 +27,11 @@ function inlineMarkerPattern(marker: string): RegExp {
   }
 }
 
-type InlineEndRule = {
-  regexp: RegExp;
-  boundaryOffset: (matchStart: number, match: RegExpMatchArray) => number;
-  endOffset: (matchStart: number, match: RegExpMatchArray) => number;
-};
-
-const inlineEndRules: InlineEndRule[] = [
-  {
-    regexp: /\*\*([^*]+)\*\*/g,
-    boundaryOffset: (start, match) => start + match[0].length - 2,
-    endOffset: (start, match) => start + match[0].length,
-  },
-  {
-    regexp: /(?<!\*)\*(?!\*)([^*]+)\*(?!\*)/g,
-    boundaryOffset: (start, match) => start + match[0].length - 1,
-    endOffset: (start, match) => start + match[0].length,
-  },
-  {
-    regexp: /~~([^~]+)~~/g,
-    boundaryOffset: (start, match) => start + match[0].length - 2,
-    endOffset: (start, match) => start + match[0].length,
-  },
-  {
-    regexp: /(`+)([^`]+)\1/g,
-    boundaryOffset: (start, match) => {
-      const ticks = match[1]?.length ?? 1;
-      return start + match[0].length - ticks;
-    },
-    endOffset: (start, match) => start + match[0].length,
-  },
-  {
-    regexp: /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
-    boundaryOffset: (start, match) => start + 1 + (match[1]?.length ?? 0),
-    endOffset: (start, match) => start + match[0].length,
-  },
-];
-
-function cursorAfterHiddenInlineSuffix(view: EditorView, cursor: number): number | null {
-  const line = view.state.doc.lineAt(cursor);
-  const offset = cursor - line.from;
-
-  for (const rule of inlineEndRules) {
-    const regexp = new RegExp(rule.regexp.source, rule.regexp.flags);
-    for (const match of line.text.matchAll(regexp)) {
-      const matchStart = match.index;
-      if (matchStart === undefined) continue;
-
-      const end = rule.endOffset(matchStart, match);
-      if (end !== line.text.length) continue;
-
-      const boundary = rule.boundaryOffset(matchStart, match);
-      if (offset < boundary || offset >= end) continue;
-
-      return line.from + end;
-    }
-  }
-
-  return null;
-}
-
 export function enterAfterHiddenInlineSuffix(view: EditorView): boolean {
   const selection = view.state.selection.main;
   if (!selection.empty) return false;
 
-  const target = cursorAfterHiddenInlineSuffix(view, selection.from);
+  const target = hiddenInlineSuffixTarget(view.state, selection.from);
   const line = view.state.doc.lineAt(selection.from);
   if (target === null) {
     if (selection.from !== line.to) return false;
