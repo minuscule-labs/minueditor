@@ -29,6 +29,8 @@ const inlineClassByKind: Record<InlineMarkdownKind, string> = {
   link: 'me-link',
 }
 
+const MARKER_REVEAL_DELAY_MS = 180
+
 function selectionTouchesRange(view: EditorView, from: number, to: number, revealMarkers = true): boolean {
   if (!revealMarkers) return false
 
@@ -144,19 +146,20 @@ export const visualMarkdown = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
     pointerSelecting = false
+    markerRevealTimeout: number | null = null
     removePointerListeners: (() => void) | null = null
 
     constructor(view: EditorView) {
       this.decorations = buildDecorations(view)
 
       const startPointerSelection = () => {
+        this.clearMarkerRevealTimeout()
         this.pointerSelecting = true
       }
       const endPointerSelection = () => {
         if (!this.pointerSelecting) return
         this.pointerSelecting = false
-        this.decorations = buildDecorations(view, true)
-        view.dispatch({})
+        this.scheduleMarkerReveal(view)
       }
 
       view.dom.addEventListener('mousedown', startPointerSelection)
@@ -169,18 +172,41 @@ export const visualMarkdown = ViewPlugin.fromClass(
       }
     }
 
+    clearMarkerRevealTimeout() {
+      if (this.markerRevealTimeout === null) return
+      window.clearTimeout(this.markerRevealTimeout)
+      this.markerRevealTimeout = null
+    }
+
+    scheduleMarkerReveal(view: EditorView) {
+      this.clearMarkerRevealTimeout()
+      this.decorations = buildDecorations(view, false)
+      this.markerRevealTimeout = window.setTimeout(() => {
+        this.markerRevealTimeout = null
+        this.decorations = buildDecorations(view, true)
+        view.dispatch({})
+      }, MARKER_REVEAL_DELAY_MS)
+    }
+
     update(update: ViewUpdate) {
       if (update.docChanged) {
+        this.clearMarkerRevealTimeout()
         this.decorations = buildDecorations(update.view)
         return
       }
 
       if (update.selectionSet) {
-        this.decorations = buildDecorations(update.view, !this.pointerSelecting)
+        if (this.pointerSelecting) {
+          this.clearMarkerRevealTimeout()
+          this.decorations = buildDecorations(update.view, false)
+        } else {
+          this.scheduleMarkerReveal(update.view)
+        }
       }
     }
 
     destroy() {
+      this.clearMarkerRevealTimeout()
       this.removePointerListeners?.()
     }
   },
