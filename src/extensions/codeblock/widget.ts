@@ -38,7 +38,7 @@ import { activeCodeBlockField, setActiveCodeBlock } from './state';
 import { githubDarkCodeHighlightStyle } from './highlight-style';
 import { nestedEditorTheme } from './theme';
 import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
-import { handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../../internal/widget-navigation';
+import { exitWidgetWithArrowKey, handleWidgetBoundaryMouseDown } from '../../internal/widget-navigation';
 
 function focusNestedEditor(
   mount: CodeBlockEditorMount,
@@ -353,7 +353,7 @@ function createNestedEditorDom(
       const block = getFencedBlockByStart(view.state, widget.blockFrom);
       if (!block) return;
 
-      placeCursorAtWidgetBoundary(
+      exitWidgetWithArrowKey(
         view,
         { from: block.blockFrom, to: block.blockTo },
         "before",

@@ -1825,6 +1825,40 @@ describe('MarkdownEditor', () => {
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 
+  it('exits a table widget upward to the line above the table', async () => {
+    let view: EditorView | null = null
+    const value = 'top text\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\nbottom text'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: value.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'ArrowUp' })
+
+    const bodyInput = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]') as HTMLInputElement,
+    )
+    fireEvent.keyDown(bodyInput, { key: 'ArrowUp' })
+
+    const headerInput = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="0"][data-col-index="0"]') as HTMLInputElement,
+    )
+    fireEvent.keyDown(headerInput, { key: 'ArrowUp' })
+
+    expect(view!.state.selection.main.from).toBe('top text'.length)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
   it('exits a code block widget before the block with ArrowUp from the language input', async () => {
     let view: EditorView | null = null
     const value = '```ts\nconst x = 1\n```'
@@ -1877,6 +1911,36 @@ describe('MarkdownEditor', () => {
 
     expect(view!.state.doc.toString()).toBe(`${value}\n\n`)
     expect(view!.state.selection.main.from).toBe(value.length + 2)
+    expect(document.activeElement).toBe(container.querySelector('.cm-content'))
+  })
+
+  it('exits a code block widget upward to the line above the block', async () => {
+    let view: EditorView | null = null
+    const value = 'top text\n```ts\nconst x = 1\n```\nbottom text'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: value.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'ArrowUp' })
+
+    const langInput = await waitFor(() =>
+      container.querySelector('.me-codeblock-lang-input') as HTMLInputElement,
+    )
+    langInput.focus()
+    fireEvent.keyDown(langInput, { key: 'ArrowUp' })
+
+    expect(view!.state.selection.main.from).toBe('top text'.length)
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 

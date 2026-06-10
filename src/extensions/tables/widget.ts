@@ -18,7 +18,7 @@ import {
   removeTableRowRange,
   updateTableCell,
 } from '../../internal/table-commands'
-import { handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../../internal/widget-navigation'
+import { exitWidgetWithArrowKey, handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../../internal/widget-navigation'
 
 function activateTable(
   view: EditorView,
@@ -472,7 +472,7 @@ function createTableInput(
       if (!block) return
       event.preventDefault()
       clearTableSelection(wrapper)
-      placeCursorAtWidgetBoundary(
+      exitWidgetWithArrowKey(
         view,
         { from: block.from, to: block.to },
         'before',

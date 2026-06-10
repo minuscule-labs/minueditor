@@ -43,6 +43,29 @@ export function placeCursorAtWidgetBoundary(
   return true
 }
 
+export function exitWidgetWithArrowKey(
+  view: EditorView,
+  range: WidgetSourceRange,
+  target: Extract<WidgetNavigationTarget, 'before' | 'after'>,
+  effects?: StateEffect<unknown> | readonly StateEffect<unknown>[],
+): boolean {
+  if (target === 'after') {
+    return placeCursorAtWidgetBoundary(view, range, target, effects)
+  }
+
+  const position = range.from <= 0
+    ? 0
+    : view.state.doc.lineAt(range.from - 1).to
+
+  view.dispatch({
+    ...(effects ? { effects } : {}),
+    selection: EditorSelection.cursor(position),
+    scrollIntoView: true,
+  })
+  view.focus()
+  return true
+}
+
 export function handleWidgetBoundaryMouseDown(
   event: MouseEvent,
   view: EditorView,
