@@ -21,8 +21,9 @@ import {
  * Cmd+Enter is handled separately in MarkdownEditor.tsx
  * since it depends on the `onSubmit` prop.
  *
- * List continuation (Enter / Tab / Shift+Tab) is provided
- * by @codemirror/lang-markdown's built-in keymap.
+ * Tab / Shift+Tab list indentation is handled here.
+ * Enter behavior is installed by MarkdownEditor because it composes
+ * table, list, and hidden-inline-suffix commands.
  */
 export const markdownKeymap = keymap.of([
   {

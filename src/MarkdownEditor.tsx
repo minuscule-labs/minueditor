@@ -1,6 +1,5 @@
 import {
   forwardRef,
-  type KeyboardEvent as ReactKeyboardEvent,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -333,25 +332,6 @@ export const MarkdownEditor = forwardRef<
     }
   }, [cmView, emitState])
 
-  const handleKeyDownCapture = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter') return
-
-      const target = event.target as HTMLElement | null
-      if (!target?.closest('.cm-editor')) return
-
-      const view = viewRef.current
-      if (!view) return
-
-      const handled = enterInMarkdownTable(view) || enterInMarkdownList(view) || enterAfterHiddenInlineSuffix(view)
-      if (!handled) return
-
-      event.preventDefault()
-      event.stopPropagation()
-    },
-    [],
-  )
-
   // Keep onViewReady fresh without re-init
   useEffect(() => {
     onChangeRef.current = onChange
@@ -632,10 +612,7 @@ export const MarkdownEditor = forwardRef<
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className={`minueditor-wrap${className ? ` ${className}` : ''}`}
-      onKeyDownCapture={handleKeyDownCapture}
-    >
+    <div className={`minueditor-wrap${className ? ` ${className}` : ''}`}>
       <div ref={containerRef} className="minueditor" data-minueditor />
       {floatingToolbar && <FloatingToolbar view={cmView} />}
     </div>
