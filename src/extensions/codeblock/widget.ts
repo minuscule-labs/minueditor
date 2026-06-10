@@ -38,6 +38,7 @@ import { activeCodeBlockField, setActiveCodeBlock } from './state';
 import { githubDarkCodeHighlightStyle } from './highlight-style';
 import { nestedEditorTheme } from './theme';
 import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
+import { handleWidgetBoundaryMouseDown } from '../../internal/widget-navigation';
 
 function focusNestedEditor(
   mount: CodeBlockEditorMount,
@@ -281,14 +282,13 @@ function createCodeBlockBoundary(
   boundary.setAttribute("role", "button");
   boundary.setAttribute("aria-label", side === "before" ? "Place cursor before code block" : "Place cursor after code block");
   boundary.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    view.dispatch({
-      effects: setActiveCodeBlock.of(null),
-      selection: EditorSelection.cursor(side === "before" ? widget.blockFrom : widget.blockTo),
-      scrollIntoView: true,
-    });
-    view.focus();
+    handleWidgetBoundaryMouseDown(
+      event,
+      view,
+      { from: widget.blockFrom, to: widget.blockTo },
+      side,
+      setActiveCodeBlock.of(null),
+    );
   });
   return boundary;
 }

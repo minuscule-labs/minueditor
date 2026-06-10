@@ -18,6 +18,7 @@ import {
   removeTableRowRange,
   updateTableCell,
 } from '../../internal/table-commands'
+import { handleWidgetBoundaryMouseDown } from '../../internal/widget-navigation'
 
 function activateTable(view: EditorView, block: TableBlock): boolean {
   view.dispatch({
@@ -172,14 +173,13 @@ function createTableBoundary(
   boundary.setAttribute('role', 'button')
   boundary.setAttribute('aria-label', side === 'before' ? 'Place cursor before table' : 'Place cursor after table')
   boundary.addEventListener('mousedown', (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    view.dispatch({
-      effects: setActiveTable.of(null),
-      selection: EditorSelection.cursor(side === 'before' ? block.from : block.to),
-      scrollIntoView: true,
-    })
-    view.focus()
+    handleWidgetBoundaryMouseDown(
+      event,
+      view,
+      { from: block.from, to: block.to },
+      side,
+      setActiveTable.of(null),
+    )
   })
   return boundary
 }
