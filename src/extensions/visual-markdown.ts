@@ -3,89 +3,30 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
-  MatchDecorator,
   ViewPlugin,
   type ViewUpdate,
 } from '@codemirror/view'
+import { inlineMarkdownSpans, type InlineMarkdownKind } from '../internal/inline-markdown'
 
-type MarkdownRule = {
+type PendingPairRule = {
   marker: string
-  regexp: RegExp
   openLen: number
   closeLen: number
-  className: string
 }
 
-const rules: MarkdownRule[] = [
-  {
-    marker: '**',
-    regexp: /\*\*([^*]+)\*\*/g,
-    openLen: 2,
-    closeLen: 2,
-    className: 'me-bold',
-  },
-  {
-    marker: '*',
-    regexp: /(?<!\*)\*(?!\*)([^*]+)\*(?!\*)/g,
-    openLen: 1,
-    closeLen: 1,
-    className: 'me-italic',
-  },
-  {
-    marker: '~~',
-    regexp: /~~([^~]+)~~/g,
-    openLen: 2,
-    closeLen: 2,
-    className: 'me-strikethrough',
-  },
-  {
-    marker: '`',
-    regexp: /(?<!`)`([^`\n]+)`(?!`)/g,
-    openLen: 1,
-    closeLen: 1,
-    className: 'me-inline-code',
-  },
+const pendingPairRules: PendingPairRule[] = [
+  { marker: '**', openLen: 2, closeLen: 2 },
+  { marker: '*', openLen: 1, closeLen: 1 },
+  { marker: '~~', openLen: 2, closeLen: 2 },
+  { marker: '`', openLen: 1, closeLen: 1 },
 ]
 
-function createLinkDecorator(revealMarkers: boolean) {
-  return new MatchDecorator({
-    // Do not decorate markdown images. Active image lines should show full raw
-    // source (`![alt](src)`), while inactive image lines are handled by the
-    // image widget decoration.
-    regexp: /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,
-
-    decorate(add, from, to, match, view) {
-      const label = match[1]
-      if (!label) return
-
-      const contentStart = from + 1
-      const contentEnd = contentStart + label.length
-
-      if (
-        selectionOverlapsRange(view, from, to, revealMarkers) ||
-        selectionTouchesRange(view, from, contentStart, revealMarkers) ||
-        selectionTouchesRange(view, contentEnd, to, revealMarkers)
-      ) {
-        return
-      }
-
-      add(
-        from,
-        contentStart,
-        Decoration.mark({ class: 'me-token me-token--inline' })
-      )
-      add(
-        contentStart,
-        contentEnd,
-        Decoration.mark({ class: 'me-link' })
-      )
-      add(
-        contentEnd,
-        to,
-        Decoration.mark({ class: 'me-token me-token--inline' })
-      )
-    },
-  })
+const inlineClassByKind: Record<InlineMarkdownKind, string> = {
+  bold: 'me-bold',
+  italic: 'me-italic',
+  strike: 'me-strikethrough',
+  code: 'me-inline-code',
+  link: 'me-link',
 }
 
 function selectionTouchesRange(view: EditorView, from: number, to: number, revealMarkers = true): boolean {
@@ -108,7 +49,7 @@ function selectionOverlapsRange(view: EditorView, from: number, to: number, reve
   return view.state.selection.ranges.some((range) => !range.empty && range.from < to && range.to > from)
 }
 
-function isEmptyPairAtCursor(view: EditorView, rule: MarkdownRule, cursor: number): boolean {
+function isEmptyPairAtCursor(view: EditorView, rule: PendingPairRule, cursor: number): boolean {
   const { marker } = rule
   const beforeFrom = cursor - rule.openLen
   const afterTo = cursor + rule.closeLen
@@ -136,7 +77,7 @@ function buildPendingPairDecorations(view: EditorView): Range<Decoration>[] {
   for (const range of view.state.selection.ranges) {
     if (!range.empty) continue
 
-    for (const rule of rules) {
+    for (const rule of pendingPairRules) {
       if (!isEmptyPairAtCursor(view, rule, range.from)) continue
 
       ranges.push(
@@ -157,55 +98,43 @@ function buildPendingPairDecorations(view: EditorView): Range<Decoration>[] {
   return ranges
 }
 
-function createDecorator(rule: MarkdownRule, revealMarkers: boolean) {
-  return new MatchDecorator({
-    regexp: rule.regexp,
-
-    decorate(add, from, to, _match, view) {
-      const contentStart = from + rule.openLen
-      const contentEnd = to - rule.closeLen
-
-      if (
-        selectionOverlapsRange(view, from, to, revealMarkers) ||
-        selectionTouchesRange(view, from, contentStart, revealMarkers) ||
-        selectionTouchesRange(view, contentEnd, to, revealMarkers)
-      ) {
-        return
-      }
-
-      add(
-        from,
-        contentStart,
-        Decoration.mark({ class: 'me-token me-token--inline' })
-      )
-      if (contentStart < contentEnd) {
-        add(
-          contentStart,
-          contentEnd,
-          Decoration.mark({ class: rule.className }),
-        )
-      }
-      add(
-        contentEnd,
-        to,
-        Decoration.mark({ class: 'me-token me-token--inline' })
-      )
-    },
-  })
-}
-
-function decorators(revealMarkers: boolean) {
-  return [...rules.map((rule) => createDecorator(rule, revealMarkers)), createLinkDecorator(revealMarkers)]
-}
-
 function buildDecorations(view: EditorView, revealMarkers = true): DecorationSet {
   const all: Range<Decoration>[] = buildPendingPairDecorations(view)
+  const doc = view.state.doc
 
-  for (const decorator of decorators(revealMarkers)) {
-    const set = decorator.createDeco(view)
-    set.between(0, view.state.doc.length, (from, to, value) => {
-      all.push(value.range(from, to))
-    })
+  for (let lineNumber = 1; lineNumber <= doc.lines; lineNumber += 1) {
+    const line = doc.line(lineNumber)
+
+    for (const span of inlineMarkdownSpans(line.text, line.from)) {
+      if (
+        selectionOverlapsRange(view, span.from, span.to, revealMarkers) ||
+        selectionTouchesRange(view, span.openFrom, span.openTo, revealMarkers) ||
+        selectionTouchesRange(view, span.closeFrom, span.closeTo, revealMarkers)
+      ) {
+        continue
+      }
+
+      all.push(
+        Decoration.mark({ class: 'me-token me-token--inline' }).range(
+          span.openFrom,
+          span.openTo,
+        ),
+      )
+      if (span.contentFrom < span.contentTo) {
+        all.push(
+          Decoration.mark({ class: inlineClassByKind[span.kind] }).range(
+            span.contentFrom,
+            span.contentTo,
+          ),
+        )
+      }
+      all.push(
+        Decoration.mark({ class: 'me-token me-token--inline' }).range(
+          span.closeFrom,
+          span.closeTo,
+        ),
+      )
+    }
   }
 
   return Decoration.set(all, true)
