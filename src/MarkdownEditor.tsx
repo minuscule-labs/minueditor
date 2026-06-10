@@ -12,7 +12,7 @@ import {
   placeholder as cmPlaceholder,
   keymap,
 } from '@codemirror/view'
-import { defaultKeymap, historyKeymap, history, redo, redoDepth, undo, undoDepth } from '@codemirror/commands'
+import { defaultKeymap, historyKeymap, history, redoDepth, undoDepth } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
@@ -22,7 +22,7 @@ import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
-import { imageDecorations, imagePasteHandler, imagePickerExtension, insertImagePicker } from './extensions/images'
+import { imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
 import { editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
@@ -32,14 +32,13 @@ import {
   enterAfterHiddenInlineSuffix,
   enterInMarkdownList,
   enterInMarkdownTable,
-  insertCodeBlock,
-  insertTable,
   toggleBold,
   toggleInlineCode,
   toggleItalic,
   wrapLink,
 } from './toolbar/commands'
 import { expandInlineMarkdownRange, type SourceRange } from './internal/inline-markdown'
+import { createEditorCommands } from './internal/editor-commands'
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
@@ -62,10 +61,6 @@ export interface MarkdownEditorHandle {
   wrapLink: () => boolean
   insertTable: () => boolean
   insertCodeBlock: () => boolean
-}
-
-function markdownImage(alt: string, src: string): string {
-  return `![${alt}](${src})`
 }
 
 function selectedMarkdownText(state: EditorState): { text: string; ranges: SourceRange[] } {
@@ -213,27 +208,12 @@ export const MarkdownEditor = forwardRef<
 
   // Expose the EditorView and common editor actions via ref.
   useImperativeHandle(ref, () => {
+    const commands = createEditorCommands(viewRef, readOnlyRef)
     const withView = (run: (view: EditorView) => boolean): boolean => {
       const view = viewRef.current
       if (!view) return false
       return run(view)
     }
-
-    const writeWithView = (run: (view: EditorView) => boolean): boolean => {
-      if (readOnlyRef.current) return false
-      return withView(run)
-    }
-
-    const replaceSelectionWith = (markdown: string): boolean => writeWithView((view) => {
-      const range = view.state.selection.main
-      view.dispatch({
-        changes: { from: range.from, to: range.to, insert: markdown },
-        selection: { anchor: range.from + markdown.length },
-        scrollIntoView: true,
-      })
-      view.focus()
-      return true
-    })
 
     return {
       view: viewRef.current,
@@ -262,18 +242,18 @@ export const MarkdownEditor = forwardRef<
         view.contentDOM.blur()
         return true
       }),
-      undo: () => writeWithView(undo),
-      redo: () => writeWithView(redo),
-      insertMarkdown: replaceSelectionWith,
-      replaceSelection: replaceSelectionWith,
-      insertImage: ({ src, alt = '' }) => replaceSelectionWith(markdownImage(alt, src)),
-      openImagePicker: () => writeWithView(insertImagePicker),
-      toggleBold: () => writeWithView(toggleBold),
-      toggleItalic: () => writeWithView(toggleItalic),
-      toggleInlineCode: () => writeWithView(toggleInlineCode),
-      wrapLink: () => writeWithView(wrapLink),
-      insertTable: () => writeWithView(insertTable),
-      insertCodeBlock: () => writeWithView(insertCodeBlock),
+      undo: commands.undo,
+      redo: commands.redo,
+      insertMarkdown: commands.insertMarkdown,
+      replaceSelection: commands.replaceSelection,
+      insertImage: commands.insertImage,
+      openImagePicker: commands.openImagePicker,
+      toggleBold: commands.toggleBold,
+      toggleItalic: commands.toggleItalic,
+      toggleInlineCode: commands.toggleInlineCode,
+      wrapLink: commands.wrapLink,
+      insertTable: commands.insertTable,
+      insertCodeBlock: commands.insertCodeBlock,
     }
   }, [cmView, emitState])
 
