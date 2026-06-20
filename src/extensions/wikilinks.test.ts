@@ -2,7 +2,7 @@ import type { CompletionContext } from '@codemirror/autocomplete'
 import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { wikiLinkCompletions, wikiLinksExtension, wikiLinkSpans } from './wikilinks'
+import { wikiLinkCompletions, wikiLinkSlashCommand, wikiLinksExtension, wikiLinkSpans } from './wikilinks'
 
 let views: EditorView[] = []
 
@@ -99,6 +99,27 @@ describe('wikiLinksExtension', () => {
     expect(event.defaultPrevented).toBe(true)
     expect(onOpen).toHaveBeenCalledOnce()
     expect(onOpen).toHaveBeenCalledWith('Note B', { event: expect.any(MouseEvent) })
+  })
+})
+
+describe('wikiLinkSlashCommand', () => {
+  it('inserts empty wikilink markers and places the cursor between them', () => {
+    const view = createView('')
+
+    expect(wikiLinkSlashCommand.run(view)).toBe(true)
+
+    expect(view.state.doc.toString()).toBe('[[]]')
+    expect(view.state.selection.main.from).toBe(2)
+  })
+
+  it('wraps selected text as a wikilink', () => {
+    const view = createView('Note B')
+    view.dispatch({ selection: { anchor: 0, head: 6 } })
+
+    expect(wikiLinkSlashCommand.run(view)).toBe(true)
+
+    expect(view.state.doc.toString()).toBe('[[Note B]]')
+    expect(view.state.selection.main.from).toBe(10)
   })
 })
 

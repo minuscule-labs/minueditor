@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.3
+
+- Added a built-in `Wiki Link` slash command when `wikiLinks` is enabled and the editor is using default slash commands.
+- The command inserts `[[]]` with the cursor between markers, wraps selected text as `[[selected]]`, and starts wikilink autocomplete when available.
+- Custom `slashCommands` arrays remain fully host-controlled and are not modified.
+
+Verified with typecheck, tests, and release build.
+
 ## 0.10.2
 
 - Fixed `wikiLinks.openOnClick` by opening decorated wikilinks on `mousedown` before CodeMirror moves the selection and reveals wikilink source markers.

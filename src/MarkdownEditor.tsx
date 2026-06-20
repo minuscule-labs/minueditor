@@ -30,6 +30,7 @@ import {
   wikiLinkCompletionExtension,
   wikiLinkCompletions,
   wikiLinksExtension,
+  wikiLinkSlashCommand,
 } from './extensions/wikilinks'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import type { MarkdownEditorProps, MarkdownEditorState } from './types'
@@ -344,15 +345,17 @@ export const MarkdownEditor = forwardRef<
     const wikiLinkSources = wikiLinkConfig?.suggest ? [wikiLinkCompletions(wikiLinkConfig)] : []
 
     if (slashCommands !== false) {
-      return [
-        slashCommandExtension(
-          Array.isArray(slashCommands)
-            ? slashCommands
-            : onRequestImageRef.current
+      const commands = Array.isArray(slashCommands)
+        ? slashCommands
+        : [
+            ...(onRequestImageRef.current
               ? createDefaultSlashCommands({ imageCommand: () => getEditorCommands().openImagePicker() })
-              : editorSlashCommands,
-          wikiLinkSources,
-        ),
+              : editorSlashCommands),
+            ...(wikiLinkConfig ? [wikiLinkSlashCommand] : []),
+          ]
+
+      return [
+        slashCommandExtension(commands, wikiLinkSources),
       ]
     }
 

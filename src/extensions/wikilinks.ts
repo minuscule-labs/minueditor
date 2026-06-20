@@ -1,6 +1,7 @@
 import {
   acceptCompletion,
   autocompletion,
+  startCompletion,
   type Completion,
   type CompletionContext,
   type CompletionResult,
@@ -20,6 +21,7 @@ import type {
   WikiLinkResolution,
   WikiLinkStatus,
   WikiLinkSuggestion,
+  SlashCommand,
 } from '../types'
 
 export type WikiLinkSpan = {
@@ -53,6 +55,33 @@ export function normalizeWikiLinksConfig(config: WikiLinkConfigInput): WikiLinks
   if (config === true) return { enabled: true }
   if (config.enabled === false) return null
   return config
+}
+
+export const wikiLinkSlashCommand: SlashCommand = {
+  label: 'Wiki Link',
+  detail: 'Insert [[link]]',
+  keywords: ['wiki', 'link', 'note', 'backlink'],
+  run(view) {
+    const selection = view.state.selection.main
+
+    if (!selection.empty) {
+      const selectedText = view.state.doc.sliceString(selection.from, selection.to)
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: `[[${selectedText}]]` },
+        selection: { anchor: selection.from + selectedText.length + 4 },
+        scrollIntoView: true,
+      })
+      return true
+    }
+
+    view.dispatch({
+      changes: { from: selection.from, to: selection.to, insert: '[[]]' },
+      selection: { anchor: selection.from + 2 },
+      scrollIntoView: true,
+    })
+    startCompletion(view)
+    return true
+  },
 }
 
 export function wikiLinkSpans(lineText: string, lineFrom: number): WikiLinkSpan[] {
