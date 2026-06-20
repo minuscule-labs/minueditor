@@ -56,7 +56,7 @@ export type WikiLinkSuggestion = {
 
 export type WikiLinksConfig = {
   enabled?: boolean
-  /** Opens decorated wikilinks on plain click. Defaults to false so hosts can opt in. */
+  /** Opens decorated inactive wikilinks on plain mouse down. Defaults to false so hosts can opt in. */
   openOnClick?: boolean
   /** Opens wikilinks on Cmd/Ctrl-click. Defaults to true. */
   openOnModifierClick?: boolean

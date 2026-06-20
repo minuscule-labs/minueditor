@@ -269,45 +269,52 @@ function isModifierClick(event: MouseEvent): boolean {
   return event.button === 0 && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey
 }
 
+function dispatchWikiLinkOpen(config: WikiLinksConfig, target: string, event: MouseEvent): void {
+  void (async () => {
+    const status = config.resolve ? (await config.resolve(target)).status : 'unknown'
+    if (status === 'unresolved' && config.onCreate) {
+      await config.onCreate(target)
+      return
+    }
+    if (config.onOpen) {
+      config.onOpen(target, { event })
+      return
+    }
+    await config.onCreate?.(target)
+  })().catch(() => {
+    if (config.onOpen) config.onOpen(target, { event })
+  })
+}
+
 export function wikiLinkInteractions(config: WikiLinksConfig): Extension {
   if (!config.onOpen && !config.onCreate) return []
 
   return EditorView.domEventHandlers({
+    mousedown(event) {
+      if (config.openOnClick !== true || !isPlainClick(event)) return false
+
+      const target = wikiLinkTargetFromEventTarget(event.target)
+      if (!target) return false
+
+      // Open before CodeMirror moves the selection into the wikilink and
+      // removes the inactive-label decoration that carries data attributes.
+      event.preventDefault()
+      dispatchWikiLinkOpen(config, target, event)
+      return true
+    },
     click(event, view) {
-      const decoratedTarget = wikiLinkTargetFromEventTarget(event.target)
-      let target: string | null = null
+      if (!isModifierClick(event) || config.openOnModifierClick === false) return false
 
-      if (isPlainClick(event)) {
-        if (config.openOnClick !== true || !decoratedTarget) return false
-        target = decoratedTarget
-      } else if (isModifierClick(event)) {
-        if (config.openOnModifierClick === false) return false
-        target = decoratedTarget
-        if (!target) {
-          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-          if (pos == null) return false
-          target = wikiLinkAtPosition(view, pos)?.target ?? null
-        }
+      let target = wikiLinkTargetFromEventTarget(event.target)
+      if (!target) {
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+        if (pos == null) return false
+        target = wikiLinkAtPosition(view, pos)?.target ?? null
       }
-
       if (!target) return false
 
       event.preventDefault()
-      const linkTarget = target
-      void (async () => {
-        const status = config.resolve ? (await config.resolve(linkTarget)).status : 'unknown'
-        if (status === 'unresolved' && config.onCreate) {
-          await config.onCreate(linkTarget)
-          return
-        }
-        if (config.onOpen) {
-          config.onOpen(linkTarget, { event })
-          return
-        }
-        await config.onCreate?.(linkTarget)
-      })().catch(() => {
-        if (config.onOpen) config.onOpen(linkTarget, { event })
-      })
+      dispatchWikiLinkOpen(config, target, event)
       return true
     },
   })

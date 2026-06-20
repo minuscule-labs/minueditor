@@ -84,16 +84,19 @@ describe('wikiLinksExtension', () => {
     expect(onOpen).not.toHaveBeenCalled()
   })
 
-  it('opens decorated wikilinks on plain click when configured', async () => {
+  it('opens decorated wikilinks on plain mousedown before selection changes', async () => {
     const onOpen = vi.fn()
     const view = createView('See [[Note B|the note]] today', [
       wikiLinksExtension({ openOnClick: true, onOpen }, { completion: false }),
     ])
     const link = view.dom.querySelector('.me-wikilink')!
 
-    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    const notPrevented = link.dispatchEvent(event)
     await Promise.resolve()
 
+    expect(notPrevented).toBe(false)
+    expect(event.defaultPrevented).toBe(true)
     expect(onOpen).toHaveBeenCalledOnce()
     expect(onOpen).toHaveBeenCalledWith('Note B', { event: expect.any(MouseEvent) })
   })

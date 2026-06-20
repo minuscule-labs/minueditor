@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2
+
+- Fixed `wikiLinks.openOnClick` by opening decorated wikilinks on `mousedown` before CodeMirror moves the selection and reveals wikilink source markers.
+- Kept Cmd/Ctrl-click handling on `click` for source-visible wikilinks.
+
+Verified with typecheck, tests, and release build.
+
 ## 0.10.1
 
 - Added opt-in plain-click wikilink opening with `wikiLinks.openOnClick`.
