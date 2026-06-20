@@ -3,6 +3,7 @@ import {
   type Completion,
   type CompletionContext,
   type CompletionResult,
+  type CompletionSource,
 } from '@codemirror/autocomplete'
 import { EditorSelection, type Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
@@ -237,10 +238,12 @@ export function slashCommandCompletions(
 
 export function slashCommandExtension(
   commands: readonly SlashCommand[] = defaultSlashCommands,
+  extraSources: readonly CompletionSource[] = [],
 ): Extension {
   return autocompletion({
     override: [
       (context) => slashCommandCompletions(context, commands),
+      ...extraSources,
     ],
   })
 }

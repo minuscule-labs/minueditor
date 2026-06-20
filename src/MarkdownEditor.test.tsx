@@ -79,6 +79,24 @@ describe('MarkdownEditor', () => {
     expect(container.querySelector('.minueditor-wrap.foo')).toBeTruthy()
   })
 
+  it('wires wikilink rendering through the wikiLinks prop', async () => {
+    const { container } = render(
+      <MarkdownEditor
+        value={'See [[Note B|the note]] today'}
+        onChange={vi.fn()}
+        wikiLinks={{
+          resolve: (target) => ({ status: target === 'Note B' ? 'resolved' : 'unresolved' }),
+          suggest: async () => [],
+        }}
+      />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-wikilink--resolved')).toBeTruthy()
+      expect(container.querySelector('.me-wikilink-label')?.textContent).toBe('the note')
+    })
+  })
+
   it('calls onViewReady with the EditorView after mounting', () => {
     const onViewReady = vi.fn()
     render(

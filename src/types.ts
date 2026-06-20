@@ -39,6 +39,29 @@ export interface SlashCommand {
   run: (view: EditorView) => boolean
 }
 
+export type WikiLinkStatus = 'resolved' | 'unresolved' | 'unknown'
+
+export type WikiLinkResolution = {
+  status: WikiLinkStatus
+  href?: string
+  title?: string
+}
+
+export type WikiLinkSuggestion = {
+  id: string
+  target: string
+  label?: string
+  detail?: string
+}
+
+export type WikiLinksConfig = {
+  enabled?: boolean
+  resolve?: (target: string) => WikiLinkResolution | Promise<WikiLinkResolution>
+  suggest?: (query: string) => Promise<WikiLinkSuggestion[]>
+  onOpen?: (target: string, context: { event: MouseEvent | KeyboardEvent }) => void
+  onCreate?: (target: string) => void | Promise<void>
+}
+
 export type CodeHighlighter = (code: string, lang: string) => string | Promise<string | null> | null
 
 export interface DocumentAnnotation {
@@ -64,6 +87,7 @@ export interface MarkdownEditorProps {
   onChange: (markdown: string) => void
   baselineValue?: string
   slashCommands?: boolean | readonly SlashCommand[]
+  wikiLinks?: boolean | WikiLinksConfig
   annotations?: readonly DocumentAnnotation[]
   onAnnotationClick?: (annotation: DocumentAnnotation, view: EditorView) => void
   placeholder?: string

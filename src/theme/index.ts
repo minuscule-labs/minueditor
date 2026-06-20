@@ -254,6 +254,31 @@ export const minueditorTheme = EditorView.theme({
     textUnderlineOffset: "2px",
   },
 
+  ".me-wikilink": {
+    color: "var(--me-wikilink-color, var(--me-link-color, #2563eb))",
+    textDecoration: "underline",
+    textUnderlineOffset: "2px",
+    cursor: "pointer",
+  },
+
+  ".me-wikilink--unresolved": {
+    color: "var(--me-wikilink-unresolved-color, var(--me-placeholder, #777))",
+    textDecorationStyle: "dashed",
+  },
+
+  ".me-wikilink--unknown": {
+    color: "var(--me-wikilink-unknown-color, var(--me-link-color, #2563eb))",
+    textDecorationStyle: "dotted",
+  },
+
+  ".me-wikilink-label": {
+    color: "inherit",
+  },
+
+  ".me-wikilink-suggestion": {
+    color: "inherit",
+  },
+
   ".me-blockquote": {
     borderLeft: "3px solid var(--me-blockquote-border, #ccc)",
     paddingLeft: "1em",
@@ -502,11 +527,11 @@ export const minueditorTheme = EditorView.theme({
   },
 
   // Keep marker hiding resilient when consumers style visual heading/link classes.
-  ".me-h1 .me-token, .me-h2 .me-token, .me-h3 .me-token, .me-h4 .me-token, .me-h5 .me-token, .me-h6 .me-token, .me-link .me-token": {
+  ".me-h1 .me-token, .me-h2 .me-token, .me-h3 .me-token, .me-h4 .me-token, .me-h5 .me-token, .me-h6 .me-token, .me-link .me-token, .me-wikilink .me-token": {
     color: "transparent",
   },
 
-  ".me-h1 .me-token--block, .me-h2 .me-token--block, .me-h3 .me-token--block, .me-h4 .me-token--block, .me-h5 .me-token--block, .me-h6 .me-token--block, .me-link .me-token--inline": {
+  ".me-h1 .me-token--block, .me-h2 .me-token--block, .me-h3 .me-token--block, .me-h4 .me-token--block, .me-h5 .me-token--block, .me-h6 .me-token--block, .me-link .me-token--inline, .me-wikilink .me-token--inline": {
     fontSize: "1px",
     letterSpacing: "-1ch",
   },

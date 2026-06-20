@@ -11,4 +11,16 @@ export { MarkdownRenderer } from './renderer'
 export { defaultSlashCommands } from './extensions/slash-commands'
 export { documentAnnotationExtension } from './extensions/annotations'
 export { githubDarkCodeHighlightStyle } from './extensions/codeblock/highlight-style'
-export type { MarkdownEditorProps, MarkdownEditorState, MarkdownEditorMode, SlashCommand, EditorToolbarProps, DocumentAnnotation, CodeHighlighter } from './types'
+export type {
+  MarkdownEditorProps,
+  MarkdownEditorState,
+  MarkdownEditorMode,
+  SlashCommand,
+  WikiLinkStatus,
+  WikiLinkResolution,
+  WikiLinkSuggestion,
+  WikiLinksConfig,
+  EditorToolbarProps,
+  DocumentAnnotation,
+  CodeHighlighter,
+} from './types'

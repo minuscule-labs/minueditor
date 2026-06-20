@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.0
+
+- Added generic Obsidian-style wikilink support through `MarkdownEditorProps.wikiLinks`.
+- Added public wikilink API types for host-owned resolution, suggestions, open behavior, and create behavior.
+- Added inline wikilink rendering for `[[Target]]` and `[[Target|Label]]`, including inactive marker hiding and active source reveal.
+- Added resolved, unresolved, and unknown wikilink styling hooks and theme variables.
+- Added wikilink autocomplete after `[[`, with keyboard selection through CodeMirror completions.
+- Kept MinuNotes-specific note lookup, permissions, navigation, creation, and backlinks outside MinuEditor via callbacks.
+
+Verified with typecheck, tests, and release build.
+
 ## 0.9.8
 
 - Improved block-widget cursor navigation across tables, code blocks, and standalone images.

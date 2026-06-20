@@ -88,6 +88,9 @@
 
     /* ── Links ─────────────────────────────────────────────── */
     --me-link-color: #2563eb;
+    --me-wikilink-color: var(--me-link-color, #2563eb);
+    --me-wikilink-unresolved-color: var(--me-placeholder, #777);
+    --me-wikilink-unknown-color: var(--me-link-color, #2563eb);
 
     /* ── Tables ────────────────────────────────────────────── */
     --me-table-border: #e0e0e0;
@@ -279,6 +282,28 @@
 
 .me-renderer a:hover {
     opacity: 0.8;
+}
+
+.me-wikilink {
+    color: var(--me-wikilink-color, var(--me-link-color, #2563eb));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.me-wikilink--unresolved {
+    color: var(--me-wikilink-unresolved-color, var(--me-placeholder, #777));
+    text-decoration-style: dashed;
+}
+
+.me-wikilink--unknown {
+    color: var(--me-wikilink-unknown-color, var(--me-link-color, #2563eb));
+    text-decoration-style: dotted;
+}
+
+.me-wikilink-label,
+.me-wikilink-suggestion {
+    color: inherit;
 }
 
 .me-renderer code {

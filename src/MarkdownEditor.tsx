@@ -25,6 +25,12 @@ import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
 import { createDefaultSlashCommands, editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
+import {
+  normalizeWikiLinksConfig,
+  wikiLinkCompletionExtension,
+  wikiLinkCompletions,
+  wikiLinksExtension,
+} from './extensions/wikilinks'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
 import type { MarkdownEditorProps, MarkdownEditorState } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
@@ -89,7 +95,7 @@ function getActiveMarks(lineText: string): MarkdownEditorState['activeMarks'] {
     bold: /\*\*[^*]+\*\*|__[^_]+__/.test(lineText),
     italic: /(^|[^*])\*[^*\s][^*]*\*|(^|[^_])_[^_\s][^_]*_/.test(lineText),
     code: /`[^`]+`/.test(lineText),
-    link: /\[[^\]]+\]\([^)]+\)/.test(lineText),
+    link: /\[[^\]]+\]\([^)]+\)|\[\[[^\]\n]+\]\]/.test(lineText),
     headingLevel: heading ? (heading[1].length as 1 | 2 | 3 | 4 | 5 | 6) : null,
     list,
     quote: /^\s*>\s?/.test(lineText),
@@ -148,6 +154,7 @@ export const MarkdownEditor = forwardRef<
     onChange,
     baselineValue,
     slashCommands = true,
+    wikiLinks,
     placeholder,
     readOnly = false,
     mode = 'live',
@@ -181,6 +188,8 @@ export const MarkdownEditor = forwardRef<
   const readOnlyCompartment = useRef(new Compartment());
   const modeCompartment = useRef(new Compartment())
   const annotationsCompartment = useRef(new Compartment())
+  const wikiLinksCompartment = useRef(new Compartment())
+  const completionCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
   const onImageUploadRef = useRef(onImageUpload)
@@ -195,6 +204,26 @@ export const MarkdownEditor = forwardRef<
     },
     [],
   )
+  const getEditorCommands = useCallback((): MinuEditorCommands => {
+    if (commandsRef.current) return commandsRef.current
+
+    const commands = createEditorCommands(viewRef, readOnlyRef, {
+      requestImage: (context) => {
+        const handler = onRequestImageRef.current
+        if (!handler) return false
+        handler(context)
+        return true
+      },
+      createWidgetContext: () => {
+        const view = viewRef.current
+        const currentCommands = commandsRef.current ?? commands
+        if (!view || !currentCommands) return null
+        return createWidgetContext(view, currentCommands, readOnlyRef.current)
+      },
+    })
+    commandsRef.current = commands
+    return commands
+  }, [])
 
   // Store the view in state so consumers of cmView (FloatingToolbar, onViewReady)
   // see it after CM6 mounts — viewRef alone wouldn't trigger a re-render.
@@ -212,21 +241,7 @@ export const MarkdownEditor = forwardRef<
 
   // Expose the EditorView and common editor actions via ref.
   useImperativeHandle(ref, () => {
-    const commands = createEditorCommands(viewRef, readOnlyRef, {
-      requestImage: (context) => {
-        const handler = onRequestImageRef.current
-        if (!handler) return false
-        handler(context)
-        return true
-      },
-      createWidgetContext: () => {
-        const view = viewRef.current
-        const currentCommands = commandsRef.current
-        if (!view || !currentCommands) return null
-        return createWidgetContext(view, currentCommands, readOnlyRef.current)
-      },
-    })
-    commandsRef.current = commands
+    const commands = getEditorCommands()
     const withView = (run: (view: EditorView) => boolean): boolean => {
       const view = viewRef.current
       if (!view) return false
@@ -273,7 +288,7 @@ export const MarkdownEditor = forwardRef<
       insertTable: commands.insertTable,
       insertCodeBlock: commands.insertCodeBlock,
     }
-  }, [cmView, emitState])
+  }, [cmView, emitState, getEditorCommands])
 
   // Keep onViewReady fresh without re-init
   useEffect(() => {
@@ -318,6 +333,31 @@ export const MarkdownEditor = forwardRef<
       imageDecorations,
     ]
   }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode])
+
+  const buildWikiLinkExtensions = useCallback((): Extension => {
+    if (mode === 'source') return []
+    return wikiLinksExtension(wikiLinks, { completion: false })
+  }, [mode, wikiLinks])
+
+  const buildCompletionExtensions = useCallback((): Extension[] => {
+    const wikiLinkConfig = normalizeWikiLinksConfig(wikiLinks)
+    const wikiLinkSources = wikiLinkConfig?.suggest ? [wikiLinkCompletions(wikiLinkConfig)] : []
+
+    if (slashCommands !== false) {
+      return [
+        slashCommandExtension(
+          Array.isArray(slashCommands)
+            ? slashCommands
+            : onRequestImageRef.current
+              ? createDefaultSlashCommands({ imageCommand: () => getEditorCommands().openImagePicker() })
+              : editorSlashCommands,
+          wikiLinkSources,
+        ),
+      ]
+    }
+
+    return wikiLinkConfig?.suggest ? [wikiLinkCompletionExtension(wikiLinkConfig)] : []
+  }, [getEditorCommands, slashCommands, wikiLinks])
 
   // ── Init CM6 ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -412,27 +452,6 @@ export const MarkdownEditor = forwardRef<
       },
     })
 
-    let initCommands: MinuEditorCommands | null = null
-    const getCommands = () => {
-      if (initCommands) return initCommands
-      initCommands = createEditorCommands(viewRef, readOnlyRef, {
-        requestImage: (context) => {
-          const handler = onRequestImageRef.current
-          if (!handler) return false
-          handler(context)
-          return true
-        },
-        createWidgetContext: () => {
-          const view = viewRef.current
-          const currentCommands = commandsRef.current ?? initCommands
-          if (!view || !currentCommands) return null
-          return createWidgetContext(view, currentCommands, readOnlyRef.current)
-        },
-      })
-      commandsRef.current = initCommands
-      return initCommands
-    }
-
     const submitKeymap = onSubmit
       ? keymap.of([
           {
@@ -472,6 +491,8 @@ export const MarkdownEditor = forwardRef<
       }),
       minueditorTheme,
       modeCompartment.current.of(buildModeExtensions()),
+      wikiLinksCompartment.current.of(buildWikiLinkExtensions()),
+      completionCompartment.current.of(buildCompletionExtensions()),
       imagePickerExtension(() => onImageUploadRef.current),
       annotationsCompartment.current.of(documentAnnotationExtension(annotations, handleAnnotationClick)),
       EditorView.lineWrapping,
@@ -482,17 +503,6 @@ export const MarkdownEditor = forwardRef<
       linkClickNavigation,
       imagePasteHandler(() => onImageUploadRef.current),
       imageArrowNavigation,
-      ...(slashCommands !== false
-        ? [
-            slashCommandExtension(
-              Array.isArray(slashCommands)
-                ? slashCommands
-                : onRequestImageRef.current
-                  ? createDefaultSlashCommands({ imageCommand: () => getCommands().openImagePicker() })
-                  : editorSlashCommands,
-            ),
-          ]
-        : []),
       readOnlyCompartment.current.of(EditorView.editable.of(!readOnly)),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
       ...(minHeight !== undefined
@@ -561,6 +571,24 @@ export const MarkdownEditor = forwardRef<
       effects: modeCompartment.current.reconfigure(buildModeExtensions()),
     })
   }, [buildModeExtensions])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: wikiLinksCompartment.current.reconfigure(buildWikiLinkExtensions()),
+    })
+  }, [buildWikiLinkExtensions])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: completionCompartment.current.reconfigure(buildCompletionExtensions()),
+    })
+  }, [buildCompletionExtensions])
 
   useEffect(() => {
     const view = viewRef.current
