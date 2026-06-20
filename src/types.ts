@@ -56,6 +56,10 @@ export type WikiLinkSuggestion = {
 
 export type WikiLinksConfig = {
   enabled?: boolean
+  /** Opens decorated wikilinks on plain click. Defaults to false so hosts can opt in. */
+  openOnClick?: boolean
+  /** Opens wikilinks on Cmd/Ctrl-click. Defaults to true. */
+  openOnModifierClick?: boolean
   resolve?: (target: string) => WikiLinkResolution | Promise<WikiLinkResolution>
   suggest?: (query: string) => Promise<WikiLinkSuggestion[]>
   onOpen?: (target: string, context: { event: MouseEvent | KeyboardEvent }) => void

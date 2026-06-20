@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1
+
+- Added opt-in plain-click wikilink opening with `wikiLinks.openOnClick`.
+- Added `wikiLinks.openOnModifierClick` to allow hosts to disable the default Cmd/Ctrl-click behavior when needed.
+- Plain-click opening is limited to decorated inactive wikilink labels, preserving source editing when the cursor is inside a wikilink.
+
+Verified with typecheck, tests, and release build.
+
 ## 0.10.0
 
 - Added generic Obsidian-style wikilink support through `MarkdownEditorProps.wikiLinks`.

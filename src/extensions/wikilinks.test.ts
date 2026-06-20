@@ -70,6 +70,33 @@ describe('wikiLinksExtension', () => {
     expect(view.dom.querySelector('.me-wikilink')).toBeFalsy()
     expect(view.dom.querySelector('.me-wikilink-marker')).toBeFalsy()
   })
+
+  it('does not open wikilinks on plain click unless opted in', async () => {
+    const onOpen = vi.fn()
+    const view = createView('See [[Note B]] today', [
+      wikiLinksExtension({ onOpen }, { completion: false }),
+    ])
+    const link = view.dom.querySelector('.me-wikilink')!
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await Promise.resolve()
+
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it('opens decorated wikilinks on plain click when configured', async () => {
+    const onOpen = vi.fn()
+    const view = createView('See [[Note B|the note]] today', [
+      wikiLinksExtension({ openOnClick: true, onOpen }, { completion: false }),
+    ])
+    const link = view.dom.querySelector('.me-wikilink')!
+
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    await Promise.resolve()
+
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onOpen).toHaveBeenCalledWith('Note B', { event: expect.any(MouseEvent) })
+  })
 })
 
 describe('wikiLinkCompletions', () => {

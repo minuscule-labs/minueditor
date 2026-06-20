@@ -256,34 +256,57 @@ function wikiLinkAtPosition(view: EditorView, pos: number): WikiLinkSpan | null 
   return null
 }
 
+function wikiLinkTargetFromEventTarget(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null
+  return target.closest<HTMLElement>('[data-me-wikilink-target]')?.dataset.meWikilinkTarget ?? null
+}
+
+function isPlainClick(event: MouseEvent): boolean {
+  return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
+}
+
+function isModifierClick(event: MouseEvent): boolean {
+  return event.button === 0 && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey
+}
+
 export function wikiLinkInteractions(config: WikiLinksConfig): Extension {
   if (!config.onOpen && !config.onCreate) return []
 
   return EditorView.domEventHandlers({
     click(event, view) {
-      if ((!event.metaKey && !event.ctrlKey) || event.altKey || event.shiftKey) return false
+      const decoratedTarget = wikiLinkTargetFromEventTarget(event.target)
+      let target: string | null = null
 
-      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-      if (pos == null) return false
+      if (isPlainClick(event)) {
+        if (config.openOnClick !== true || !decoratedTarget) return false
+        target = decoratedTarget
+      } else if (isModifierClick(event)) {
+        if (config.openOnModifierClick === false) return false
+        target = decoratedTarget
+        if (!target) {
+          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+          if (pos == null) return false
+          target = wikiLinkAtPosition(view, pos)?.target ?? null
+        }
+      }
 
-      const span = wikiLinkAtPosition(view, pos)
-      if (!span) return false
+      if (!target) return false
 
       event.preventDefault()
-      const target = span.target
+      const linkTarget = target
       void (async () => {
-        const status = config.resolve ? (await config.resolve(target)).status : 'unknown'
+        const status = config.resolve ? (await config.resolve(linkTarget)).status : 'unknown'
         if (status === 'unresolved' && config.onCreate) {
-          await config.onCreate(target)
+          await config.onCreate(linkTarget)
           return
         }
         if (config.onOpen) {
-          config.onOpen(target, { event })
+          config.onOpen(linkTarget, { event })
           return
         }
-        await config.onCreate?.(target)
+        await config.onCreate?.(linkTarget)
       })().catch(() => {
-        if (config.onOpen) config.onOpen(target, { event })
+        if (config.onOpen) config.onOpen(linkTarget, { event })
       })
       return true
     },
