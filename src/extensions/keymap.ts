@@ -1,7 +1,9 @@
 import { keymap } from '@codemirror/view'
 import type { EditorView } from '@codemirror/view'
 import {
+  deleteMarkdownListMarker,
   indentList,
+  moveCursorOutOfInlineCode,
   outdentList,
   shiftTabInMarkdownTable,
   tabInMarkdownTable,
@@ -22,6 +24,24 @@ import {
  * table, list, and hidden-inline-suffix commands.
  */
 export const markdownKeymap = keymap.of([
+  {
+    key: 'Backspace',
+    run(view: EditorView) {
+      return deleteMarkdownListMarker(view)
+    },
+  },
+  {
+    key: 'ArrowLeft',
+    run(view: EditorView) {
+      return moveCursorOutOfInlineCode(view, 'left')
+    },
+  },
+  {
+    key: 'ArrowRight',
+    run(view: EditorView) {
+      return moveCursorOutOfInlineCode(view, 'right')
+    },
+  },
   {
     key: 'Tab',
     run(view: EditorView) {
