@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.4
+
+- Fixed markdown link cursor/selection flicker by revealing full link source while editing inside a decorated link.
+- Added Backspace handling to remove list markers at the start of unordered, ordered, and task list item content.
+- Added Slack-like ArrowLeft/ArrowRight escape behavior at inline code boundaries.
+
+Verified with typecheck and targeted editor/toolbar tests.
+
 ## 0.10.3
 
 - Added a built-in `Wiki Link` slash command when `wikiLinks` is enabled and the editor is using default slash commands.
