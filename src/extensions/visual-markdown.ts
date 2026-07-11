@@ -108,9 +108,16 @@ function buildDecorations(view: EditorView, revealMarkers = true): DecorationSet
     const line = doc.line(lineNumber)
 
     for (const span of inlineMarkdownSpans(line.text, line.from)) {
+      const revealFullSpan = span.kind === 'link'
+
       if (
         selectionOverlapsRange(view, span.from, span.to, revealMarkers) ||
-        selectionTouchesRange(view, span.openFrom, span.openTo, revealMarkers) ||
+        selectionTouchesRange(
+          view,
+          revealFullSpan ? span.from : span.openFrom,
+          revealFullSpan ? span.to : span.openTo,
+          revealMarkers,
+        ) ||
         selectionTouchesRange(view, span.closeFrom, span.closeTo, revealMarkers)
       ) {
         continue

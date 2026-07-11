@@ -3,7 +3,7 @@ import { EditorSelection } from "@codemirror/state";
 import { setActiveCodeBlock } from "../extensions/codeblock/state";
 import { createEmptyTableMarkdown } from "../extensions/tables/model";
 import { setActiveTable } from "../extensions/tables/state";
-import { hiddenInlineSuffixTarget } from "../internal/inline-markdown";
+import { hiddenInlineSuffixTarget, inlineMarkdownSpans } from "../internal/inline-markdown";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +63,37 @@ export function enterAfterHiddenInlineSuffix(view: EditorView): boolean {
     ),
   );
 
+  return true;
+}
+
+export function deleteMarkdownListMarker(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.from);
+  const taskMatch = line.text.match(/^(\s*)([-*+])\s+\[[ xX/]\]\s+(.*)$/);
+  const unorderedMatch = line.text.match(/^(\s*)([-*+])\s+(.*)$/);
+  const orderedMatch = line.text.match(/^(\s*)(\d+)\.\s+(.*)$/);
+  const match = taskMatch ?? unorderedMatch ?? orderedMatch;
+  if (!match) return false;
+
+  const indent = match[1];
+  const markerEnd =
+    match === taskMatch
+      ? indent.length + match[2].length + 5
+      : indent.length + match[2].length + (match === orderedMatch ? 2 : 1);
+
+  if (selection.from !== line.from + markerEnd) return false;
+
+  view.dispatch(
+    view.state.update(
+      {
+        changes: { from: line.from + indent.length, to: line.from + markerEnd, insert: "" },
+        selection: EditorSelection.cursor(line.from + indent.length),
+      },
+      { scrollIntoView: true, userEvent: "delete.backward" },
+    ),
+  );
   return true;
 }
 
@@ -786,6 +817,35 @@ export function toggleStrikethrough(view: EditorView): boolean {
 
 export function toggleInlineCode(view: EditorView): boolean {
   return toggleInlineMarker(view, "`");
+}
+
+export function moveCursorOutOfInlineCode(view: EditorView, direction: "left" | "right"): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.from);
+  for (const span of inlineMarkdownSpans(line.text, line.from)) {
+    if (span.kind !== "code") continue;
+
+    const target =
+      direction === "right" && selection.from === span.contentTo
+        ? span.to
+        : direction === "left" && selection.from === span.contentFrom
+          ? span.from
+          : null;
+
+    if (target === null) continue;
+
+    view.dispatch(
+      view.state.update(
+        { selection: EditorSelection.cursor(target) },
+        { scrollIntoView: true, userEvent: "select" },
+      ),
+    );
+    return true;
+  }
+
+  return false;
 }
 
 // ── Link ──────────────────────────────────────────────────────────────────────

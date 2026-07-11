@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { EditorView } from '@codemirror/view'
 import {
+  deleteMarkdownListMarker,
   enterAfterHiddenInlineSuffix,
   enterInMarkdownList,
   enterInMarkdownTable,
@@ -9,6 +10,7 @@ import {
   insertTableColumnRight,
   insertTableRowAbove,
   insertTableRowBelow,
+  moveCursorOutOfInlineCode,
   outdentList,
   shiftTabInMarkdownTable,
   tabInMarkdownTable,
@@ -71,6 +73,42 @@ function createMockView(lines: string[], selection?: MockSelection): EditorView 
 }
 
 describe('list indentation commands', () => {
+  it('deletes a top-level unordered list marker at the start of content', () => {
+    const view = createMockView(['- one'], {
+      from: 2,
+      to: 2,
+      anchor: 2,
+      head: 2,
+      empty: true,
+    })
+
+    const handled = deleteMarkdownListMarker(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 0, to: 2, insert: '' },
+      selection: expect.anything(),
+    })
+  })
+
+  it('deletes a top-level task list marker at the start of content', () => {
+    const view = createMockView(['- [ ] one'], {
+      from: 6,
+      to: 6,
+      anchor: 6,
+      head: 6,
+      empty: true,
+    })
+
+    const handled = deleteMarkdownListMarker(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 0, to: 6, insert: '' },
+      selection: expect.anything(),
+    })
+  })
+
   it('continues unordered lists on Enter without an extra blank line', () => {
     const view = createMockView(['- one'], {
       from: 5,
@@ -88,6 +126,19 @@ describe('list indentation commands', () => {
       selection: expect.anything(),
       scrollIntoView: true,
     })
+  })
+
+  it('lets normal Backspace run away from the list marker boundary', () => {
+    const view = createMockView(['- one'], {
+      from: 4,
+      to: 4,
+      anchor: 4,
+      head: 4,
+      empty: true,
+    })
+
+    expect(deleteMarkdownListMarker(view)).toBe(false)
+    expect(view.dispatch).not.toHaveBeenCalled()
   })
 
   it('continues task lists on Enter without an extra blank line', () => {
@@ -437,6 +488,34 @@ describe('inline marker commands', () => {
     expect(dispatched.changes).toEqual([])
     expect(dispatched.range.from).toBe(15)
     expect(dispatched.range.to).toBe(15)
+  })
+
+  it('moves right out of inline code from the visual content end', () => {
+    const view = createMockView(['`code`'], {
+      from: 5,
+      to: 5,
+      anchor: 5,
+      head: 5,
+      empty: true,
+    })
+
+    const handled = moveCursorOutOfInlineCode(view, 'right')
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({ selection: expect.anything() })
+  })
+
+  it('moves left out of inline code from the visual content start', () => {
+    const view = createMockView(['`code`'], {
+      from: 1,
+      to: 1,
+      anchor: 1,
+      head: 1,
+      empty: true,
+    })
+
+    expect(moveCursorOutOfInlineCode(view, 'left')).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({ selection: expect.anything() })
   })
 
   it('inserts an empty italic pair and places the cursor inside', () => {
