@@ -62,13 +62,22 @@ describe('wikiLinksExtension', () => {
     expect(view.dom.querySelectorAll('.me-wikilink-marker').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('shows source markers while the cursor is inside the wikilink', () => {
+  it('keeps wikilink source hidden while editing the visible target', () => {
     const view = createView('See [[Note B]] today', [wikiLinksExtension(true, { completion: false })])
 
     view.dispatch({ selection: { anchor: 8 } })
 
-    expect(view.dom.querySelector('.me-wikilink')).toBeFalsy()
-    expect(view.dom.querySelector('.me-wikilink-marker')).toBeFalsy()
+    expect(view.dom.querySelector('.me-wikilink')).toBeTruthy()
+    expect(view.dom.querySelectorAll('.me-wikilink-marker').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('keeps wikilink source hidden while editing an aliased target', () => {
+    const view = createView('See [[Note B|the note]] today', [wikiLinksExtension(true, { completion: false })])
+
+    view.dispatch({ selection: { anchor: 8 } })
+
+    expect(view.dom.querySelector('.me-wikilink')).toBeTruthy()
+    expect(view.dom.querySelectorAll('.me-wikilink-marker').length).toBeGreaterThanOrEqual(2)
   })
 
   it('does not open wikilinks on plain click unless opted in', async () => {
@@ -119,7 +128,7 @@ describe('wikiLinkSlashCommand', () => {
     expect(wikiLinkSlashCommand.run(view)).toBe(true)
 
     expect(view.state.doc.toString()).toBe('[[Note B]]')
-    expect(view.state.selection.main.from).toBe(10)
+    expect(view.state.selection.main.from).toBe(8)
   })
 })
 
@@ -150,7 +159,71 @@ describe('wikiLinkCompletions', () => {
     if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
 
     expect(view.state.doc.toString()).toBe('[[Note B]]')
-    expect(view.state.selection.main.from).toBe(10)
+    expect(view.state.selection.main.from).toBe(8)
+  })
+
+  it('reopens suggestions while editing an existing wikilink target', async () => {
+    const view = createView('See [[Nope]] today')
+    const suggest = vi.fn(async (_query: string) => [
+      { id: 'note-1', target: 'Note B', detail: 'Note' },
+    ])
+    const source = wikiLinkCompletions({ suggest })
+
+    const result = await source({
+      state: view.state,
+      pos: 8,
+      explicit: false,
+    } as CompletionContext)
+
+    expect(suggest).toHaveBeenCalledWith('Nope')
+    expect(result?.from).toBe(6)
+    expect(result?.to).toBe(10)
+
+    const option = result!.options[0]
+    const apply = option.apply
+    expect(typeof apply).toBe('function')
+    if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+
+    expect(view.state.doc.toString()).toBe('See [[Note B]] today')
+    expect(view.state.selection.main.from).toBe(12)
+  })
+
+  it('replaces only the target when completing an aliased wikilink', async () => {
+    const view = createView('See [[No|label]] today')
+    const suggest = vi.fn(async (_query: string) => [
+      { id: 'note-1', target: 'Note B' },
+    ])
+    const source = wikiLinkCompletions({ suggest })
+
+    const result = await source({
+      state: view.state,
+      pos: 7,
+      explicit: false,
+    } as CompletionContext)
+
+    expect(suggest).toHaveBeenCalledWith('No')
+    expect(result?.from).toBe(6)
+    expect(result?.to).toBe(8)
+
+    const option = result!.options[0]
+    const apply = option.apply
+    expect(typeof apply).toBe('function')
+    if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+
+    expect(view.state.doc.toString()).toBe('See [[Note B|label]] today')
+  })
+
+  it('does not trigger while editing a wikilink alias', async () => {
+    const view = createView('See [[Note B|label]] today')
+    const source = wikiLinkCompletions({ suggest: async () => [] })
+
+    const result = await source({
+      state: view.state,
+      pos: 15,
+      explicit: false,
+    } as CompletionContext)
+
+    expect(result).toBeNull()
   })
 
   it('does not trigger outside an open wikilink', async () => {

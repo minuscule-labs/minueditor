@@ -1360,6 +1360,31 @@ describe('MarkdownEditor', () => {
     expect(view!.state.selection.main.to).toBe(value.length)
   })
 
+  it('wraps selected text with Cmd+K and leaves the cursor at the visible label end', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'hello world'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 0, head: 5 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.keyDown(content, { key: 'k', metaKey: true })
+
+    expect(view!.state.doc.toString()).toBe('[hello]() world')
+    expect(view!.state.selection.main.from).toBe(6)
+  })
+
   it('wraps selected text as a markdown link when a URL is pasted', async () => {
     let view: EditorView | null = null
     const { container } = render(
@@ -1387,6 +1412,7 @@ describe('MarkdownEditor', () => {
     })
 
     expect(view!.state.doc.toString()).toBe('[hello](https://example.com) world')
+    expect(view!.state.selection.main.from).toBe(1)
   })
 
   it('inserts [url](url) when a URL is pasted on an empty line', async () => {
@@ -1414,6 +1440,7 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       '[https://example.com](https://example.com)'
     )
+    expect(view!.state.selection.main.from).toBe(20)
   })
 
   it('inserts [url](url) when a URL is pasted into an empty list item', async () => {
@@ -1445,6 +1472,42 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       '- [https://example.com](https://example.com)'
     )
+    expect(view!.state.selection.main.from).toBe(22)
+  })
+
+  it('inserts and renders [url](url) when a URL is pasted after existing text', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'See '}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        getData: (type: string) =>
+          type === 'text/plain' ? 'https://example.com' : '',
+      },
+    })
+
+    expect(view!.state.doc.toString()).toBe(
+      'See [https://example.com](https://example.com)'
+    )
+    expect(view!.state.selection.main.from).toBe(24)
+    await waitFor(() => {
+      expect(container.querySelector('.me-link')).toBeTruthy()
+    })
   })
 
   it('opens markdown links on ctrl-click', async () => {
@@ -1561,6 +1624,107 @@ describe('MarkdownEditor', () => {
     await waitFor(() => {
       expect(container.querySelector('.me-link')).toBeTruthy()
       expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('keeps markdown link syntax hidden while editing the visible label', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-link')).toBeTruthy()
+      expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('keeps markdown link source hidden when the cursor is in the hidden URL suffix', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 10 } })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-link')).toBeTruthy()
+      expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('mirrors visible edits into the hidden URL for URL-as-label markdown links', async () => {
+    let view: EditorView | null = null
+    const value = '[https://old.example](https://old.example)'
+    render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const from = value.indexOf('old')
+    act(() => {
+      view!.dispatch({
+        changes: { from, to: from + 3, insert: 'new' },
+        selection: { anchor: from + 3 },
+      })
+    })
+
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toBe('[https://new.example](https://new.example)')
+      expect(view!.state.selection.main.from).toBe(from + 3)
+    })
+  })
+
+  it('does not mirror visible edits into distinct markdown link URLs', async () => {
+    let view: EditorView | null = null
+    const value = '[example](https://old.example)'
+    render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ changes: { from: 1, to: 8, insert: 'renamed' } })
+    })
+
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toBe('[renamed](https://old.example)')
     })
   })
 

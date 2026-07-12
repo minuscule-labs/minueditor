@@ -16,6 +16,7 @@ import {
   tabInMarkdownTable,
   toggleBold,
   toggleItalic,
+  wrapLink,
 } from './commands'
 
 type MockSelection = {
@@ -516,6 +517,24 @@ describe('inline marker commands', () => {
 
     expect(moveCursorOutOfInlineCode(view, 'left')).toBe(true)
     expect(view.dispatch).toHaveBeenCalledWith({ selection: expect.anything() })
+  })
+
+  it('wraps selected text as a markdown link and leaves the cursor at the visible label end', () => {
+    const view = createMockView(['hello'], {
+      from: 0,
+      to: 5,
+      anchor: 0,
+      head: 5,
+      empty: false,
+    })
+
+    const handled = wrapLink(view)
+
+    expect(handled).toBe(true)
+    expect(view.dispatch).toHaveBeenCalledWith({
+      changes: { from: 0, to: 5, insert: '[hello]()' },
+      selection: { anchor: 6 },
+    })
   })
 
   it('inserts an empty italic pair and places the cursor inside', () => {

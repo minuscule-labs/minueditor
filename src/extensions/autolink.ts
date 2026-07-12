@@ -6,8 +6,8 @@ const EMPTY_LIST_ITEM_REGEX = /^\s*(?:[-*+]|\d+\.)\s+(?:\[[ xX/]\]\s+)?$/
 /**
  * Intercepts paste events. When a plain-text URL is pasted:
  * - Selected text → wrap as `[selected text](url)`
- * - Empty line, nothing selected → insert `[url](url)`
- * - Mid-line, nothing selected → insert the raw URL
+ * - No selection → insert `[url](url)` so pasted links render consistently,
+ *   including mid-line / after existing text.
  *
  * HTTP and HTTPS only. No DNS lookup.
  */
@@ -33,7 +33,9 @@ export const autolinkPaste = EditorView.domEventHandlers({
           to: sel.to,
           insert: `[${selectedText}](${text})`,
         },
-        selection: { anchor: sel.from + selectedText.length + text.length + 4 },
+        // Keep the cursor at the visual end of the editable label, not in
+        // the hidden markdown URL suffix.
+        selection: { anchor: sel.from + 1 + selectedText.length },
       })
       return true
     }
@@ -44,20 +46,28 @@ export const autolinkPaste = EditorView.domEventHandlers({
 
     if (lineContent === '' || EMPTY_LIST_ITEM_REGEX.test(line.text)) {
       // Empty line/list item → insert [url](url)
+      const insert = `[${text}](${text})`
+      const insertFrom = lineContent === '' ? line.from : sel.from
       view.dispatch({
         changes: lineContent === ''
           ? {
               from: line.from,
               to: line.to,
-              insert: `[${text}](${text})`,
+              insert,
             }
-          : { from: sel.from, insert: `[${text}](${text})` },
+          : { from: sel.from, insert },
+        // Keep the cursor at the visual end of the editable label, not in
+        // the hidden markdown URL suffix.
+        selection: { anchor: insertFrom + 1 + text.length },
       })
     } else {
-      // Mid-line → raw URL
+      // Mid-line → keep pasted URLs renderable as standard markdown links.
+      const insert = `[${text}](${text})`
       view.dispatch({
-        changes: { from: sel.from, insert: text },
-        selection: { anchor: sel.from + text.length },
+        changes: { from: sel.from, insert },
+        // Keep the cursor at the visual end of the editable label, not in
+        // the hidden markdown URL suffix.
+        selection: { anchor: sel.from + 1 + text.length },
       })
     }
 
