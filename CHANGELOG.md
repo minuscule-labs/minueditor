@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.5
+
+- Improved live markdown link editing so external link source syntax stays hidden while editing visible link text.
+- Mirrored visible edits into the hidden URL for URL-as-label markdown links while preserving distinct label/URL links.
+- Made pasted URLs render consistently as markdown links, including after existing text, with cursor placement at the visible label end.
+- Reopened wikilink suggestions while editing existing wikilink targets and preserved aliases when completing targets.
+- Normalized cursor placement for link/wikilink insertion paths so cursors avoid hidden markdown suffixes.
+
+Verified with typecheck and targeted editor/wikilink/toolbar tests.
+
 ## 0.10.4
 
 - Fixed markdown link cursor/selection flicker by revealing full link source while editing inside a decorated link.
