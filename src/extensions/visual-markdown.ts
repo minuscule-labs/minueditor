@@ -1,4 +1,4 @@
-import type { Range } from '@codemirror/state'
+import type { ChangeSpec, EditorState, Range } from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
@@ -30,6 +30,51 @@ const inlineClassByKind: Record<InlineMarkdownKind, string> = {
 }
 
 const MARKER_REVEAL_DELAY_MS = 180
+
+type MarkdownLinkSpan = {
+  from: number
+  to: number
+  labelFrom: number
+  labelTo: number
+  urlFrom: number
+  urlTo: number
+  label: string
+  url: string
+}
+
+const MARKDOWN_LINK_RE = /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g
+
+function markdownLinkSpans(state: EditorState): MarkdownLinkSpan[] {
+  const spans: MarkdownLinkSpan[] = []
+
+  for (let lineNumber = 1; lineNumber <= state.doc.lines; lineNumber += 1) {
+    const line = state.doc.line(lineNumber)
+    MARKDOWN_LINK_RE.lastIndex = 0
+
+    for (const match of line.text.matchAll(MARKDOWN_LINK_RE)) {
+      if (match.index == null || !match[1] || !match[2]) continue
+
+      const from = line.from + match.index
+      const labelFrom = from + 1
+      const labelTo = labelFrom + match[1].length
+      const urlFrom = labelTo + 2
+      const urlTo = urlFrom + match[2].length
+
+      spans.push({
+        from,
+        to: urlTo + 1,
+        labelFrom,
+        labelTo,
+        urlFrom,
+        urlTo,
+        label: match[1],
+        url: match[2],
+      })
+    }
+  }
+
+  return spans
+}
 
 function selectionTouchesRange(view: EditorView, from: number, to: number, revealMarkers = true): boolean {
   if (!revealMarkers) return false
@@ -108,17 +153,12 @@ function buildDecorations(view: EditorView, revealMarkers = true): DecorationSet
     const line = doc.line(lineNumber)
 
     for (const span of inlineMarkdownSpans(line.text, line.from)) {
-      const revealFullSpan = span.kind === 'link'
-
-      if (
-        selectionOverlapsRange(view, span.from, span.to, revealMarkers) ||
-        selectionTouchesRange(
-          view,
-          revealFullSpan ? span.from : span.openFrom,
-          revealFullSpan ? span.to : span.openTo,
-          revealMarkers,
-        ) ||
+      const selectionTouchesSource =
+        selectionTouchesRange(view, span.openFrom, span.openTo, revealMarkers) ||
         selectionTouchesRange(view, span.closeFrom, span.closeTo, revealMarkers)
+      if (
+        span.kind !== 'link' &&
+        (selectionOverlapsRange(view, span.from, span.to, revealMarkers) || selectionTouchesSource)
       ) {
         continue
       }
@@ -154,6 +194,8 @@ export const visualMarkdown = ViewPlugin.fromClass(
     decorations: DecorationSet
     pointerSelecting = false
     markerRevealTimeout: number | null = null
+    linkSyncScheduled = false
+    destroyed = false
     removePointerListeners: (() => void) | null = null
 
     constructor(view: EditorView) {
@@ -195,8 +237,40 @@ export const visualMarkdown = ViewPlugin.fromClass(
       }, MARKER_REVEAL_DELAY_MS)
     }
 
+    scheduleLinkUrlSync(update: ViewUpdate) {
+      if (this.linkSyncScheduled) return
+
+      const changes: ChangeSpec[] = []
+      for (const oldSpan of markdownLinkSpans(update.startState)) {
+        if (oldSpan.label !== oldSpan.url) continue
+
+        const labelFrom = update.changes.mapPos(oldSpan.labelFrom, -1)
+        const labelTo = update.changes.mapPos(oldSpan.labelTo, 1)
+        const urlFrom = update.changes.mapPos(oldSpan.urlFrom, -1)
+        const urlTo = update.changes.mapPos(oldSpan.urlTo, 1)
+        if (labelFrom < 0 || labelTo < labelFrom || urlFrom < 0 || urlTo < urlFrom) continue
+
+        const nextLabel = update.state.doc.sliceString(labelFrom, labelTo)
+        const nextUrl = update.state.doc.sliceString(urlFrom, urlTo)
+        if (!nextLabel || nextLabel === oldSpan.label) continue
+        if (nextUrl !== oldSpan.url) continue
+
+        changes.push({ from: urlFrom, to: urlTo, insert: nextLabel })
+      }
+
+      if (changes.length === 0) return
+
+      this.linkSyncScheduled = true
+      queueMicrotask(() => {
+        this.linkSyncScheduled = false
+        if (this.destroyed) return
+        update.view.dispatch({ changes })
+      })
+    }
+
     update(update: ViewUpdate) {
       if (update.docChanged) {
+        this.scheduleLinkUrlSync(update)
         this.clearMarkerRevealTimeout()
         this.decorations = buildDecorations(update.view)
         return
@@ -213,6 +287,7 @@ export const visualMarkdown = ViewPlugin.fromClass(
     }
 
     destroy() {
+      this.destroyed = true
       this.clearMarkerRevealTimeout()
       this.removePointerListeners?.()
     }

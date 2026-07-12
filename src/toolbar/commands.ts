@@ -864,8 +864,9 @@ export function wrapLink(view: EditorView): boolean {
     const insert = `[${selected}]()`;
     view.dispatch({
       changes: { from: range.from, to: range.to, insert },
-      // Place cursor inside the `()` so user can type the URL
-      selection: { anchor: range.from + insert.length - 1 },
+      // Keep the cursor at the visual end of the editable label, not in the
+      // hidden markdown URL suffix. A dedicated link editor can own URL edits.
+      selection: { anchor: range.from + 1 + selected.length },
     });
   } else {
     const insert = "[]()";

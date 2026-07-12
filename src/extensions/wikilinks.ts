@@ -68,7 +68,9 @@ export const wikiLinkSlashCommand: SlashCommand = {
       const selectedText = view.state.doc.sliceString(selection.from, selection.to)
       view.dispatch({
         changes: { from: selection.from, to: selection.to, insert: `[[${selectedText}]]` },
-        selection: { anchor: selection.from + selectedText.length + 4 },
+        // Place the cursor at the visual end of the editable target, before
+        // hidden closing brackets.
+        selection: { anchor: selection.from + 2 + selectedText.length },
         scrollIntoView: true,
       })
       return true
@@ -137,13 +139,6 @@ export function wikiLinkSpans(lineText: string, lineFrom: number): WikiLinkSpan[
   return spans
 }
 
-function selectionTouchesWikiLink(view: EditorView, span: WikiLinkSpan): boolean {
-  return view.state.selection.ranges.some((range) => {
-    if (range.empty) return range.from >= span.from && range.from <= span.to
-    return range.from < span.to && range.to > span.from
-  })
-}
-
 function statusClass(status: WikiLinkStatus): string {
   return `me-wikilink--${status}`
 }
@@ -177,8 +172,6 @@ function buildWikiLinkDecorations(
       const line = doc.line(lineNumber)
 
       for (const span of wikiLinkSpans(line.text, line.from)) {
-        if (selectionTouchesWikiLink(view, span)) continue
-
         const status = resolutionStatus(resolve(span.target))
         const markerClass = statusClass(status)
         const labelFrom = span.label ? span.labelFrom : span.targetFrom
@@ -349,9 +342,35 @@ export function wikiLinkInteractions(config: WikiLinksConfig): Extension {
   })
 }
 
-function wikiLinkCompletionRange(context: CompletionContext): { from: number; to: number; query: string } | null {
+type WikiLinkCompletionRange = {
+  from: number
+  to: number
+  query: string
+  hasClosingMarkers: boolean
+}
+
+function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletionRange | null {
   const line = context.state.doc.lineAt(context.pos)
-  const before = line.text.slice(0, context.pos - line.from)
+  const offset = context.pos - line.from
+
+  for (const span of wikiLinkSpans(line.text, line.from)) {
+    // Re-open note suggestions while editing the target portion of an
+    // existing wikilink. For aliased links, only the target is replaced;
+    // the alias remains source-owned and stable.
+    if (context.pos < span.targetFrom || context.pos > span.targetTo) continue
+
+    const query = context.state.doc.sliceString(span.targetFrom, span.targetTo)
+    if (!context.explicit && query.length === 0) return null
+
+    return {
+      from: span.targetFrom,
+      to: span.targetTo,
+      query,
+      hasClosingMarkers: true,
+    }
+  }
+
+  const before = line.text.slice(0, offset)
   const openIndex = before.lastIndexOf('[[')
   if (openIndex < 0) return null
 
@@ -366,20 +385,27 @@ function wikiLinkCompletionRange(context: CompletionContext): { from: number; to
     from: line.from + openIndex + 2,
     to: context.pos,
     query,
+    hasClosingMarkers: false,
   }
 }
 
-function suggestionToCompletion(suggestion: WikiLinkSuggestion): Completion {
+function suggestionToCompletion(
+  suggestion: WikiLinkSuggestion,
+  range: WikiLinkCompletionRange,
+): Completion {
   const completion: Completion = {
     label: suggestion.label ?? suggestion.target,
     type: 'text',
     boost: 1,
     apply(view, _completion, from, to) {
       const after = view.state.doc.sliceString(to, Math.min(to + 2, view.state.doc.length))
-      const insert = after === ']]' ? suggestion.target : `${suggestion.target}]]`
+      const hasClosingMarkers = range.hasClosingMarkers || after === ']]'
+      const insert = hasClosingMarkers ? suggestion.target : `${suggestion.target}]]`
       view.dispatch({
         changes: { from, to, insert },
-        selection: { anchor: from + suggestion.target.length + (after === ']]' ? 0 : 2) },
+        // Place the cursor at the visual end of the editable target, before
+        // hidden closing brackets when this completion inserted them.
+        selection: { anchor: from + suggestion.target.length },
         scrollIntoView: true,
       })
     },
@@ -400,7 +426,7 @@ export function wikiLinkCompletions(config: WikiLinksConfig): CompletionSource {
     return {
       from: range.from,
       to: range.to,
-      options: suggestions.map(suggestionToCompletion),
+      options: suggestions.map((suggestion) => suggestionToCompletion(suggestion, range)),
       validFor: /^[^\]\[|\n]*$/,
     }
   }
