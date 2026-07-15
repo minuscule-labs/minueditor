@@ -1623,7 +1623,8 @@ describe('MarkdownEditor', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.me-link')).toBeTruthy()
-      expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+      expect(container.querySelector('.me-link')?.textContent).toBe('example')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('https://example.com')
     })
   })
 
@@ -1647,7 +1648,8 @@ describe('MarkdownEditor', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.me-link')).toBeTruthy()
-      expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+      expect(container.querySelector('.me-link')?.textContent).toBe('example')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('https://example.com')
     })
   })
 
@@ -1671,11 +1673,12 @@ describe('MarkdownEditor', () => {
 
     await waitFor(() => {
       expect(container.querySelector('.me-link')).toBeTruthy()
-      expect(container.querySelectorAll('.me-token--inline').length).toBeGreaterThan(0)
+      expect(container.querySelector('.me-link')?.textContent).toBe('example')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('https://example.com')
     })
   })
 
-  it('mirrors visible edits into the hidden URL for URL-as-label markdown links', async () => {
+  it('keeps hidden URL stable when editing URL-as-label markdown links', async () => {
     let view: EditorView | null = null
     const value = '[https://old.example](https://old.example)'
     render(
@@ -1699,7 +1702,7 @@ describe('MarkdownEditor', () => {
     })
 
     await waitFor(() => {
-      expect(view!.state.doc.toString()).toBe('[https://new.example](https://new.example)')
+      expect(view!.state.doc.toString()).toBe('[https://new.example](https://old.example)')
       expect(view!.state.selection.main.from).toBe(from + 3)
     })
   })
