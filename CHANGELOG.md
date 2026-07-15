@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.6
+
+- Stabilized external markdown link live editing by replacing hidden link source syntax instead of CSS-shrinking it.
+- Kept external link label edits label-only; hidden URLs now remain stable until an explicit URL edit affordance exists.
+- Removed automatic URL-as-label mirroring to avoid cursor oddness and widget/decorator flicker during edits.
+
+Verified with typecheck and targeted editor tests.
+
 ## 0.10.5
 
 - Improved live markdown link editing so external link source syntax stays hidden while editing visible link text.
