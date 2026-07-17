@@ -118,23 +118,7 @@ function buildDecorations(view: EditorView, revealMarkers = true): DecorationSet
         continue
       }
 
-      if (span.kind === 'link') {
-        all.push(
-          Decoration.replace({}).range(span.openFrom, span.openTo),
-        )
-        if (span.contentFrom < span.contentTo) {
-          all.push(
-            Decoration.mark({ class: inlineClassByKind[span.kind] }).range(
-              span.contentFrom,
-              span.contentTo,
-            ),
-          )
-        }
-        all.push(
-          Decoration.replace({}).range(span.closeFrom, span.closeTo),
-        )
-        continue
-      }
+      if (span.kind === 'link') continue
 
       all.push(
         Decoration.mark({ class: 'me-token me-token--inline' }).range(

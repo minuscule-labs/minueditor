@@ -20,6 +20,7 @@ import { documentAnnotationExtension } from './extensions/annotations'
 import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
+import { externalLinkWidgets, openExternalLinkEditor } from './extensions/link-widget'
 import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
@@ -327,6 +328,7 @@ export const MarkdownEditor = forwardRef<
     if (mode === 'source') return []
     return [
       visualMarkdown,
+      externalLinkWidgets,
       tableDecorations,
       codeBlockDecorations(codeLanguages, codeHighlighter, codeHighlightStyle),
       markdownDecorations,
@@ -394,7 +396,7 @@ export const MarkdownEditor = forwardRef<
         }
         if (key === 'k') {
           event.preventDefault()
-          return wrapLink(view)
+          return openExternalLinkEditor(view) || wrapLink(view)
         }
         if (key === '`') {
           event.preventDefault()

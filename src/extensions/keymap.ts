@@ -1,5 +1,6 @@
 import { keymap } from '@codemirror/view'
 import type { EditorView } from '@codemirror/view'
+import { openExternalLinkEditor } from './link-widget'
 import {
   deleteMarkdownListMarker,
   indentList,
@@ -77,7 +78,7 @@ export const markdownKeymap = keymap.of([
   {
     key: 'Mod-k',
     run(view: EditorView) {
-      return wrapLink(view)
+      return openExternalLinkEditor(view) || wrapLink(view)
     },
   },
 ])

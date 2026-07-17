@@ -254,6 +254,101 @@ export const minueditorTheme = EditorView.theme({
     textUnderlineOffset: "2px",
   },
 
+  ".me-link-widget": {
+    cursor: "text",
+  },
+
+  ".me-link-hover-controls": {
+    position: "absolute",
+    zIndex: "1000",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+    maxWidth: "min(34rem, calc(100vw - 1rem))",
+    padding: "0.35rem 0.45rem",
+    border: "1px solid var(--me-border, rgba(16, 24, 40, 0.12))",
+    borderRadius: "8px",
+    background: "var(--me-surface, #fff)",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.14)",
+    color: "var(--me-text, #101828)",
+    fontSize: "0.85rem",
+  },
+
+  ".me-link-hover-controls[hidden]": {
+    display: "none",
+  },
+
+  ".me-link-hover-controls__url": {
+    maxWidth: "18rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: "var(--me-placeholder, #667085)",
+  },
+
+  ".me-link-hover-controls button": {
+    border: "none",
+    borderRadius: "5px",
+    padding: "0.15rem 0.35rem",
+    background: "transparent",
+    color: "var(--me-link-color, #2563eb)",
+    cursor: "pointer",
+    font: "inherit",
+  },
+
+  ".me-link-hover-controls button:hover": {
+    background: "var(--me-hover-bg, rgba(37, 99, 235, 0.08))",
+  },
+
+  ".me-link-editor-panel": {
+    position: "absolute",
+    zIndex: "1001",
+    display: "grid",
+    gridTemplateColumns: "minmax(10rem, 1fr) minmax(14rem, 1.4fr) auto auto auto",
+    alignItems: "center",
+    gap: "0.35rem",
+    maxWidth: "min(46rem, calc(100vw - 1rem))",
+    padding: "0.45rem",
+    border: "1px solid var(--me-border, rgba(16, 24, 40, 0.12))",
+    borderRadius: "10px",
+    background: "var(--me-surface, #fff)",
+    boxShadow: "0 12px 32px rgba(15, 23, 42, 0.16)",
+    color: "var(--me-text, #101828)",
+    fontSize: "0.9rem",
+  },
+
+  ".me-link-editor-panel[hidden]": {
+    display: "none",
+  },
+
+  ".me-link-editor-panel__input": {
+    minWidth: "0",
+    border: "1px solid var(--me-border, rgba(16, 24, 40, 0.12))",
+    borderRadius: "6px",
+    padding: "0.25rem 0.4rem",
+    background: "var(--me-bg, #fff)",
+    color: "inherit",
+    font: "inherit",
+  },
+
+  ".me-link-editor-panel__input--url": {
+    color: "var(--me-placeholder, #667085)",
+  },
+
+  ".me-link-editor-panel button": {
+    border: "none",
+    borderRadius: "5px",
+    padding: "0.25rem 0.45rem",
+    background: "transparent",
+    color: "var(--me-link-color, #2563eb)",
+    cursor: "pointer",
+    font: "inherit",
+  },
+
+  ".me-link-editor-panel button:hover": {
+    background: "var(--me-hover-bg, rgba(37, 99, 235, 0.08))",
+  },
+
   ".me-wikilink": {
     color: "var(--me-wikilink-color, var(--me-link-color, #2563eb))",
     textDecoration: "underline",
