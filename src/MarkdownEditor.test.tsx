@@ -1440,7 +1440,7 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       '[https://example.com](https://example.com)'
     )
-    expect(view!.state.selection.main.from).toBe(20)
+    expect(view!.state.selection.main.from).toBe(42)
   })
 
   it('inserts [url](url) when a URL is pasted into an empty list item', async () => {
@@ -1472,7 +1472,7 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       '- [https://example.com](https://example.com)'
     )
-    expect(view!.state.selection.main.from).toBe(22)
+    expect(view!.state.selection.main.from).toBe(44)
   })
 
   it('inserts and renders [url](url) when a URL is pasted after existing text', async () => {
@@ -1504,10 +1504,279 @@ describe('MarkdownEditor', () => {
     expect(view!.state.doc.toString()).toBe(
       'See [https://example.com](https://example.com)'
     )
-    expect(view!.state.selection.main.from).toBe(24)
+    expect(view!.state.selection.main.from).toBe(46)
     await waitFor(() => {
       expect(container.querySelector('.me-link')).toBeTruthy()
     })
+  })
+
+  it('keeps pasted URL links rendered when the cursor lands after the link', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'See '}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    const content = container.querySelector('.cm-content')!
+    fireEvent.paste(content, {
+      clipboardData: {
+        getData: (type: string) =>
+          type === 'text/plain' ? 'https://example.com' : '',
+      },
+    })
+
+    expect(view!.state.doc.toString()).toBe(
+      'See [https://example.com](https://example.com)'
+    )
+    expect(view!.state.selection.main.from).toBe(view!.state.doc.length)
+    await waitFor(() => {
+      expect(container.querySelector('.me-link-widget')?.textContent).toBe('https://example.com')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('[https://example.com]')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('](https://example.com)')
+    })
+  })
+
+  it('renders external links cleanly when the cursor is outside the link', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-link-widget')?.textContent).toBe('example')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('[example]')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('(https://example.com)')
+    })
+  })
+
+  it('reveals raw markdown when the cursor enters an external link', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-link-widget')).toBeFalsy()
+      expect(container.querySelector('.cm-content')?.textContent).toContain('[example](https://example.com)')
+    })
+  })
+
+  it('returns to clean rendering after editing a raw link label and leaving the link', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 8 } })
+      view!.dispatch({ changes: { from: 8, to: 8, insert: '!' }, selection: { anchor: 9 } })
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+
+    expect(view!.state.doc.toString()).toBe('[example!](https://example.com)')
+    await waitFor(() => {
+      expect(container.querySelector('.me-link-widget')?.textContent).toBe('example!')
+      expect(container.querySelector('.cm-content')?.textContent).not.toContain('](https://example.com)')
+    })
+  })
+
+  it('edits rendered external links from the hover controls panel', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const link = await waitFor(() => container.querySelector('.me-link-widget') as HTMLElement)
+    fireEvent.mouseOver(link)
+
+    const edit = await waitFor(() => {
+      const controls = document.body.querySelector('.me-link-hover-controls') as HTMLElement | null
+      const button = Array.from(controls?.querySelectorAll('button') ?? []).find((candidate) => candidate.textContent === 'Edit')
+      expect(button).toBeTruthy()
+      return button as HTMLButtonElement
+    })
+    fireEvent.click(edit)
+
+    const label = await waitFor(() => document.body.querySelector('input[aria-label="Link text"]') as HTMLInputElement)
+    const url = document.body.querySelector('input[aria-label="Link URL"]') as HTMLInputElement
+    fireEvent.change(label, { target: { value: 'updated' } })
+    await waitFor(() => expect(view!.state.doc.toString()).toBe('[updated](https://example.com)'))
+
+    fireEvent.change(url, { target: { value: 'https://updated.example' } })
+    await waitFor(() => expect(view!.state.doc.toString()).toBe('[updated](https://updated.example)'))
+  })
+
+  it('opens the external link editor with Cmd+K when the cursor is inside an existing link', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 4 } })
+    })
+
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'k', ctrlKey: true })
+
+    const label = await waitFor(() => {
+      const input = document.body.querySelector('input[aria-label="Link text"]') as HTMLInputElement | null
+      expect(input).toBeTruthy()
+      return input!
+    })
+    const url = document.body.querySelector('input[aria-label="Link URL"]') as HTMLInputElement
+
+    expect(label.value).toBe('example')
+    expect(url.value).toBe('https://example.com')
+  })
+
+  it('closes external link popovers on outside click', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const link = await waitFor(() => container.querySelector('.me-link-widget') as HTMLElement)
+    fireEvent.mouseOver(link)
+
+    const controls = await waitFor(() => {
+      const element = document.body.querySelector('.me-link-hover-controls') as HTMLElement | null
+      expect(element?.hidden).toBe(false)
+      return element!
+    })
+
+    fireEvent.mouseDown(document.body)
+    expect(controls.hidden).toBe(true)
+
+    fireEvent.mouseOver(link)
+    const edit = await waitFor(() => {
+      const element = document.body.querySelector('.me-link-hover-controls') as HTMLElement | null
+      expect(element?.hidden).toBe(false)
+      const button = Array.from(element?.querySelectorAll('button') ?? []).find((candidate) => candidate.textContent === 'Edit')
+      expect(button).toBeTruthy()
+      return button as HTMLButtonElement
+    })
+    fireEvent.click(edit)
+
+    const panel = await waitFor(() => {
+      const element = document.body.querySelector('.me-link-editor-panel') as HTMLElement | null
+      expect(element?.hidden).toBe(false)
+      return element!
+    })
+
+    fireEvent.mouseDown(document.body)
+    expect(panel.hidden).toBe(true)
+  })
+
+  it('shows Notion-style hover controls for rendered external links', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    const link = await waitFor(() => container.querySelector('.me-link-widget') as HTMLElement)
+    fireEvent.mouseOver(link)
+
+    await waitFor(() => {
+      const controls = document.body.querySelector('.me-link-hover-controls') as HTMLElement | null
+      expect(controls).toBeTruthy()
+      expect(controls?.hidden).toBe(false)
+      expect(controls?.textContent).toContain('https://example.com')
+      expect(controls?.querySelector('[aria-label="Open link"]')).toBeTruthy()
+      expect(controls?.textContent).toContain('Edit')
+      expect(controls?.querySelector('[aria-label="Copy link"]')).toBeTruthy()
+    })
+  })
+
+  it('opens rendered markdown links on ctrl-click', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const { container } = render(
+      <MarkdownEditor
+        value={'[example](https://example.com)'}
+        onChange={vi.fn()}
+      />
+    )
+
+    try {
+      const link = await waitFor(() => container.querySelector('.me-link-widget') as HTMLElement)
+      fireEvent.mouseDown(link, { ctrlKey: true })
+      fireEvent.click(link, { ctrlKey: true })
+
+      expect(open).toHaveBeenCalledTimes(1)
+      expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer')
+    } finally {
+      open.mockRestore()
+    }
   })
 
   it('opens markdown links on ctrl-click', async () => {
@@ -1628,7 +1897,7 @@ describe('MarkdownEditor', () => {
     })
   })
 
-  it('keeps markdown link syntax hidden while editing the visible label', async () => {
+  it('reveals markdown link syntax while editing the visible label', async () => {
     let view: EditorView | null = null
     const { container } = render(
       <MarkdownEditor
@@ -1647,13 +1916,12 @@ describe('MarkdownEditor', () => {
     })
 
     await waitFor(() => {
-      expect(container.querySelector('.me-link')).toBeTruthy()
-      expect(container.querySelector('.me-link')?.textContent).toBe('example')
-      expect(container.querySelector('.cm-content')?.textContent).not.toContain('https://example.com')
+      expect(container.querySelector('.me-link')).toBeFalsy()
+      expect(container.querySelector('.cm-content')?.textContent).toContain('[example](https://example.com)')
     })
   })
 
-  it('keeps markdown link source hidden when the cursor is in the hidden URL suffix', async () => {
+  it('reveals markdown link source when the cursor is in the URL suffix', async () => {
     let view: EditorView | null = null
     const { container } = render(
       <MarkdownEditor
@@ -1672,9 +1940,8 @@ describe('MarkdownEditor', () => {
     })
 
     await waitFor(() => {
-      expect(container.querySelector('.me-link')).toBeTruthy()
-      expect(container.querySelector('.me-link')?.textContent).toBe('example')
-      expect(container.querySelector('.cm-content')?.textContent).not.toContain('https://example.com')
+      expect(container.querySelector('.me-link')).toBeFalsy()
+      expect(container.querySelector('.cm-content')?.textContent).toContain('[example](https://example.com)')
     })
   })
 

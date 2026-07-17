@@ -56,18 +56,18 @@ export const autolinkPaste = EditorView.domEventHandlers({
               insert,
             }
           : { from: sel.from, insert },
-        // Keep the cursor at the visual end of the editable label, not in
-        // the hidden markdown URL suffix.
-        selection: { anchor: insertFrom + 1 + text.length },
+        // Place the cursor after the full link so the pasted URL immediately
+        // renders as a clean live-preview link.
+        selection: { anchor: insertFrom + insert.length },
       })
     } else {
       // Mid-line → keep pasted URLs renderable as standard markdown links.
       const insert = `[${text}](${text})`
       view.dispatch({
         changes: { from: sel.from, insert },
-        // Keep the cursor at the visual end of the editable label, not in
-        // the hidden markdown URL suffix.
-        selection: { anchor: sel.from + 1 + text.length },
+        // Place the cursor after the full link so the pasted URL immediately
+        // renders as a clean live-preview link.
+        selection: { anchor: sel.from + insert.length },
       })
     }
 

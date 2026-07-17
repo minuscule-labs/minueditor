@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.7
+
+- Added stable live preview rendering for external markdown links: links render cleanly when inactive and reveal raw markdown when the cursor enters them.
+- Added pasted URL handling that inserts markdown links and leaves the cursor after the full link so the preview renders immediately.
+- Added Cmd/Ctrl-click opening for rendered external links.
+- Added Notion-style external link hover controls with open, copy, and live-edit actions, including outside-click/focus-loss closing behavior.
+- Added Cmd/Ctrl+K editing for existing external links while preserving the existing wrap-link fallback.
+
+Verified with typecheck, tests, and release build.
+
 ## 0.10.6
 
 - Stabilized external markdown link live editing by replacing hidden link source syntax instead of CSS-shrinking it.
