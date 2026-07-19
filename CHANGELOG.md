@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.8
+
+- Applied the stable live-preview editing model to wikilinks: inactive wikilinks render cleanly, while cursor/selection inside a wikilink reveals raw `[[target|alias]]` source for predictable editing.
+- Refreshed wikilink autocomplete behavior so hosts are re-queried as the query changes instead of reusing stale `validFor` results.
+- Added optional wikilink suggestion context for host integrations, including source ranges, existing-link metadata, and an abort signal for stale async queries.
+- Added ID-backed wikilink completion insertion as `[[note_id|Title]]` while preserving aliases when editing existing aliased wikilinks.
+
+Verified with typecheck, targeted editor tests, and release build.
+
 ## 0.10.7
 
 - Added stable live preview rendering for external markdown links: links render cleanly when inactive and reveal raw markdown when the cursor enters them.

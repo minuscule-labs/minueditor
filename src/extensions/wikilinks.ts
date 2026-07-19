@@ -21,6 +21,7 @@ import type {
   WikiLinkResolution,
   WikiLinkStatus,
   WikiLinkSuggestion,
+  WikiLinkSuggestionContext,
   SlashCommand,
 } from '../types'
 
@@ -156,6 +157,13 @@ function markerDecoration(from: number, to: number): Range<Decoration> | null {
   return Decoration.mark({ class: 'me-wikilink-marker me-token me-token--inline' }).range(from, to)
 }
 
+function selectionOverlapsSpan(view: EditorView, span: WikiLinkSpan): boolean {
+  return view.state.selection.ranges.some((range) => {
+    if (range.empty) return range.from > span.from && range.from < span.to
+    return range.from < span.to && range.to > span.from
+  })
+}
+
 function buildWikiLinkDecorations(
   view: EditorView,
   resolve: (target: string) => ResolutionCacheEntry,
@@ -172,6 +180,12 @@ function buildWikiLinkDecorations(
       const line = doc.line(lineNumber)
 
       for (const span of wikiLinkSpans(line.text, line.from)) {
+        // Stable live preview: render wikilinks cleanly while inactive, but
+        // reveal the raw `[[target|alias]]` source as soon as the cursor or a
+        // selection enters the link. This matches the external-link model and
+        // avoids fragile hidden-marker cursor/delete behavior.
+        if (selectionOverlapsSpan(view, span)) continue
+
         const status = resolutionStatus(resolve(span.target))
         const markerClass = statusClass(status)
         const labelFrom = span.label ? span.labelFrom : span.targetFrom
@@ -347,6 +361,7 @@ type WikiLinkCompletionRange = {
   to: number
   query: string
   hasClosingMarkers: boolean
+  span?: WikiLinkSpan
 }
 
 function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletionRange | null {
@@ -367,6 +382,7 @@ function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletion
       to: span.targetTo,
       query,
       hasClosingMarkers: true,
+      span,
     }
   }
 
@@ -389,6 +405,26 @@ function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletion
   }
 }
 
+function suggestionAlias(suggestion: WikiLinkSuggestion): string {
+  const label = suggestion.label?.trim()
+  if (!label || label === suggestion.target) return ''
+  return `|${label}`
+}
+
+function suggestionInsertText(suggestion: WikiLinkSuggestion, range: WikiLinkCompletionRange, hasClosingMarkers: boolean): string {
+  // If the user is editing an existing aliased wikilink, only replace the
+  // target. The alias remains user-owned source text. Otherwise, a host may
+  // return target=stable ID and label=title, which completes to
+  // `[[note_id|Title]]`.
+  const alias = range.span?.label ? '' : suggestionAlias(suggestion)
+  const targetAndAlias = `${suggestion.target}${alias}`
+  return hasClosingMarkers ? targetAndAlias : `${targetAndAlias}]]`
+}
+
+function suggestionCursorPosition(from: number, insert: string): number {
+  return insert.endsWith(']]') ? from + insert.length - 2 : from + insert.length
+}
+
 function suggestionToCompletion(
   suggestion: WikiLinkSuggestion,
   range: WikiLinkCompletionRange,
@@ -400,12 +436,12 @@ function suggestionToCompletion(
     apply(view, _completion, from, to) {
       const after = view.state.doc.sliceString(to, Math.min(to + 2, view.state.doc.length))
       const hasClosingMarkers = range.hasClosingMarkers || after === ']]'
-      const insert = hasClosingMarkers ? suggestion.target : `${suggestion.target}]]`
+      const insert = suggestionInsertText(suggestion, range, hasClosingMarkers)
       view.dispatch({
         changes: { from, to, insert },
-        // Place the cursor at the visual end of the editable target, before
-        // hidden closing brackets when this completion inserted them.
-        selection: { anchor: from + suggestion.target.length },
+        // Place the cursor at the visual end of the completed wikilink content,
+        // before closing brackets when this completion inserted them.
+        selection: { anchor: suggestionCursorPosition(from, insert) },
         scrollIntoView: true,
       })
     },
@@ -421,13 +457,37 @@ export function wikiLinkCompletions(config: WikiLinksConfig): CompletionSource {
     const range = wikiLinkCompletionRange(context)
     if (!range) return null
 
-    const suggestions = await config.suggest(range.query)
+    const abortController = typeof AbortController === 'undefined' ? null : new AbortController()
+    if (abortController && typeof context.addEventListener === 'function') {
+      context.addEventListener('abort', () => abortController.abort(), { onDocChange: true })
+    }
+
+    const suggestionContext: WikiLinkSuggestionContext = {
+      query: range.query,
+      from: range.from,
+      to: range.to,
+      explicit: context.explicit,
+      ...(range.span
+        ? {
+            link: {
+              from: range.span.from,
+              to: range.span.to,
+              target: range.span.target,
+              ...(range.span.label ? { label: range.span.label } : {}),
+            },
+          }
+        : {}),
+      ...(abortController ? { signal: abortController.signal } : {}),
+    }
+    config.onSuggestionContext?.(suggestionContext)
+
+    const suggestions = await config.suggest(range.query, suggestionContext)
+    if (context.aborted || abortController?.signal.aborted) return null
 
     return {
       from: range.from,
       to: range.to,
       options: suggestions.map((suggestion) => suggestionToCompletion(suggestion, range)),
-      validFor: /^[^\]\[|\n]*$/,
     }
   }
 }

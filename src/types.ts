@@ -54,6 +54,25 @@ export type WikiLinkSuggestion = {
   detail?: string
 }
 
+export type WikiLinkSuggestionContext = {
+  /** Current target text/query inside `[[...]]`, excluding alias text. */
+  query: string
+  /** Source range that a completion would replace. */
+  from: number
+  to: number
+  /** Whether CodeMirror requested completions explicitly. */
+  explicit: boolean
+  /** Existing closed wikilink when editing a target; absent for a new `[[query`. */
+  link?: {
+    from: number
+    to: number
+    target: string
+    label?: string
+  }
+  /** Aborts when CodeMirror invalidates the current async completion query. */
+  signal?: AbortSignal
+}
+
 export type WikiLinksConfig = {
   enabled?: boolean
   /** Opens decorated inactive wikilinks on plain mouse down. Defaults to false so hosts can opt in. */
@@ -61,7 +80,9 @@ export type WikiLinksConfig = {
   /** Opens wikilinks on Cmd/Ctrl-click. Defaults to true. */
   openOnModifierClick?: boolean
   resolve?: (target: string) => WikiLinkResolution | Promise<WikiLinkResolution>
-  suggest?: (query: string) => Promise<WikiLinkSuggestion[]>
+  suggest?: (query: string, context?: WikiLinkSuggestionContext) => Promise<WikiLinkSuggestion[]>
+  /** Fires whenever the editor asks for wikilink suggestions, so hosts can refresh/re-query candidate data. */
+  onSuggestionContext?: (context: WikiLinkSuggestionContext) => void
   onOpen?: (target: string, context: { event: MouseEvent | KeyboardEvent }) => void
   onCreate?: (target: string) => void | Promise<void>
 }

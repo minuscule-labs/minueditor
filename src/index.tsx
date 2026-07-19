@@ -19,6 +19,7 @@ export type {
   WikiLinkStatus,
   WikiLinkResolution,
   WikiLinkSuggestion,
+  WikiLinkSuggestionContext,
   WikiLinksConfig,
   EditorToolbarProps,
   DocumentAnnotation,
