@@ -157,7 +157,10 @@ function isPromiseLike(value: WikiLinkResolution | Promise<WikiLinkResolution>):
 
 function markerDecoration(from: number, to: number): Range<Decoration> | null {
   if (to <= from) return null
-  return Decoration.mark({ class: 'me-wikilink-marker me-token me-token--inline' }).range(from, to)
+  // Use replace decorations for inactive wikilink syntax, matching external
+  // links. Styling hidden marker text down to near-zero width can leave the
+  // browser caret painted in surprising places at link boundaries.
+  return Decoration.replace({ inclusive: false }).range(from, to)
 }
 
 function selectionOverlapsSpan(view: EditorView, span: WikiLinkSpan): boolean {

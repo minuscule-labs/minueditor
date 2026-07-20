@@ -63,7 +63,8 @@ describe('wikiLinksExtension', () => {
 
     expect(view.dom.querySelector('.me-wikilink--resolved')).toBeTruthy()
     expect(view.dom.querySelector('.me-wikilink-label')?.textContent).toBe('the note')
-    expect(view.dom.querySelectorAll('.me-wikilink-marker').length).toBeGreaterThanOrEqual(2)
+    expect(view.dom.textContent).toContain('See the note today')
+    expect(view.dom.textContent).not.toContain('[[Note B|')
   })
 
   it('reveals wikilink source while editing the target', () => {

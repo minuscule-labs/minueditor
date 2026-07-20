@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.11
+
+- Fixed inactive wikilink marker hiding to use replacement decorations, matching external links and restoring stable caret painting around rendered wikilinks.
+- Added a dev-app wikilink manual test surface for ID-backed title-mode completion and open/create event inspection.
+
+Verified with typecheck, targeted wikilink tests, and release build.
+
 ## 0.10.10
 
 - Added policy-driven wikilink completion primitives so hosts can choose Obsidian-style aliases or title-snapshot links.

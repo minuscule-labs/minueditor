@@ -4,7 +4,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor } from '../src/index'
 import { EditorToolbar } from '../src/index'
-import type { CodeHighlighter, DocumentAnnotation, MarkdownEditorHandle } from '../src/index'
+import type { CodeHighlighter, DocumentAnnotation, MarkdownEditorHandle, WikiLinksConfig } from '../src/index'
 import { createShikiHighlighter } from '../src/shiki'
 import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
@@ -128,6 +128,25 @@ This section was inserted during an automation pass.
 
 This line remains in the document but should be struck through in the review surface.
 `
+
+const WIKI_INITIAL = `# Wikilink manual test
+
+Try:
+
+- [[
+- [[proj
+- [[note_1|Project Plan]]
+- [[note_2|Meeting Notes]]
+
+In title mode, put the cursor in the label/title part after \`|\` and select another suggestion.
+`
+
+const WIKI_NOTES = [
+  { id: 'note_1', title: 'Project Plan', folder: 'Work' },
+  { id: 'note_2', title: 'Meeting Notes', folder: 'Work' },
+  { id: 'note_3', title: 'Project Plan', folder: 'Archive' },
+  { id: 'note_4', title: 'Daily Journal', folder: 'Personal' },
+]
 
 function annotationById(annotations: readonly DocumentAnnotation[], id: string | null) {
   if (!id) return null
@@ -372,10 +391,52 @@ export default function App() {
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
   const [commentValue, setCommentValue] = useState(COMMENT_INITIAL)
   const [imageValue, setImageValue] = useState(IMAGE_INITIAL)
+  const [wikiValue, setWikiValue] = useState(WIKI_INITIAL)
+  const [wikiEvents, setWikiEvents] = useState<string[]>([])
   const [docView, setDocView] = useState<EditorView | null>(null)
   const [docEditing, setDocEditing] = useState(false)
   const [theme, setTheme] = useState<ThemeChoice>('base')
   const codeHighlighter = useMemo(() => createShikiHighlighter(), [])
+  const wikiLinksConfig = useMemo<WikiLinksConfig>(() => ({
+    labelBehavior: 'title',
+    resolve: (target) => {
+      const note = WIKI_NOTES.find((candidate) => candidate.id === target || candidate.title === target)
+      return note
+        ? { status: 'resolved', href: `/notes/${note.id}`, title: note.title }
+        : { status: 'unresolved' }
+    },
+    onSuggestionContext: (context) => {
+      setWikiEvents((events) => [
+        `context "${context.query}" part=${context.part} explicit=${context.explicit}`,
+        ...events.slice(0, 8),
+      ])
+    },
+    suggest: async (query, context) => {
+      setWikiEvents((events) => [
+        `suggest "${query}" part=${context?.part ?? 'unknown'}`,
+        ...events.slice(0, 8),
+      ])
+
+      const normalized = query.toLowerCase()
+      return WIKI_NOTES
+        .filter((note) =>
+          note.title.toLowerCase().includes(normalized) ||
+          note.id.toLowerCase().includes(normalized),
+        )
+        .map((note) => ({
+          id: note.id,
+          target: note.id,
+          label: note.title,
+          detail: `${note.folder} · ${note.id}`,
+        }))
+    },
+    onOpen: (target) => {
+      setWikiEvents((events) => [`open ${target}`, ...events.slice(0, 8)])
+    },
+    onCreate: async (target) => {
+      setWikiEvents((events) => [`create ${target}`, ...events.slice(0, 8)])
+    },
+  }), [])
 
   async function handleDemoImageUpload(file: File) {
     return URL.createObjectURL(file)
@@ -493,6 +554,31 @@ export default function App() {
         <CommentAnnotationsDemo codeHighlighter={codeHighlighter} />
 
         <AIChangeHighlightsDemo codeHighlighter={codeHighlighter} />
+
+        <section className="surface">
+          <h2>Wikilink surface</h2>
+          <p className="surface-desc">
+            ID-backed wikilinks · title-mode completion · raw reveal · Cmd/Ctrl-click open
+          </p>
+          <div className="editor-frame">
+            <MarkdownEditor
+              value={wikiValue}
+              onChange={setWikiValue}
+              placeholder="Try [[project…"
+              minHeight={220}
+              slashCommands={false}
+              wikiLinks={wikiLinksConfig}
+            />
+          </div>
+          <details>
+            <summary>Markdown value</summary>
+            <pre>{wikiValue}</pre>
+          </details>
+          <details open>
+            <summary>Events</summary>
+            <pre>{wikiEvents.join('\n')}</pre>
+          </details>
+        </section>
 
         <section className="surface">
           <h2>State inspector</h2>
