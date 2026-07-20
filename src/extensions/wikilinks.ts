@@ -22,6 +22,8 @@ import type {
   WikiLinkResolution,
   WikiLinkStatus,
   WikiLinkSuggestion,
+  WikiLinkCompletionApply,
+  WikiLinkCompletionPart,
   WikiLinkSuggestionContext,
   SlashCommand,
 } from '../types'
@@ -361,29 +363,62 @@ type WikiLinkCompletionRange = {
   from: number
   to: number
   query: string
+  part: WikiLinkCompletionPart
   hasClosingMarkers: boolean
   span?: WikiLinkSpan
 }
 
-function wikiLinkCompletionRangeForState(state: EditorState, pos: number, explicit: boolean): WikiLinkCompletionRange | null {
+function wikiLinkCompleteFrom(config: WikiLinksConfig): readonly WikiLinkCompletionPart[] {
+  return config.completeFrom ?? (config.labelBehavior === 'title' ? ['target', 'label'] : ['target'])
+}
+
+function wikiLinkCompletionApply(config: WikiLinksConfig): WikiLinkCompletionApply {
+  return config.completionApply ?? (config.labelBehavior === 'title' ? 'replace-full-link' : 'replace-target')
+}
+
+function canCompleteFrom(config: WikiLinksConfig, part: WikiLinkCompletionPart): boolean {
+  return wikiLinkCompleteFrom(config).includes(part)
+}
+
+function wikiLinkCompletionRangeForState(
+  state: EditorState,
+  pos: number,
+  explicit: boolean,
+  config: WikiLinksConfig,
+): WikiLinkCompletionRange | null {
   const line = state.doc.lineAt(pos)
   const offset = pos - line.from
 
   for (const span of wikiLinkSpans(line.text, line.from)) {
     // Re-open note suggestions while editing the target portion of an
-    // existing wikilink. For aliased links, only the target is replaced;
-    // the alias remains source-owned and stable.
-    if (pos < span.targetFrom || pos > span.targetTo) continue
+    // existing wikilink. For aliased links, the configured apply policy
+    // decides whether to preserve the label or rewrite the whole link.
+    if (canCompleteFrom(config, 'target') && pos >= span.targetFrom && pos <= span.targetTo) {
+      const query = state.doc.sliceString(span.targetFrom, span.targetTo)
+      if (!explicit && query.length === 0) return null
 
-    const query = state.doc.sliceString(span.targetFrom, span.targetTo)
-    if (!explicit && query.length === 0) return null
+      return {
+        from: span.targetFrom,
+        to: span.targetTo,
+        query,
+        part: 'target',
+        hasClosingMarkers: true,
+        span,
+      }
+    }
 
-    return {
-      from: span.targetFrom,
-      to: span.targetTo,
-      query,
-      hasClosingMarkers: true,
-      span,
+    if (canCompleteFrom(config, 'label') && span.pipeFrom != null && pos >= span.labelFrom && pos <= span.labelTo) {
+      const query = state.doc.sliceString(span.labelFrom, span.labelTo)
+      if (!explicit && query.length === 0) return null
+
+      return {
+        from: span.labelFrom,
+        to: span.labelTo,
+        query,
+        part: 'label',
+        hasClosingMarkers: true,
+        span,
+      }
     }
   }
 
@@ -402,12 +437,13 @@ function wikiLinkCompletionRangeForState(state: EditorState, pos: number, explic
     from: line.from + openIndex + 2,
     to: pos,
     query,
+    part: 'target',
     hasClosingMarkers: false,
   }
 }
 
-function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletionRange | null {
-  return wikiLinkCompletionRangeForState(context.state, context.pos, context.explicit)
+function wikiLinkCompletionRange(context: CompletionContext, config: WikiLinksConfig): WikiLinkCompletionRange | null {
+  return wikiLinkCompletionRangeForState(context.state, context.pos, context.explicit, config)
 }
 
 function suggestionAlias(suggestion: WikiLinkSuggestion): string {
@@ -416,7 +452,18 @@ function suggestionAlias(suggestion: WikiLinkSuggestion): string {
   return `|${label}`
 }
 
-function suggestionInsertText(suggestion: WikiLinkSuggestion, range: WikiLinkCompletionRange, hasClosingMarkers: boolean): string {
+function suggestionTargetAndAlias(suggestion: WikiLinkSuggestion): string {
+  return `${suggestion.target}${suggestionAlias(suggestion)}`
+}
+
+function suggestionInsertText(
+  suggestion: WikiLinkSuggestion,
+  range: WikiLinkCompletionRange,
+  hasClosingMarkers: boolean,
+  apply: WikiLinkCompletionApply,
+): string {
+  if (apply === 'replace-full-link' && range.span) return `[[${suggestionTargetAndAlias(suggestion)}]]`
+
   // If the user is editing an existing aliased wikilink, only replace the
   // target. The alias remains user-owned source text. Otherwise, a host may
   // return target=stable ID and label=title, which completes to
@@ -433,20 +480,31 @@ function suggestionCursorPosition(from: number, insert: string): number {
 function suggestionToCompletion(
   suggestion: WikiLinkSuggestion,
   range: WikiLinkCompletionRange,
+  apply: WikiLinkCompletionApply,
 ): Completion {
   const completion: Completion = {
     label: suggestion.label ?? suggestion.target,
     type: 'text',
     boost: 1,
     apply(view, _completion, from, to) {
-      const after = view.state.doc.sliceString(to, Math.min(to + 2, view.state.doc.length))
+      const replaceFrom = apply === 'replace-full-link' && range.span
+        ? range.span.from
+        : apply === 'replace-target' && range.part === 'label' && range.span
+          ? range.span.targetFrom
+          : from
+      const replaceTo = apply === 'replace-full-link' && range.span
+        ? range.span.to
+        : apply === 'replace-target' && range.part === 'label' && range.span
+          ? range.span.targetTo
+          : to
+      const after = view.state.doc.sliceString(replaceTo, Math.min(replaceTo + 2, view.state.doc.length))
       const hasClosingMarkers = range.hasClosingMarkers || after === ']]'
-      const insert = suggestionInsertText(suggestion, range, hasClosingMarkers)
+      const insert = suggestionInsertText(suggestion, range, hasClosingMarkers, apply)
       view.dispatch({
-        changes: { from, to, insert },
+        changes: { from: replaceFrom, to: replaceTo, insert },
         // Place the cursor at the visual end of the completed wikilink content,
         // before closing brackets when this completion inserted them.
-        selection: { anchor: suggestionCursorPosition(from, insert) },
+        selection: { anchor: suggestionCursorPosition(replaceFrom, insert) },
         scrollIntoView: true,
       })
     },
@@ -459,8 +517,9 @@ export function wikiLinkCompletions(config: WikiLinksConfig): CompletionSource {
   return async (context): Promise<CompletionResult | null> => {
     if (!config.suggest) return null
 
-    const range = wikiLinkCompletionRange(context)
+    const range = wikiLinkCompletionRange(context, config)
     if (!range) return null
+    const apply = wikiLinkCompletionApply(config)
 
     const abortController = typeof AbortController === 'undefined' ? null : new AbortController()
     if (abortController && typeof context.addEventListener === 'function') {
@@ -471,6 +530,7 @@ export function wikiLinkCompletions(config: WikiLinksConfig): CompletionSource {
       query: range.query,
       from: range.from,
       to: range.to,
+      part: range.part,
       explicit: context.explicit,
       ...(range.span
         ? {
@@ -492,13 +552,13 @@ export function wikiLinkCompletions(config: WikiLinksConfig): CompletionSource {
     return {
       from: range.from,
       to: range.to,
-      options: suggestions.map((suggestion) => suggestionToCompletion(suggestion, range)),
+      options: suggestions.map((suggestion) => suggestionToCompletion(suggestion, range, apply)),
     }
   }
 }
 
 function wikiLinkCompletionActivationKey(range: WikiLinkCompletionRange): string {
-  return `${range.from}:${range.to}:${range.query}`
+  return `${range.part}:${range.from}:${range.to}:${range.query}`
 }
 
 function wikiLinkCompletionActivator(config: WikiLinksConfig): Extension {
@@ -518,7 +578,7 @@ function wikiLinkCompletionActivator(config: WikiLinksConfig): Extension {
 
     maybeStart(view: EditorView): void {
       const selection = view.state.selection.main
-      const range = selection.empty ? wikiLinkCompletionRangeForState(view.state, selection.from, false) : null
+      const range = selection.empty ? wikiLinkCompletionRangeForState(view.state, selection.from, false, config) : null
       if (!range) {
         this.lastKey = null
         return
@@ -533,7 +593,7 @@ function wikiLinkCompletionActivator(config: WikiLinksConfig): Extension {
         this.scheduled = false
         const currentSelection = view.state.selection.main
         const currentRange = currentSelection.empty
-          ? wikiLinkCompletionRangeForState(view.state, currentSelection.from, false)
+          ? wikiLinkCompletionRangeForState(view.state, currentSelection.from, false, config)
           : null
         if (!currentRange || wikiLinkCompletionActivationKey(currentRange) !== key) return
         if (completionStatus(view.state) === 'active') return

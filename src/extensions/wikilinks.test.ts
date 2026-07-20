@@ -159,6 +159,7 @@ describe('wikiLinksExtension', () => {
       query: 'Nope',
       from: 6,
       to: 10,
+      part: 'target',
       link: { from: 4, to: 18, target: 'Nope', label: 'label' },
     }))
   })
@@ -203,6 +204,7 @@ describe('wikiLinkCompletions', () => {
       query: 'No',
       from: 2,
       to: 4,
+      part: 'target',
       explicit: false,
     }))
     const context = suggest.mock.calls[0]?.[1] as Record<string, unknown>
@@ -262,6 +264,7 @@ describe('wikiLinkCompletions', () => {
 
     expect(suggest).toHaveBeenCalledWith('Nope', expect.objectContaining({
       query: 'Nope',
+      part: 'target',
       link: { from: 4, to: 12, target: 'Nope' },
     }))
     expect(result?.from).toBe(6)
@@ -312,6 +315,7 @@ describe('wikiLinkCompletions', () => {
 
     expect(suggest).toHaveBeenCalledWith('No', expect.objectContaining({
       query: 'No',
+      part: 'target',
       link: { from: 4, to: 16, target: 'No', label: 'label' },
     }))
     expect(result?.from).toBe(6)
@@ -325,7 +329,7 @@ describe('wikiLinkCompletions', () => {
     expect(view.state.doc.toString()).toBe('See [[Note B|label]] today')
   })
 
-  it('does not trigger while editing a wikilink alias', async () => {
+  it('does not trigger while editing a wikilink label by default', async () => {
     const view = createView('See [[Note B|label]] today')
     const source = wikiLinkCompletions({ suggest: async () => [] })
 
@@ -336,6 +340,83 @@ describe('wikiLinkCompletions', () => {
     } as CompletionContext)
 
     expect(result).toBeNull()
+  })
+
+  it('can complete from labels and replace the full wikilink in title mode', async () => {
+    const view = createView('See [[old_id|Old Title]] today')
+    const suggest = vi.fn(async (_query: string, _context?: unknown) => [
+      { id: 'note-1', target: 'new_id', label: 'New Title' },
+    ])
+    const source = wikiLinkCompletions({ labelBehavior: 'title', suggest })
+
+    const result = await source({
+      state: view.state,
+      pos: 17,
+      explicit: false,
+    } as CompletionContext)
+
+    expect(suggest).toHaveBeenCalledWith('Old Title', expect.objectContaining({
+      query: 'Old Title',
+      from: 13,
+      to: 22,
+      part: 'label',
+      link: { from: 4, to: 24, target: 'old_id', label: 'Old Title' },
+    }))
+    expect(result?.from).toBe(13)
+    expect(result?.to).toBe(22)
+
+    const option = result!.options[0]
+    const apply = option.apply
+    expect(typeof apply).toBe('function')
+    if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+
+    expect(view.state.doc.toString()).toBe('See [[new_id|New Title]] today')
+    expect(view.state.selection.main.from).toBe(22)
+  })
+
+  it('can replace the full wikilink when completing from a target in title mode', async () => {
+    const view = createView('See [[old_id|Old Title]] today')
+    const source = wikiLinkCompletions({
+      labelBehavior: 'title',
+      suggest: async () => [{ id: 'note-1', target: 'new_id', label: 'New Title' }],
+    })
+
+    const result = await source({
+      state: view.state,
+      pos: 8,
+      explicit: false,
+    } as CompletionContext)
+
+    const option = result!.options[0]
+    const apply = option.apply
+    expect(typeof apply).toBe('function')
+    if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+
+    expect(view.state.doc.toString()).toBe('See [[new_id|New Title]] today')
+    expect(view.state.selection.main.from).toBe(22)
+  })
+
+  it('can complete from labels while preserving the label with replace-target policy', async () => {
+    const view = createView('See [[old_id|Old Title]] today')
+    const source = wikiLinkCompletions({
+      completeFrom: ['label'],
+      completionApply: 'replace-target',
+      suggest: async () => [{ id: 'note-1', target: 'new_id', label: 'New Title' }],
+    })
+
+    const result = await source({
+      state: view.state,
+      pos: 17,
+      explicit: false,
+    } as CompletionContext)
+
+    const option = result!.options[0]
+    const apply = option.apply
+    expect(typeof apply).toBe('function')
+    if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
+
+    expect(view.state.doc.toString()).toBe('See [[new_id|Old Title]] today')
+    expect(view.state.selection.main.from).toBe(12)
   })
 
   it('signals suggestion context when querying candidates', async () => {
@@ -354,6 +435,7 @@ describe('wikiLinkCompletions', () => {
       query: 'Nope',
       from: 6,
       to: 10,
+      part: 'target',
       explicit: false,
       link: { from: 4, to: 12, target: 'Nope' },
     }))

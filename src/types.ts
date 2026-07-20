@@ -54,15 +54,21 @@ export type WikiLinkSuggestion = {
   detail?: string
 }
 
+export type WikiLinkCompletionPart = 'target' | 'label'
+export type WikiLinkLabelBehavior = 'alias' | 'title'
+export type WikiLinkCompletionApply = 'replace-target' | 'replace-full-link'
+
 export type WikiLinkSuggestionContext = {
-  /** Current target text/query inside `[[...]]`, excluding alias text. */
+  /** Current completion text/query inside `[[...]]`, excluding wikilink syntax. */
   query: string
-  /** Source range that a completion would replace. */
+  /** Source range currently driving completion. */
   from: number
   to: number
+  /** Whether the user is completing from the link target or display label. */
+  part: WikiLinkCompletionPart
   /** Whether CodeMirror requested completions explicitly. */
   explicit: boolean
-  /** Existing closed wikilink when editing a target; absent for a new `[[query`. */
+  /** Existing closed wikilink when editing one; absent for a new `[[query`. */
   link?: {
     from: number
     to: number
@@ -80,6 +86,16 @@ export type WikiLinksConfig = {
   /** Opens wikilinks on Cmd/Ctrl-click. Defaults to true. */
   openOnModifierClick?: boolean
   resolve?: (target: string) => WikiLinkResolution | Promise<WikiLinkResolution>
+  /**
+   * Controls default completion behavior for the text after `|`.
+   * - `alias` preserves Obsidian-like custom aliases. Defaults to target-only completion.
+   * - `title` treats the label as a note title snapshot. Defaults to completing from target or label and replacing the full wikilink.
+   */
+  labelBehavior?: WikiLinkLabelBehavior
+  /** Source regions that can open note suggestions. Defaults from `labelBehavior`. */
+  completeFrom?: readonly WikiLinkCompletionPart[]
+  /** How accepting a suggestion rewrites markdown. Defaults from `labelBehavior`. */
+  completionApply?: WikiLinkCompletionApply
   suggest?: (query: string, context?: WikiLinkSuggestionContext) => Promise<WikiLinkSuggestion[]>
   /** Fires whenever the editor asks for wikilink suggestions, so hosts can refresh/re-query candidate data. */
   onSuggestionContext?: (context: WikiLinkSuggestionContext) => void

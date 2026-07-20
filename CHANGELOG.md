@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.10
+
+- Added policy-driven wikilink completion primitives so hosts can choose Obsidian-style aliases or title-snapshot links.
+- Added `wikiLinks.labelBehavior`, `wikiLinks.completeFrom`, and `wikiLinks.completionApply` to control where suggestions open and whether completion replaces only the target or the full wikilink.
+- Added `part: 'target' | 'label'` to wikilink suggestion context so hosts can distinguish target vs label/title completion.
+
+Verified with typecheck, targeted editor tests, and release build.
+
 ## 0.10.9
 
 - Reopened wikilink note suggestions when the cursor enters the target portion of an existing wikilink, matching the raw-source reveal editing model.
