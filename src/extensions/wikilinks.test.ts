@@ -23,6 +23,10 @@ function createView(doc: string, extensions: Extension[] = []): EditorView {
   return view
 }
 
+function tick(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, 80))
+}
+
 afterEach(() => {
   for (const view of views) {
     const parent = view.dom.parentElement
@@ -139,6 +143,24 @@ describe('wikiLinksExtension', () => {
     expect(event.defaultPrevented).toBe(true)
     expect(onOpen).toHaveBeenCalledOnce()
     expect(onOpen).toHaveBeenCalledWith('Note B', { event: expect.any(MouseEvent) })
+  })
+
+  it('starts note suggestions when the cursor enters an existing wikilink target', async () => {
+    const suggest = vi.fn(async (_query: string, _context?: unknown) => [
+      { id: 'note-1', target: 'Note B' },
+    ])
+    const view = createView('See [[Nope|label]] today', [wikiLinksExtension({ suggest })])
+
+    view.focus()
+    view.dispatch({ selection: { anchor: 8 } })
+    await tick()
+
+    expect(suggest).toHaveBeenCalledWith('Nope', expect.objectContaining({
+      query: 'Nope',
+      from: 6,
+      to: 10,
+      link: { from: 4, to: 18, target: 'Nope', label: 'label' },
+    }))
   })
 })
 

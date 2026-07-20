@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.9
+
+- Reopened wikilink note suggestions when the cursor enters the target portion of an existing wikilink, matching the raw-source reveal editing model.
+- Kept alias/display text editing plain and target-only: alias edits do not retarget links or open target suggestions.
+
+Verified with typecheck, targeted editor tests, and release build.
+
 ## 0.10.8
 
 - Applied the stable live-preview editing model to wikilinks: inactive wikilinks render cleanly, while cursor/selection inside a wikilink reveals raw `[[target|alias]]` source for predictable editing.

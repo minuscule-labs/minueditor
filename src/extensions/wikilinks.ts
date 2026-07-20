@@ -1,13 +1,14 @@
 import {
   acceptCompletion,
   autocompletion,
+  completionStatus,
   startCompletion,
   type Completion,
   type CompletionContext,
   type CompletionResult,
   type CompletionSource,
 } from '@codemirror/autocomplete'
-import { StateEffect, type Extension, type Range } from '@codemirror/state'
+import { StateEffect, type EditorState, type Extension, type Range } from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
@@ -364,18 +365,18 @@ type WikiLinkCompletionRange = {
   span?: WikiLinkSpan
 }
 
-function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletionRange | null {
-  const line = context.state.doc.lineAt(context.pos)
-  const offset = context.pos - line.from
+function wikiLinkCompletionRangeForState(state: EditorState, pos: number, explicit: boolean): WikiLinkCompletionRange | null {
+  const line = state.doc.lineAt(pos)
+  const offset = pos - line.from
 
   for (const span of wikiLinkSpans(line.text, line.from)) {
     // Re-open note suggestions while editing the target portion of an
     // existing wikilink. For aliased links, only the target is replaced;
     // the alias remains source-owned and stable.
-    if (context.pos < span.targetFrom || context.pos > span.targetTo) continue
+    if (pos < span.targetFrom || pos > span.targetTo) continue
 
-    const query = context.state.doc.sliceString(span.targetFrom, span.targetTo)
-    if (!context.explicit && query.length === 0) return null
+    const query = state.doc.sliceString(span.targetFrom, span.targetTo)
+    if (!explicit && query.length === 0) return null
 
     return {
       from: span.targetFrom,
@@ -395,14 +396,18 @@ function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletion
 
   const query = before.slice(openIndex + 2)
   if (/[[\]\n|]/.test(query)) return null
-  if (!context.explicit && openIndex + 2 !== before.length && query.length === 0) return null
+  if (!explicit && openIndex + 2 !== before.length && query.length === 0) return null
 
   return {
     from: line.from + openIndex + 2,
-    to: context.pos,
+    to: pos,
     query,
     hasClosingMarkers: false,
   }
+}
+
+function wikiLinkCompletionRange(context: CompletionContext): WikiLinkCompletionRange | null {
+  return wikiLinkCompletionRangeForState(context.state, context.pos, context.explicit)
 }
 
 function suggestionAlias(suggestion: WikiLinkSuggestion): string {
@@ -492,6 +497,52 @@ export function wikiLinkCompletions(config: WikiLinksConfig): CompletionSource {
   }
 }
 
+function wikiLinkCompletionActivationKey(range: WikiLinkCompletionRange): string {
+  return `${range.from}:${range.to}:${range.query}`
+}
+
+function wikiLinkCompletionActivator(config: WikiLinksConfig): Extension {
+  if (!config.suggest) return []
+
+  return ViewPlugin.fromClass(class {
+    private scheduled = false
+    private lastKey: string | null = null
+
+    constructor(readonly view: EditorView) {
+      this.maybeStart(view)
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.selectionSet || update.focusChanged) this.maybeStart(update.view)
+    }
+
+    maybeStart(view: EditorView): void {
+      const selection = view.state.selection.main
+      const range = selection.empty ? wikiLinkCompletionRangeForState(view.state, selection.from, false) : null
+      if (!range) {
+        this.lastKey = null
+        return
+      }
+
+      const key = wikiLinkCompletionActivationKey(range)
+      if (key === this.lastKey || this.scheduled) return
+      this.lastKey = key
+      this.scheduled = true
+
+      window.setTimeout(() => {
+        this.scheduled = false
+        const currentSelection = view.state.selection.main
+        const currentRange = currentSelection.empty
+          ? wikiLinkCompletionRangeForState(view.state, currentSelection.from, false)
+          : null
+        if (!currentRange || wikiLinkCompletionActivationKey(currentRange) !== key) return
+        if (completionStatus(view.state) === 'active') return
+        startCompletion(view)
+      }, 0)
+    }
+  })
+}
+
 export function wikiLinkCompletionExtension(config: WikiLinksConfig): Extension {
   if (!config.suggest) return []
 
@@ -499,6 +550,7 @@ export function wikiLinkCompletionExtension(config: WikiLinksConfig): Extension 
     autocompletion({
       override: [wikiLinkCompletions(config)],
     }),
+    wikiLinkCompletionActivator(config),
     keymap.of([
       {
         key: 'Tab',
@@ -518,6 +570,8 @@ export function wikiLinksExtension(
   return [
     wikiLinkDecorations(normalized),
     wikiLinkInteractions(normalized),
-    ...(options.completion === false ? [] : [wikiLinkCompletionExtension(normalized)]),
+    ...(options.completion === false
+      ? [wikiLinkCompletionActivator(normalized)]
+      : [wikiLinkCompletionExtension(normalized)]),
   ]
 }
