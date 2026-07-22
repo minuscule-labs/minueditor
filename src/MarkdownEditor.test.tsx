@@ -2658,6 +2658,59 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('keeps escaped pipes inside a single table cell', async () => {
+    const value = [
+      '| name | venue\\_id |',
+      '| :--- | :--- |',
+      '| Prestige Imports Tampa \\| The JDM Pit | 25715 |',
+    ].join('\n')
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.me-table-render th')).toHaveLength(2)
+      expect(container.querySelectorAll('.me-table-render td')).toHaveLength(2)
+      expect(container.querySelector('.me-table-render td')).toHaveTextContent(
+        'Prestige Imports Tampa | The JDM Pit',
+      )
+    })
+  })
+
+  it('preserves the first space typed between words in a table cell', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
+
+    const input = await waitFor(() => {
+      const element = container.querySelector(
+        '.me-table-input[data-row-index="1"][data-col-index="0"]',
+      ) as HTMLInputElement | null
+      expect(element).toBeTruthy()
+      return element!
+    })
+
+    input.focus()
+    fireEvent.input(input, { target: { value: 'Ada ' } })
+    expect(input.value).toBe('Ada ')
+
+    fireEvent.input(input, { target: { value: 'Ada Lovelace' } })
+    await waitFor(() => {
+      expect(input.value).toBe('Ada Lovelace')
+      expect(view!.state.doc.toString()).toContain('| Ada Lovelace | 42 |')
+    })
+  })
+
   it('does not activate table editing in read-only mode', async () => {
     let view: EditorView | null = null
     const { container } = render(

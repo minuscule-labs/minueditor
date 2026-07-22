@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.12
+
+- Fixed Markdown table parsing so escaped pipes (`\|`) remain visible content within a single cell instead of creating extra columns.
+- Fixed table cell typing so the first space entered between words is not trimmed and removed by widget synchronization.
+- Added regression coverage for escaped-pipe rendering and single-space typing in table cells.
+
+Verified with typecheck, the full test suite, release build, distribution verification, and package dry run.
+
 ## 0.10.11
 
 - Fixed inactive wikilink marker hiding to use replacement decorations, matching external links and restoring stable caret painting around rendered wikilinks.

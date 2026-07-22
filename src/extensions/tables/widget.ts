@@ -285,8 +285,14 @@ class TableWidget extends WidgetType {
         ) as HTMLInputElement | null
         if (!input) return false
         if (input.value !== value) {
-          input.value = value
-          syncTableInputSizer(input)
+          // Formatting a table trims cell-edge whitespace. Keep a focused
+          // input's in-progress edge spaces so typing one space is enough.
+          const isInProgressEdgeWhitespace =
+            document.activeElement === input && input.value.trim() === value
+          if (!isInProgressEdgeWhitespace) {
+            input.value = value
+            syncTableInputSizer(input)
+          }
         }
       }
     }

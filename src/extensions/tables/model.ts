@@ -20,7 +20,33 @@ function isTableDataLine(line: string): boolean {
 }
 
 function parseTableCells(line: string): string[] {
-  return line.trim().slice(1, -1).split('|').map((cell) => cell.trim())
+  const content = line.trim().slice(1, -1)
+  const cells: string[] = []
+  let cell = ''
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index]
+    if (character !== '|') {
+      cell += character
+      continue
+    }
+
+    let precedingBackslashes = 0
+    for (let cursor = cell.length - 1; cursor >= 0 && cell[cursor] === '\\'; cursor -= 1) {
+      precedingBackslashes += 1
+    }
+
+    if (precedingBackslashes % 2 === 1) {
+      // The final backslash is markdown syntax, not part of the visible value.
+      cell = `${cell.slice(0, -1)}|`
+    } else {
+      cells.push(cell.trim())
+      cell = ''
+    }
+  }
+
+  cells.push(cell.trim())
+  return cells
 }
 
 function parseAlignments(line: string): TableAlignment[] {
@@ -35,8 +61,25 @@ function parseAlignments(line: string): TableAlignment[] {
   })
 }
 
+function escapeTableCell(cell: string): string {
+  let escaped = ''
+
+  for (const character of cell) {
+    if (character === '|') {
+      let precedingBackslashes = 0
+      for (let cursor = escaped.length - 1; cursor >= 0 && escaped[cursor] === '\\'; cursor -= 1) {
+        precedingBackslashes += 1
+      }
+      if (precedingBackslashes % 2 === 0) escaped += '\\'
+    }
+    escaped += character
+  }
+
+  return escaped
+}
+
 function formatContentLine(cells: string[]): string {
-  return `|${cells.map((cell) => ` ${cell} `).join('|')}|`
+  return `|${cells.map((cell) => ` ${escapeTableCell(cell)} `).join('|')}|`
 }
 
 function formatDelimiterLine(alignments: TableAlignment[]): string {
