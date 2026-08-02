@@ -1,5 +1,11 @@
 # Roadmap
 
+## Active: HackMD and OpenKnowledge adaptations
+
+Implementation status, package sequencing, evidence, and the running internal change log are tracked in [`docs/hackmd-openknowledge-progress.md`](docs/hackmd-openknowledge-progress.md).
+
+Consumer-visible release notes remain in [`CHANGELOG.md`](CHANGELOG.md) under **Unreleased** until a version is prepared.
+
 ## Implemented: Notion-style image insertion
 
 `/Image` opens an inline picker instead of only inserting raw markdown image syntax (`![]()`). Paste, drop, and the picker all use the consumer-provided `onImageUpload(file) => Promise<string>` hook.

@@ -131,6 +131,84 @@ body {
   color: #64748b;
 }
 
+.outline-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.outline-panel {
+  position: sticky;
+  top: 16px;
+  overflow: hidden;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.outline-panel__header {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf1f5;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.outline-panel__items {
+  padding: 6px;
+}
+
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+}
+
+.outline-item--active {
+  background: #eef2ff;
+}
+
+.outline-item__navigate,
+.outline-item__copy {
+  border: 0;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+}
+
+.outline-item__navigate {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 7px 4px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-item__copy {
+  flex: none;
+  padding: 7px 8px;
+  opacity: 0;
+}
+
+.outline-item:hover .outline-item__copy,
+.outline-item:focus-within .outline-item__copy {
+  opacity: 1;
+}
+
+.outline-panel__status {
+  min-height: 30px;
+  padding: 6px 12px;
+  border-top: 1px solid #edf1f5;
+  color: #64748b;
+  font-size: 11px;
+}
+
 .annotation-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
@@ -265,9 +343,25 @@ pre {
   color: #94a3b8;
 }
 
+.app--theme-dark .outline-panel,
 .app--theme-dark .annotation-panel {
   background: #0f172a;
   border-color: #1f2937;
+}
+
+.app--theme-dark .outline-panel__header,
+.app--theme-dark .outline-panel__status {
+  border-color: #1f2937;
+  color: #94a3b8;
+}
+
+.app--theme-dark .outline-item--active {
+  background: #1e293b;
+}
+
+.app--theme-dark .outline-item__navigate,
+.app--theme-dark .outline-item__copy {
+  color: #cbd5e1;
 }
 
 .app--theme-dark .annotation-panel__header {
@@ -287,4 +381,15 @@ pre {
 .app--theme-dark details pre {
   background: #020617;
   color: #cbd5e1;
+}
+
+@media (max-width: 760px) {
+  .outline-layout,
+  .annotation-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .outline-panel {
+    position: static;
+  }
 }

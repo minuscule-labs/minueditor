@@ -48,6 +48,7 @@ import {
 import { expandInlineMarkdownRange, type SourceRange } from './internal/inline-markdown'
 import { createEditorCommands, type MinuEditorCommands } from './internal/editor-commands'
 import { createWidgetContext } from './internal/editor-context'
+import { getMarkdownHeadings, type MarkdownHeading } from './headings'
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
@@ -56,6 +57,8 @@ export interface MarkdownEditorHandle {
   getMarkdown: () => string | null
   getSelection: () => MarkdownEditorState['selection'] | null
   setSelection: (from: number, to?: number) => boolean
+  getHeadings: () => readonly MarkdownHeading[]
+  goToHeading: (slug: string) => boolean
   focus: () => boolean
   blur: () => boolean
   undo: () => boolean
@@ -266,6 +269,20 @@ export const MarkdownEditor = forwardRef<
         const anchor = Math.max(0, Math.min(from, docLength))
         const head = Math.max(0, Math.min(to, docLength))
         view.dispatch({ selection: { anchor, head }, scrollIntoView: true })
+        view.focus()
+        return true
+      }),
+      getHeadings: () => {
+        const view = viewRef.current
+        return view ? getMarkdownHeadings(view.state) : []
+      },
+      goToHeading: (slug: string) => withView((view) => {
+        const heading = getMarkdownHeadings(view.state).find((candidate) => candidate.slug === slug)
+        if (!heading) return false
+        view.dispatch({
+          selection: { anchor: heading.contentFrom },
+          scrollIntoView: true,
+        })
         view.focus()
         return true
       }),

@@ -2,9 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { LanguageDescription } from '@codemirror/language'
 import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
-import { MarkdownEditor } from '../src/index'
-import { EditorToolbar } from '../src/index'
-import type { CodeHighlighter, DocumentAnnotation, MarkdownEditorHandle, WikiLinksConfig } from '../src/index'
+import { EditorToolbar, MarkdownEditor, parseMarkdownHeadings } from '../src/index'
+import type {
+  CodeHighlighter,
+  DocumentAnnotation,
+  MarkdownEditorHandle,
+  WikiLinksConfig,
+} from '../src/index'
 import { createShikiHighlighter } from '../src/shiki'
 import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
@@ -89,6 +93,31 @@ const COMMAND_API_INITIAL = `# Command API demo
 Use the bottom toolbar to drive the editor through the public ref handle.
 
 Select some text, then try **Bold**, *Italic*, Link, Image, Table, or Code.
+`
+
+const OUTLINE_INITIAL = `# Product direction
+
+This demo exposes a host-owned outline built from MinuEditor heading data.
+
+## Everyday authoring
+
+Navigate between sections without inserting hidden block IDs.
+
+### Rich paste
+
+Preserve clean, portable Markdown.
+
+### Heading anchors
+
+Generate deterministic anchors and disambiguate duplicate headings.
+
+## Rich blocks
+
+Keep heavy renderers optional and lazy.
+
+## Rich blocks
+
+Duplicate headings receive a stable numeric suffix.
 `
 
 const COMMENT_DOC = `# Commented draft
@@ -315,6 +344,84 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           <button type="button" onClick={() => run('Table', () => editorRef.current?.insertTable())}>Table</button>
           <button type="button" onClick={() => run('Code block', () => editorRef.current?.insertCodeBlock())}>Code block</button>
           <span className="command-api-status">{status}</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function OutlineDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
+  const editorRef = useRef<MarkdownEditorHandle>(null)
+  const [value, setValue] = useState(OUTLINE_INITIAL)
+  const [activeSlug, setActiveSlug] = useState<string | null>('product-direction')
+  const [copyStatus, setCopyStatus] = useState('')
+  const headings = useMemo(() => parseMarkdownHeadings(value), [value])
+
+  function updateActiveHeading(selectionFrom: number) {
+    const currentHeadings = editorRef.current?.getHeadings() ?? headings
+    const active = currentHeadings.reduce<(typeof currentHeadings)[number] | null>(
+      (current, heading) => heading.from <= selectionFrom ? heading : current,
+      null,
+    )
+    setActiveSlug(active?.slug ?? null)
+  }
+
+  async function copyAnchor(slug: string) {
+    try {
+      await navigator.clipboard.writeText(`#${slug}`)
+      setCopyStatus(`Copied #${slug}`)
+    } catch {
+      setCopyStatus(`Anchor: #${slug}`)
+    }
+  }
+
+  return (
+    <section className="surface">
+      <h2>Heading outline and anchors</h2>
+      <p className="surface-desc">
+        Host-owned outline using exported syntax-tree heading ranges and duplicate-aware slugs.
+      </p>
+      <div className="outline-layout">
+        <nav className="outline-panel" aria-label="Document outline">
+          <div className="outline-panel__header">Outline</div>
+          <div className="outline-panel__items">
+            {headings.map((heading) => (
+              <div
+                className={`outline-item${activeSlug === heading.slug ? ' outline-item--active' : ''}`}
+                key={`${heading.from}-${heading.slug}`}
+                style={{ paddingLeft: `${10 + (heading.level - 1) * 14}px` }}
+              >
+                <button
+                  type="button"
+                  className="outline-item__navigate"
+                  onClick={() => editorRef.current?.goToHeading(heading.slug)}
+                >
+                  {heading.text || 'Untitled section'}
+                </button>
+                <button
+                  type="button"
+                  className="outline-item__copy"
+                  aria-label={`Copy link to ${heading.text || 'untitled section'}`}
+                  title={`Copy #${heading.slug}`}
+                  onClick={() => void copyAnchor(heading.slug)}
+                >
+                  #
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="outline-panel__status" aria-live="polite">{copyStatus}</div>
+        </nav>
+        <div className="editor-frame">
+          <MarkdownEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            onStateChange={(state) => updateActiveHeading(state.selection.from)}
+            minHeight={360}
+            codeHighlighter={codeHighlighter}
+            codeLanguages={devCodeLanguages}
+          />
         </div>
       </div>
     </section>
@@ -550,6 +657,8 @@ export default function App() {
         </section>
 
         <CommandApiDemo codeHighlighter={codeHighlighter} />
+
+        <OutlineDemo codeHighlighter={codeHighlighter} />
 
         <CommentAnnotationsDemo codeHighlighter={codeHighlighter} />
 

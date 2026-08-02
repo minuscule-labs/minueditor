@@ -144,6 +144,28 @@ describe('MarkdownEditor', () => {
     await waitFor(() => expect(container.querySelector('.me-image-picker')).toBeTruthy())
   })
 
+  it('enumerates and navigates to headings through the ref handle', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    render(
+      <MarkdownEditor
+        value={'# Intro\n\n## Details\n\n## Details\n'}
+        onChange={vi.fn()}
+        ref={ref}
+      />,
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.getHeadings().map(({ text, slug }) => ({ text, slug }))).toEqual([
+      { text: 'Intro', slug: 'intro' },
+      { text: 'Details', slug: 'details' },
+      { text: 'Details', slug: 'details-1' },
+    ])
+    expect(ref.current?.goToHeading('details-1')).toBe(true)
+    expect(ref.current?.getSelection()).toMatchObject({ from: 24, to: 24, empty: true })
+    expect(ref.current?.goToHeading('missing')).toBe(false)
+  })
+
   it('exposes formatting and block insertion commands through the ref handle', async () => {
     const ref = createRef<MarkdownEditorHandle>()
     render(<MarkdownEditor value={'Hello'} onChange={vi.fn()} ref={ref} />)

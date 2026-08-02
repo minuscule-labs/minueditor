@@ -8,6 +8,12 @@ export type { MarkdownEditorHandle } from './MarkdownEditor'
 export { EditorToolbar } from './toolbar/Toolbar'
 export { FloatingToolbar } from './toolbar/FloatingToolbar'
 export { MarkdownRenderer } from './renderer'
+export {
+  getMarkdownHeadings,
+  parseMarkdownHeadings,
+  slugifyMarkdownHeading,
+} from './headings'
+export type { MarkdownHeading, MarkdownHeadingLevel } from './headings'
 export { defaultSlashCommands } from './extensions/slash-commands'
 export { documentAnnotationExtension } from './extensions/annotations'
 export { githubDarkCodeHighlightStyle } from './extensions/codeblock/highlight-style'

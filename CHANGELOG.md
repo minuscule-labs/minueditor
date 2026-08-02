@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added syntax-tree-backed heading enumeration with visible text, source ranges, Unicode-aware slugs, and duplicate disambiguation.
+- Added `getHeadings()` and `goToHeading(slug)` to the editor ref handle.
+- Added a development outline surface for reviewing navigation, active sections, duplicate anchors, and copy-link behavior.
+
 ## 0.10.12
 
 - Fixed Markdown table parsing so escaped pipes (`\|`) remain visible content within a single cell instead of creating extra columns.

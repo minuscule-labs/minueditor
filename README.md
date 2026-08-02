@@ -167,6 +167,7 @@ Available handle methods include:
 - `undo()` / `redo()`
 - `getMarkdown()`
 - `getSelection()` / `setSelection(from, to?)`
+- `getHeadings()` / `goToHeading(slug)`
 - `insertMarkdown(markdown)`
 - `replaceSelection(markdown)`
 - `insertImage({ src, alt })`
@@ -181,6 +182,23 @@ editorRef.current?.view?.dispatch(...)
 ```
 
 Prefer the named commands for common editor actions; use `view` when you need lower-level CodeMirror behavior.
+
+## Heading outlines and anchors
+
+MinuEditor exposes syntax-tree-backed heading data while leaving outline panels and note URL construction to the host application:
+
+```tsx
+import { parseMarkdownHeadings } from '@dpklabs/minueditor'
+
+const headings = parseMarkdownHeadings(markdown)
+// [{ level, text, from, to, contentFrom, contentTo, slug }]
+
+editorRef.current?.goToHeading(headings[0].slug)
+```
+
+`slug` values are deterministic within the document. Duplicate headings receive `-1`, `-2`, and subsequent suffixes. Unicode letters are preserved, punctuation is removed, whitespace becomes `-`, and an empty result falls back to `section`.
+
+Use `getMarkdownHeadings(editorState)` when you already have a configured CodeMirror `EditorState`, or `editorRef.current?.getHeadings()` for the mounted editor. MinuEditor does not rewrite headings or insert proprietary block IDs.
 
 ## Table keyboard shortcuts
 
