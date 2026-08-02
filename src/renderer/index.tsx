@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Marked } from 'marked'
 import { renderCodeHtml, highlightCodeHtml } from '../extensions/highlight'
 import type { CodeHighlighter } from '../types'
+import { enhanceRendererCallouts } from '../extensions/callouts'
 
 interface MarkdownRendererProps {
   /** The plain markdown string to render. */
@@ -44,6 +45,8 @@ export function MarkdownRenderer({
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+
+    enhanceRendererCallouts(container)
 
     container.querySelectorAll<HTMLTableElement>('table').forEach((table) => {
       if (table.parentElement?.classList.contains('me-renderer-table-scroller')) return

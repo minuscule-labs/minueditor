@@ -131,6 +131,23 @@ body {
   color: #64748b;
 }
 
+.callout-demo-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  align-items: start;
+}
+
+.demo-column-title {
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .outline-layout {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
@@ -300,7 +317,8 @@ pre {
 }
 
 .app--theme-dark .app-header h1,
-.app--theme-dark .surface h2 {
+.app--theme-dark .surface h2,
+.app--theme-dark .demo-column-title {
   color: #f8fafc;
 }
 
@@ -384,6 +402,7 @@ pre {
 }
 
 @media (max-width: 760px) {
+  .callout-demo-layout,
   .outline-layout,
   .annotation-layout {
     grid-template-columns: 1fr;

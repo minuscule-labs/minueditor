@@ -20,6 +20,7 @@ import { insertImagePicker } from './images'
 import { setActiveCodeBlock } from './codeblock/state'
 import { createEmptyTableMarkdown } from './tables/model'
 import { setActiveTable } from './tables/state'
+import { calloutLabels, type CalloutType } from './callouts'
 
 function moveCursorAfterLineMarker(view: EditorView, markerPattern: RegExp): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
@@ -73,6 +74,30 @@ function setSlashBlockquote(view: EditorView): boolean {
   if (!setBlockquote(view)) return false
   return moveCursorAfterLineMarker(view, /^\s*>\s?/) || true
 }
+
+function insertCallout(view: EditorView, type: CalloutType): boolean {
+  const line = view.state.doc.lineAt(view.state.selection.main.from)
+  const body = line.text ? line.text : ''
+  const marker = `> [!${type.toUpperCase()}]\n> `
+  const insert = `${marker}${body}`
+
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert },
+    selection: { anchor: line.from + marker.length },
+    scrollIntoView: true,
+  })
+
+  return true
+}
+
+const calloutSlashCommands: readonly SlashCommand[] = (
+  ['note', 'tip', 'important', 'warning', 'caution'] as const
+).map((type) => ({
+  label: `${calloutLabels[type]} Callout`,
+  detail: `GitHub-style ${calloutLabels[type].toLowerCase()} alert`,
+  keywords: ['alert', 'callout', type],
+  run: (view) => insertCallout(view, type),
+}))
 
 function insertSlashTable(view: EditorView): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
@@ -158,6 +183,7 @@ export function createDefaultSlashCommands(
     keywords: ['blockquote'],
     run: setSlashBlockquote,
   },
+  ...calloutSlashCommands,
   {
     label: 'Code Block',
     keywords: ['code', 'pre'],

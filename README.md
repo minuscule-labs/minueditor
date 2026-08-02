@@ -183,6 +183,22 @@ editorRef.current?.view?.dispatch(...)
 
 Prefer the named commands for common editor actions; use `view` when you need lower-level CodeMirror behavior.
 
+## GitHub-style alerts and callouts
+
+MinuEditor recognizes the five portable GitHub alert types in live and static rendering:
+
+```md
+> [!NOTE]
+> Useful context for the reader.
+
+> [!WARNING]
+> Something requires extra care.
+```
+
+Supported types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`. The default slash-command menu includes one command for each type. Live mode displays a labeled callout and reveals the exact marker while it is being edited; source mode always shows the ordinary blockquote Markdown. Unknown or malformed markers remain normal blockquotes.
+
+Callouts are document content and travel with Markdown exports. They are separate from host-owned comments or `DocumentAnnotation` review metadata.
+
 ## Heading outlines and anchors
 
 MinuEditor exposes syntax-tree-backed heading data while leaving outline panels and note URL construction to the host application:

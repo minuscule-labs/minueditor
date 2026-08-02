@@ -16,6 +16,7 @@ import { defaultKeymap, historyKeymap, history, redoDepth, undoDepth } from '@co
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
+import { calloutDecorations } from './extensions/callouts'
 import { documentAnnotationExtension } from './extensions/annotations'
 import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
@@ -346,6 +347,7 @@ export const MarkdownEditor = forwardRef<
     return [
       visualMarkdown,
       externalLinkWidgets,
+      calloutDecorations,
       tableDecorations,
       codeBlockDecorations(codeLanguages, codeHighlighter, codeHighlightStyle),
       markdownDecorations,

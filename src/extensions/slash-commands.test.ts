@@ -95,6 +95,32 @@ describe('slashCommandExtension', () => {
     expect(view.state.selection.main.from).toBe(3)
   })
 
+  it('inserts a GitHub-style callout and places the cursor in its body', () => {
+    const view = createView('/warning')
+
+    applySlashCommand(view, 'Warning Callout')
+
+    expect(view.state.doc.toString()).toBe('> [!WARNING]\n> ')
+    expect(view.state.selection.main.from).toBe(15)
+  })
+
+  it('offers every portable GitHub alert type', () => {
+    const view = createView('/callout')
+    const result = slashCommandCompletions({
+      state: view.state,
+      pos: view.state.selection.main.from,
+      explicit: true,
+    } as CompletionContext)
+
+    expect(result?.options.map((option) => option.label)).toEqual(expect.arrayContaining([
+      'Note Callout',
+      'Tip Callout',
+      'Important Callout',
+      'Warning Callout',
+      'Caution Callout',
+    ]))
+  })
+
   it('inserts a table at the slash command line', () => {
     const view = createView('/table')
 

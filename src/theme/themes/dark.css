@@ -23,6 +23,17 @@
   --me-code-font-size: 0.875em;
   --me-blockquote-border: #334155;
   --me-blockquote-color: #94a3b8;
+
+  --me-callout-note: #58a6ff;
+  --me-callout-note-bg: rgba(56, 139, 253, 0.12);
+  --me-callout-tip: #56d364;
+  --me-callout-tip-bg: rgba(46, 160, 67, 0.12);
+  --me-callout-important: #bc8cff;
+  --me-callout-important-bg: rgba(163, 113, 247, 0.12);
+  --me-callout-warning: #d29922;
+  --me-callout-warning-bg: rgba(187, 128, 9, 0.14);
+  --me-callout-caution: #f85149;
+  --me-callout-caution-bg: rgba(248, 81, 73, 0.12);
   --me-hr-color: #233044;
   --me-syntax-color: #5b6b82;
   --me-list-marker-color: #cbd5e1;

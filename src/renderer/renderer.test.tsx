@@ -51,6 +51,58 @@ describe('MarkdownRenderer', () => {
   it('renders a blockquote', () => {
     const { container } = render(<MarkdownRenderer value={'> Quote text'} />)
     expect(container.querySelector('blockquote')).toBeInTheDocument()
+    expect(container.querySelector('.me-callout')).not.toBeInTheDocument()
+  })
+
+  it('renders all portable GitHub alert types as labeled callouts', () => {
+    const value = [
+      '> [!NOTE]',
+      '> Note text.',
+      '',
+      '> [!TIP]',
+      '> Tip text.',
+      '',
+      '> [!IMPORTANT]',
+      '> Important text.',
+      '',
+      '> [!WARNING]',
+      '> Warning text.',
+      '',
+      '> [!CAUTION]',
+      '> Caution text.',
+    ].join('\n')
+
+    const { container } = render(<MarkdownRenderer value={value} />)
+    const callouts = container.querySelectorAll('.me-callout')
+
+    expect(callouts).toHaveLength(5)
+    expect(Array.from(callouts).map((callout) => callout.getAttribute('data-callout-type'))).toEqual([
+      'note',
+      'tip',
+      'important',
+      'warning',
+      'caution',
+    ])
+    expect(screen.getByText('Important', { selector: '.me-callout-title' })).toBeInTheDocument()
+    expect(container).not.toHaveTextContent('[!IMPORTANT]')
+  })
+
+  it('preserves literal wikilinks inside statically rendered callouts', () => {
+    const { container } = render(
+      <MarkdownRenderer value={'> [!NOTE]\n> See [[Project Alpha|the project notes]].'} />,
+    )
+
+    expect(container.querySelector('.me-callout--note')).toHaveTextContent(
+      'See [[Project Alpha|the project notes]].',
+    )
+  })
+
+  it('keeps unknown alert markers as ordinary blockquotes', () => {
+    const { container } = render(
+      <MarkdownRenderer value={'> [!CUSTOM]\n> Portable fallback.'} />,
+    )
+    expect(container.querySelector('.me-callout')).not.toBeInTheDocument()
+    expect(container).toHaveTextContent('[!CUSTOM]')
   })
 
   it('renders unordered and ordered lists', () => {

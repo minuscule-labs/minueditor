@@ -29,7 +29,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | Phase | Work package | Owner | Status | Review/evidence |
 | --- | --- | --- | --- | --- |
 | 1 | Heading outline and anchors | MinuEditor | Complete | 220 tests; typecheck; build; dist verification; manual demo approved |
-| 1 | GitHub-style alerts/callouts | MinuEditor | Planned | Portable blockquote syntax; live/source/static parity |
+| 1 | GitHub-style alerts/callouts | MinuEditor | Complete | 231 tests; typecheck; build; dist verification |
 | 1 | Code-language completion | MinuEditor | Planned | Aliases, suggestions, unsupported state |
 | 1 | Rich paste | MinuEditor | Planned | Browser/Docs/Notion/spreadsheet fixtures required |
 | 1 | Footnotes | MinuEditor | Planned | Navigation, diagnostics, accessible backlinks |
@@ -91,6 +91,29 @@ Files:
 - `README.md`
 - `CHANGELOG.md`
 
+### 2026-08-02 — GitHub-style alerts/callouts
+
+**Status:** Complete
+
+Implemented scope:
+
+- Portable `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` syntax.
+- Live callout lines with source reveal on the marker line.
+- Static renderer enhancement with accessible labels.
+- Slash commands for all supported types.
+- Theme variables, malformed fallback, focused tests, and a live/static parity demo.
+- Visual-review fixes for static variant-color specificity and editor list-marker gutter compatibility.
+
+Verification:
+
+- `npm test -- --run` — 231 tests passed across 8 files, including wikilink composition and static literal fallback.
+- `npm run typecheck` — passed.
+- `npm run build` — passed.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review approved for live/source behavior, static parity, semantic colors, dark theme, and narrow layout.
+
 ## Next package
 
-**GitHub-style alerts/callouts** is next, but it should begin only after the heading package is committed as its own reviewable commit.
+Review the remaining roadmap and choose the next approved package; code-language completion is not assumed.

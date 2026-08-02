@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { LanguageDescription } from '@codemirror/language'
 import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
-import { EditorToolbar, MarkdownEditor, parseMarkdownHeadings } from '../src/index'
+import { EditorToolbar, MarkdownEditor, MarkdownRenderer, parseMarkdownHeadings } from '../src/index'
 import type {
   CodeHighlighter,
   DocumentAnnotation,
@@ -93,6 +93,27 @@ const COMMAND_API_INITIAL = `# Command API demo
 Use the bottom toolbar to drive the editor through the public ref handle.
 
 Select some text, then try **Bold**, *Italic*, Link, Image, Table, or Code.
+`
+
+const CALLOUT_INITIAL = `# GitHub-style callouts
+
+> [!NOTE]
+> Callouts are portable Markdown content, unlike external review comments.
+
+> [!TIP]
+> Use a slash command such as **Tip Callout** to insert one.
+
+> [!IMPORTANT]
+> Markdown remains the source of truth.
+>
+> - Nested lists work.
+> - Links and **formatting** remain ordinary Markdown.
+
+> [!WARNING]
+> Unknown or malformed markers fall back to blockquotes.
+
+> [!CAUTION]
+> Do not use callouts as a replacement for comments or review threads.
 `
 
 const OUTLINE_INITIAL = `# Product direction
@@ -344,6 +365,42 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           <button type="button" onClick={() => run('Table', () => editorRef.current?.insertTable())}>Table</button>
           <button type="button" onClick={() => run('Code block', () => editorRef.current?.insertCodeBlock())}>Code block</button>
           <span className="command-api-status">{status}</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function CalloutDemo() {
+  const [value, setValue] = useState(CALLOUT_INITIAL)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+
+  return (
+    <section className="surface">
+      <h2>GitHub-style alerts and callouts</h2>
+      <p className="surface-desc">
+        Portable blockquote syntax with live/source/static parity. Click into a marker to reveal it.
+      </p>
+      <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>
+        Editor mode: {mode}
+      </button>
+      <div className="callout-demo-layout">
+        <div>
+          <h3 className="demo-column-title">Editor</h3>
+          <div className="editor-frame">
+            <MarkdownEditor
+              value={value}
+              onChange={setValue}
+              mode={mode}
+              minHeight={420}
+            />
+          </div>
+        </div>
+        <div>
+          <h3 className="demo-column-title">Static renderer</h3>
+          <div className="editor-frame">
+            <MarkdownRenderer value={value} />
+          </div>
         </div>
       </div>
     </section>
@@ -659,6 +716,8 @@ export default function App() {
         <CommandApiDemo codeHighlighter={codeHighlighter} />
 
         <OutlineDemo codeHighlighter={codeHighlighter} />
+
+        <CalloutDemo />
 
         <CommentAnnotationsDemo codeHighlighter={codeHighlighter} />
 

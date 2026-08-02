@@ -49,6 +49,18 @@
     --me-blockquote-border: #d0d0d0;
     --me-blockquote-color: #555;
 
+    /* ── GitHub-style callouts ─────────────────────────────── */
+    --me-callout-note: #0969da;
+    --me-callout-note-bg: rgba(9, 105, 218, 0.08);
+    --me-callout-tip: #1a7f37;
+    --me-callout-tip-bg: rgba(26, 127, 55, 0.08);
+    --me-callout-important: #8250df;
+    --me-callout-important-bg: rgba(130, 80, 223, 0.08);
+    --me-callout-warning: #9a6700;
+    --me-callout-warning-bg: rgba(154, 103, 0, 0.09);
+    --me-callout-caution: #cf222e;
+    --me-callout-caution-bg: rgba(207, 34, 46, 0.08);
+
     /* ── HR ────────────────────────────────────────────────── */
     --me-hr-color: #e0e0e0;
 
@@ -335,6 +347,50 @@
     padding-left: 1em;
     color: var(--me-blockquote-color, #666);
     margin: 0.75em 0;
+}
+
+.me-renderer blockquote.me-callout {
+    --me-callout-accent: var(--me-callout-note, #0969da);
+    --me-callout-surface: var(--me-callout-note-bg, rgba(9, 105, 218, 0.08));
+    border-left-color: var(--me-callout-accent);
+    border-radius: 0 6px 6px 0;
+    padding: 0.8em 1em;
+    background: var(--me-callout-surface);
+    color: var(--me-text, #1a1a1a);
+}
+
+.me-renderer blockquote.me-callout--tip {
+    --me-callout-accent: var(--me-callout-tip, #1a7f37);
+    --me-callout-surface: var(--me-callout-tip-bg, rgba(26, 127, 55, 0.08));
+}
+
+.me-renderer blockquote.me-callout--important {
+    --me-callout-accent: var(--me-callout-important, #8250df);
+    --me-callout-surface: var(--me-callout-important-bg, rgba(130, 80, 223, 0.08));
+}
+
+.me-renderer blockquote.me-callout--warning {
+    --me-callout-accent: var(--me-callout-warning, #9a6700);
+    --me-callout-surface: var(--me-callout-warning-bg, rgba(154, 103, 0, 0.09));
+}
+
+.me-renderer blockquote.me-callout--caution {
+    --me-callout-accent: var(--me-callout-caution, #cf222e);
+    --me-callout-surface: var(--me-callout-caution-bg, rgba(207, 34, 46, 0.08));
+}
+
+.me-callout-title,
+.me-callout-label {
+    color: var(--me-callout-accent);
+    font-weight: 700;
+}
+
+.me-renderer .me-callout-title {
+    margin-bottom: 0.35em;
+}
+
+.me-renderer .me-callout > :last-child {
+    margin-bottom: 0;
 }
 
 .me-renderer hr {

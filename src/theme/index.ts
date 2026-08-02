@@ -381,6 +381,73 @@ export const minueditorTheme = EditorView.theme({
     marginLeft: "0",
   },
 
+  ".cm-line.me-callout-line": {
+    backgroundColor: "var(--me-callout-note-bg, rgba(9, 105, 218, 0.08))",
+    boxShadow: "inset 3px 0 var(--me-callout-note, #0969da)",
+  },
+
+  ".cm-line.me-callout-line:not(.me-list-line)": {
+    paddingLeft: "12px",
+  },
+
+  ".cm-line.me-callout-line--tip": {
+    backgroundColor: "var(--me-callout-tip-bg, rgba(26, 127, 55, 0.08))",
+    boxShadow: "inset 3px 0 var(--me-callout-tip, #1a7f37)",
+  },
+
+  ".cm-line.me-callout-line--important": {
+    backgroundColor: "var(--me-callout-important-bg, rgba(130, 80, 223, 0.08))",
+    boxShadow: "inset 3px 0 var(--me-callout-important, #8250df)",
+  },
+
+  ".cm-line.me-callout-line--warning": {
+    backgroundColor: "var(--me-callout-warning-bg, rgba(154, 103, 0, 0.09))",
+    boxShadow: "inset 3px 0 var(--me-callout-warning, #9a6700)",
+  },
+
+  ".cm-line.me-callout-line--caution": {
+    backgroundColor: "var(--me-callout-caution-bg, rgba(207, 34, 46, 0.08))",
+    boxShadow: "inset 3px 0 var(--me-callout-caution, #cf222e)",
+  },
+
+  ".cm-line.me-callout-line--first": {
+    borderTopRightRadius: "6px",
+  },
+
+  ".cm-line.me-callout-line--last": {
+    borderBottomRightRadius: "6px",
+  },
+
+  ".me-callout-line .me-blockquote": {
+    borderLeft: "0",
+    paddingLeft: "0",
+    color: "inherit",
+  },
+
+  ".me-callout-label": {
+    fontWeight: "700",
+  },
+
+  ".me-callout-label--note": {
+    color: "var(--me-callout-note, #0969da)",
+  },
+
+  ".me-callout-label--tip": {
+    color: "var(--me-callout-tip, #1a7f37)",
+  },
+
+  ".me-callout-label--important": {
+    color: "var(--me-callout-important, #8250df)",
+  },
+
+  ".me-callout-label--warning": {
+    color: "var(--me-callout-warning, #9a6700)",
+  },
+
+  ".me-callout-label--caution": {
+    color: "var(--me-callout-caution, #cf222e)",
+  },
+
   ".me-hr": {
     borderTop: "2px solid var(--me-hr-color, #e0e0e0)",
     display: "block",
