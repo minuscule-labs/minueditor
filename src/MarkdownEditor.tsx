@@ -26,6 +26,7 @@ import { tableDecorations } from './extensions/tables'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
+import { pasteAsPlainTextExtension, richPasteExtension } from './extensions/rich-paste'
 import { createDefaultSlashCommands, editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
 import {
   normalizeWikiLinksConfig,
@@ -198,6 +199,7 @@ export const MarkdownEditor = forwardRef<
     minHeight,
     maxHeight,
     onSubmit,
+    richPaste = true,
     onImageUpload,
     onRequestImage,
     codeLanguages,
@@ -221,6 +223,7 @@ export const MarkdownEditor = forwardRef<
   const annotationsCompartment = useRef(new Compartment())
   const wikiLinksCompartment = useRef(new Compartment())
   const completionCompartment = useRef(new Compartment())
+  const richPasteCompartment = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onSubmitRef = useRef(onSubmit)
   const onImageUploadRef = useRef(onImageUpload)
@@ -551,6 +554,10 @@ export const MarkdownEditor = forwardRef<
       updateListener,
       EditorView.clipboardOutputFilter.of((text, state) => selectedMarkdownText(state).text || text),
       shortcutGuard,
+      richPasteCompartment.current.of([
+        pasteAsPlainTextExtension(richPaste !== false),
+        richPasteExtension(richPaste),
+      ]),
       autolinkPaste,
       linkClickNavigation,
       imagePasteHandler(() => onImageUploadRef.current),
@@ -643,6 +650,18 @@ export const MarkdownEditor = forwardRef<
       effects: completionCompartment.current.reconfigure(buildCompletionExtensions()),
     })
   }, [buildCompletionExtensions])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+
+    view.dispatch({
+      effects: richPasteCompartment.current.reconfigure([
+        pasteAsPlainTextExtension(richPaste !== false),
+        richPasteExtension(richPaste),
+      ]),
+    })
+  }, [richPaste])
 
   useEffect(() => {
     const view = viewRef.current

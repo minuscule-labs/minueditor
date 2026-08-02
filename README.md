@@ -372,6 +372,36 @@ If you do not pass `codeHighlighter`, fenced code remains plain and escaped.
 
 In `readOnly` mode, code blocks stay in static display mode. They still render plain escaped code by default, and they use `codeHighlighter` for highlighted display when one is provided.
 
+## Rich paste
+
+Rich paste is enabled by default. MinuEditor:
+
+1. preserves recognized Markdown instead of reinterpreting clipboard HTML;
+2. converts tab-delimited spreadsheet cells into a Markdown table;
+3. converts safe headings, paragraphs, formatting, links, lists, quotes, tables, and code from clipboard HTML;
+4. leaves ordinary plain text to the browser;
+5. continues to route pasted image files through the host-owned `onImageUpload` callback;
+6. keeps existing URL paste behavior.
+
+Press **Cmd/Ctrl+Shift+V** to bypass conversion and insert the clipboard's plain-text representation. Active HTML content, embeds, unsafe links, and HTML-only images are discarded rather than introduced into the document.
+
+Disable all rich conversion or individual conversion paths with `richPaste`:
+
+```tsx
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  richPaste={{
+    html: true,
+    tabular: true,
+  }}
+/>
+
+<MarkdownEditor value={value} onChange={setValue} richPaste={false} />
+```
+
+Converted output is always Markdown; no HTML becomes canonical editor state.
+
 ## Image uploads
 
 Image uploads are intentionally bring-your-own-storage.

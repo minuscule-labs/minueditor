@@ -31,7 +31,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 1 | Heading outline and anchors | MinuEditor | Complete | 220 tests; typecheck; build; dist verification; manual demo approved |
 | 1 | GitHub-style alerts/callouts | MinuEditor | Complete | 231 tests; typecheck; build; dist verification |
 | 1 | Code-language completion | MinuEditor | Deferred | Lower current value; revisit with diagnostics or user demand |
-| 1 | Rich paste | MinuEditor | Planned | Approved after parity fixtures; browser/Docs/Notion/spreadsheet fixtures required |
+| 1 | Rich paste | MinuEditor | Complete | 260 tests; browser/Docs/Notion/spreadsheet fixtures; manual review approved |
 | 1 | Footnotes | MinuEditor | Deferred | No current demand; unsupported syntax remains editable Markdown |
 | 2 | Shared diagnostics contract | Shared | Planned | Editor, MinuNotes UI, harness, and MCP schema |
 | 2 | Problems panel | MinuNotes | Planned | Host-owned panel using shared diagnostics |
@@ -192,6 +192,32 @@ Verification:
 
 Manual review approved with further performance candidates deferred to later bounded packages.
 
+### 2026-08-02 — Rich paste
+
+**Status:** Complete
+
+Implemented:
+
+- Default safe HTML-to-Markdown conversion for headings, formatting, links, lists, quotes, tables, and fenced code.
+- Tab-delimited spreadsheet conversion with header generation, uneven-row padding, and pipe escaping.
+- Exact recognized-Markdown preservation by bypassing HTML conversion.
+- Cmd/Ctrl+Shift+V plain-text escape hatch.
+- `richPaste` configuration for complete or per-path opt-out.
+- Existing URL behavior and host-owned image upload precedence.
+- Active-content, unsafe-link, embed, and HTML-only-image rejection.
+- Shared browser, Google Docs, Notion, spreadsheet, and existing-Markdown fixtures.
+- Development rich-paste lab and public documentation.
+
+Verification:
+
+- `npm test -- --run` — 260 tests passed across 10 files.
+- `npm run typecheck` — passed.
+- `npm run build` — passed.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review approved.
+
 ## Next package
 
-Review cursor/viewport stability in the affected host workflow, then restore the ready-for-review rich-paste package.
+Begin **Mermaid as the first rich-block lifecycle proof**; derive only the reusable lifecycle required by callouts and Mermaid.

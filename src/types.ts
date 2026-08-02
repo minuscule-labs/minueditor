@@ -103,6 +103,15 @@ export type WikiLinksConfig = {
   onCreate?: (target: string) => void | Promise<void>
 }
 
+export type RichPasteConfig = {
+  /** Enables rich paste conversion. Defaults to true. */
+  enabled?: boolean
+  /** Converts safe clipboard HTML into portable Markdown. Defaults to true. */
+  html?: boolean
+  /** Converts tab-delimited clipboard text into a Markdown table. Defaults to true. */
+  tabular?: boolean
+}
+
 export type CodeHighlighter = (code: string, lang: string) => string | Promise<string | null> | null
 
 export interface DocumentAnnotation {
@@ -148,6 +157,8 @@ export interface MarkdownEditorProps {
   minHeight?: number
   maxHeight?: number
   onSubmit?: () => void
+  /** Rich HTML and tabular paste conversion. Enabled by default; pass false to use native plain-text paste only. */
+  richPaste?: boolean | RichPasteConfig
   onImageUpload?: (file: File) => Promise<string>
   /** Optional host-provided image picker. When present, image commands call this instead of the built-in picker. */
   onRequestImage?: (context: MinuWidgetContext) => void

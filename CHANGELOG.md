@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Fixed controlled `value` synchronization replacing the entire document, which could remap cursors or viewports far from their prior source location; external updates now use minimal changes, avoid `onChange` feedback, and stay out of undo history.
+- Added default rich paste conversion for safe clipboard HTML and tab-delimited spreadsheet data, with Markdown preservation, host-mediated image precedence, configurable conversion paths, and a Cmd/Ctrl+Shift+V plain-text escape hatch.
+- Added browser, Google Docs, Notion, spreadsheet, and existing-Markdown paste fixtures plus a development review lab.
 - Added portable GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` callouts with live/source/static rendering parity.
 - Added callout slash commands, source-marker reveal behavior, theme variables, malformed-syntax fallback, tests, and a parity demo surface.
 - Aligned line comments and AI change highlights with the callout visual language using kind-specific tinted surfaces, right-side accent rails, grouped corners, and compact inline range highlights.

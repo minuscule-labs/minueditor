@@ -32,5 +32,6 @@ export type {
   WikiLinksConfig,
   EditorToolbarProps,
   DocumentAnnotation,
+  RichPasteConfig,
   CodeHighlighter,
 } from './types'

@@ -14,6 +14,7 @@ import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
 import darkThemeUrl from '../src/theme/themes/dark.css?url'
 import { markdownParityFixtures } from './fixtures/markdown-parity'
+import { richPasteFixtures } from './fixtures/rich-paste'
 
 type ThemeChoice = 'base' | 'light' | 'dark'
 
@@ -368,6 +369,69 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           <span className="command-api-status">{status}</span>
         </div>
       </div>
+    </section>
+  )
+}
+
+function RichPasteDemo() {
+  const firstFixture = richPasteFixtures[0]
+  const editorRef = useRef<MarkdownEditorHandle>(null)
+  const [fixtureId, setFixtureId] = useState(firstFixture.id)
+  const [value, setValue] = useState('# Rich paste lab\n\nPlace the cursor here and simulate a fixture, or paste from another app.\n')
+  const [enabled, setEnabled] = useState(true)
+  const fixture = richPasteFixtures.find(({ id }) => id === fixtureId) ?? firstFixture
+
+  function simulatePaste() {
+    const content = editorRef.current?.view?.contentDOM
+    if (!content) return
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        items: [],
+        getData: (type: string) => type === 'text/html' ? fixture.html : fixture.plain,
+      },
+    })
+    content.dispatchEvent(event)
+    // Synthetic paste events do not perform the browser's native fallback.
+    if (!event.defaultPrevented) editorRef.current?.replaceSelection(fixture.plain)
+  }
+
+  return (
+    <section className="surface">
+      <h2>Rich paste lab</h2>
+      <p className="surface-desc">
+        Browser, Google Docs, Notion, spreadsheet, and existing-Markdown conversion fixtures.
+      </p>
+      <div className="parity-demo-controls">
+        <label>
+          <span>Clipboard fixture</span>
+          <select value={fixture.id} onChange={(event) => setFixtureId(event.target.value)}>
+            {richPasteFixtures.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>{candidate.title}</option>
+            ))}
+          </select>
+        </label>
+        <button type="button" onClick={simulatePaste}>Simulate paste</button>
+        <button type="button" onClick={() => setEnabled((current) => !current)}>
+          Rich paste: {enabled ? 'on' : 'off'}
+        </button>
+        <button type="button" onClick={() => setValue('')}>Clear</button>
+      </div>
+      <p className="parity-demo-description">{fixture.description}</p>
+      <div className="editor-frame">
+        <MarkdownEditor
+          ref={editorRef}
+          value={value}
+          onChange={setValue}
+          richPaste={enabled}
+          minHeight={260}
+          onImageUpload={async (file) => URL.createObjectURL(file)}
+        />
+      </div>
+      <details>
+        <summary>Fixture expectation</summary>
+        <pre>{fixture.expected ?? 'Native paste preserves the plain-text Markdown exactly.'}</pre>
+      </details>
     </section>
   )
 }
@@ -782,6 +846,8 @@ export default function App() {
         <OutlineDemo codeHighlighter={codeHighlighter} />
 
         <ParityFixturesDemo />
+
+        <RichPasteDemo />
 
         <CalloutDemo />
 
