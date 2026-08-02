@@ -6,7 +6,7 @@ import { HighlightStyle, LanguageDescription } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
-import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
+import { MarkdownEditor, minimalTextChange, type MarkdownEditorHandle } from './MarkdownEditor'
 import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
 import { toggleBold, toggleItalic } from './toolbar/commands'
 
@@ -221,6 +221,41 @@ describe('MarkdownEditor', () => {
     expect(ref.current?.focus()).toBe(true)
     unmount()
     expect(ref.current).toBeNull()
+  })
+
+  it('computes the smallest external document change', () => {
+    expect(minimalTextChange('alpha beta omega', 'alpha changed omega')).toEqual({
+      from: 6,
+      to: 10,
+      insert: 'changed',
+    })
+    expect(minimalTextChange('same', 'same')).toBeNull()
+    expect(minimalTextChange('tail', 'prefix tail')).toEqual({ from: 0, to: 0, insert: 'prefix ' })
+  })
+
+  it('preserves distant cursor positions and avoids feedback on external value updates', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onChange = vi.fn()
+    const lines = Array.from({ length: 120 }, (_, index) => `Line ${index + 1}`)
+    const initial = lines.join('\n')
+    const next = [lines[0], 'Externally inserted line', ...lines.slice(1)].join('\n')
+    const { rerender } = render(
+      <MarkdownEditor ref={ref} value={initial} onChange={onChange} />,
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+    const cursor = ref.current!.view!.state.doc.line(100).from + 4
+    expect(ref.current?.setSelection(cursor)).toBe(true)
+    onChange.mockClear()
+
+    rerender(<MarkdownEditor ref={ref} value={next} onChange={onChange} />)
+
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe(next))
+    expect(ref.current?.getSelection()?.from).toBe(cursor + 'Externally inserted line\n'.length)
+    expect(ref.current?.getState()?.activeLine).toMatchObject({ number: 101, text: 'Line 100' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(ref.current?.undo()).toBe(false)
+    expect(ref.current?.getMarkdown()).toBe(next)
   })
 
   it('reports editor state on mount and external value changes', async () => {

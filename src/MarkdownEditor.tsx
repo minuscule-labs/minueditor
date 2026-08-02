@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Compartment, EditorState, type Extension } from '@codemirror/state'
+import { Annotation, Compartment, EditorState, Transaction, type Extension } from '@codemirror/state'
 import {
   EditorView,
   placeholder as cmPlaceholder,
@@ -50,6 +50,31 @@ import { expandInlineMarkdownRange, type SourceRange } from './internal/inline-m
 import { createEditorCommands, type MinuEditorCommands } from './internal/editor-commands'
 import { createWidgetContext } from './internal/editor-context'
 import { getMarkdownHeadings, type MarkdownHeading } from './headings'
+
+type TextChange = { from: number; to: number; insert: string }
+
+export function minimalTextChange(current: string, next: string): TextChange | null {
+  if (current === next) return null
+
+  let from = 0
+  const sharedLength = Math.min(current.length, next.length)
+  while (from < sharedLength && current.charCodeAt(from) === next.charCodeAt(from)) from += 1
+
+  let currentTo = current.length
+  let nextTo = next.length
+  while (
+    currentTo > from &&
+    nextTo > from &&
+    current.charCodeAt(currentTo - 1) === next.charCodeAt(nextTo - 1)
+  ) {
+    currentTo -= 1
+    nextTo -= 1
+  }
+
+  return { from, to: currentTo, insert: next.slice(from, nextTo) }
+}
+
+const externalValueUpdate = Annotation.define<boolean>()
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
@@ -392,7 +417,10 @@ export const MarkdownEditor = forwardRef<
       if (update.docChanged) {
         const newValue = update.state.doc.toString()
         valueRef.current = newValue
-        onChangeRef.current(newValue)
+        const cameFromValueProp = update.transactions.some(
+          (transaction) => transaction.annotation(externalValueUpdate) === true,
+        )
+        if (!cameFromValueProp) onChangeRef.current(newValue)
       }
       if (update.docChanged || update.selectionSet || update.focusChanged) {
         emitState(update.view)
@@ -576,14 +604,16 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
-    if (value === view.state.doc.toString()) return
+    const current = view.state.doc.toString()
+    const change = minimalTextChange(current, value)
+    if (!change) return
     valueRef.current = value
     view.dispatch({
-      changes: {
-        from: 0,
-        to: view.state.doc.length,
-        insert: value,
-      },
+      changes: change,
+      annotations: [
+        externalValueUpdate.of(true),
+        Transaction.addToHistory.of(false),
+      ],
     })
   }, [value])
 

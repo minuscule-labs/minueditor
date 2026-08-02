@@ -38,6 +38,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 2 | Structured write advisories | MinuNotes | Planned | Non-fatal create/edit response advisories |
 | 2 | Editor/static parity fixtures | MinuEditor | Complete | 243 tests; typecheck; build; dist verification; manual review approved |
 | 2 | Static code-block shell | MinuEditor | Planned | Language, Copy, overflow, fallback, async safety |
+| 2 | Cursor and viewport stability | MinuEditor | Complete | 245 tests; typecheck; build; dist; approved |
 | 3 | Minimal rich-block lifecycle | MinuEditor | Planned | Approved after rich paste; derive from callouts and Mermaid, not in advance |
 | 3 | Mermaid | MinuEditor | Planned | Approved rich-block proof; lazy, safe, cancellable, editable source fallback |
 | 3 | Math | MinuEditor | Planned | Documented delimiters, lazy rendering, accessibility |
@@ -169,6 +170,28 @@ Decisions:
 - Derive the rich-block lifecycle from callouts and Mermaid before adapting it to math, CSV previews, or host-resolved media.
 - Execute and review each package separately; do not advance automatically.
 
+### 2026-08-02 — Cursor and viewport stability audit
+
+**Status:** Complete
+
+Implemented:
+
+- Replaced full-document controlled-value synchronization with a minimal common-prefix/common-suffix change.
+- Tagged prop-driven changes so they do not echo through `onChange`.
+- Excluded external synchronization from local undo history.
+- Added a 120-line regression proving that an insertion near the top keeps a cursor attached to its original line-100 content.
+- Recorded performance findings and measured follow-up candidates in MinuNotes: `note_25c12e115f6b4f7a990b4414224f6cb4`.
+
+Verification:
+
+- `npm test -- --run` — 245 tests passed across 9 files.
+- `npm run typecheck` — passed.
+- `npm run build` — passed.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review approved with further performance candidates deferred to later bounded packages.
+
 ## Next package
 
-Complete and review **editor/static parity fixtures** before beginning rich paste.
+Review cursor/viewport stability in the affected host workflow, then restore the ready-for-review rich-paste package.
