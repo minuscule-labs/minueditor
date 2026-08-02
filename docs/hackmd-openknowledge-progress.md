@@ -43,6 +43,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 3 | Math | MinuEditor | Planned | Documented delimiters, lazy rendering, accessibility |
 | 3 | Host-resolved media cards | Shared | Deferred | No arbitrary editor-side network fetching |
 | 3 | CSV/TSV preview | MinuEditor | Deferred | Reuse table display after rich-block proof |
+| 4 | Annotation visual alignment | MinuEditor | Complete | 231 tests; typecheck; callout-compatible semantic styling |
 | 4 | Agent activity summaries and diffs | MinuNotes | Planned | Existing actor/event/version data first |
 | 4 | Rollback and actor filtering | MinuNotes | Planned | No CRDT dependency |
 | 4 | Graph-health audits | MinuNotes | Planned | Dead/ambiguous links, hubs, permission-safe audits |
@@ -112,7 +113,26 @@ Verification:
 - `npm run verify:dist` — passed.
 - `git diff --check` — passed.
 
-Manual review approved for live/source behavior, static parity, semantic colors, dark theme, and narrow layout.
+Manual review approved for live/source behavior, static parity, semantic colors, and annotation alignment.
+
+### 2026-08-02 — Annotation visual alignment
+
+**Status:** Complete
+
+Direction:
+
+- Reuse the callout tinted-surface and semantic-color language for line comments and AI change highlights.
+- Place review accents on the right so annotations remain distinguishable from authored callouts and can coexist on the same line.
+- Use comment/generated/added/updated/deleted kind colors; actor identity remains metadata rather than overriding semantic color.
+- Keep source-range annotations as compact inline highlights.
+
+Verification:
+
+- `npm test -- --run` — 231 tests passed across 8 files.
+- `npm run typecheck` — passed.
+- `git diff --check` — passed.
+
+Manual review approved; further annotation polish is deferred until after the broader roadmap effort.
 
 ## Next package
 

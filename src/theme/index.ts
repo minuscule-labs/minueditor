@@ -458,41 +458,71 @@ export const minueditorTheme = EditorView.theme({
     cursor: "pointer",
   },
 
-  ".me-annotation--kind-comment": {
-    backgroundColor: "var(--me-comment-bg, rgba(245, 158, 11, 0.10))",
+  ".cm-line.me-annotation--line": {
+    backgroundColor: "var(--me-annotation-bg, rgba(107, 114, 128, 0.08))",
+    boxShadow: "inset -3px 0 var(--me-annotation-accent, #6b7280)",
+    paddingRight: "12px",
   },
 
-  ".me-annotation--kind-generated": {
-    backgroundColor: "var(--me-generated-bg, rgba(59, 130, 246, 0.10))",
+  ".cm-line.me-annotation--line-first": {
+    borderTopLeftRadius: "6px",
+    borderTopRightRadius: "6px",
   },
 
-  ".me-annotation--kind-added": {
-    backgroundColor: "var(--me-added-bg, rgba(34, 197, 94, 0.10))",
+  ".cm-line.me-annotation--line-last": {
+    borderBottomLeftRadius: "6px",
+    borderBottomRightRadius: "6px",
   },
 
-  ".me-annotation--kind-updated": {
-    backgroundColor: "var(--me-updated-bg, rgba(59, 130, 246, 0.10))",
+  ".cm-line.me-annotation--kind-comment": {
+    backgroundColor: "var(--me-comment-bg, rgba(154, 103, 0, 0.09))",
+    boxShadow: "inset -3px 0 var(--me-comment-accent, #9a6700)",
   },
 
-  ".me-annotation--kind-deleted": {
-    backgroundColor: "var(--me-deleted-bg, rgba(239, 68, 68, 0.10))",
+  ".cm-line.me-annotation--kind-generated": {
+    backgroundColor: "var(--me-generated-bg, rgba(9, 105, 218, 0.08))",
+    boxShadow: "inset -3px 0 var(--me-generated-accent, #0969da)",
+  },
+
+  ".cm-line.me-annotation--kind-added": {
+    backgroundColor: "var(--me-added-bg, rgba(26, 127, 55, 0.08))",
+    boxShadow: "inset -3px 0 var(--me-added-accent, #1a7f37)",
+  },
+
+  ".cm-line.me-annotation--kind-updated": {
+    backgroundColor: "var(--me-updated-bg, rgba(130, 80, 223, 0.08))",
+    boxShadow: "inset -3px 0 var(--me-updated-accent, #8250df)",
+  },
+
+  ".cm-line.me-annotation--kind-deleted": {
+    backgroundColor: "var(--me-deleted-bg, rgba(207, 34, 46, 0.08))",
+    boxShadow: "inset -3px 0 var(--me-deleted-accent, #cf222e)",
+    textDecoration: "line-through",
+  },
+
+  ".me-annotation--range.me-annotation--kind-comment": {
+    backgroundColor: "var(--me-comment-bg, rgba(154, 103, 0, 0.09))",
+  },
+
+  ".me-annotation--range.me-annotation--kind-generated": {
+    backgroundColor: "var(--me-generated-bg, rgba(9, 105, 218, 0.08))",
+  },
+
+  ".me-annotation--range.me-annotation--kind-added": {
+    backgroundColor: "var(--me-added-bg, rgba(26, 127, 55, 0.08))",
+  },
+
+  ".me-annotation--range.me-annotation--kind-updated": {
+    backgroundColor: "var(--me-updated-bg, rgba(130, 80, 223, 0.08))",
+  },
+
+  ".me-annotation--range.me-annotation--kind-deleted": {
+    backgroundColor: "var(--me-deleted-bg, rgba(207, 34, 46, 0.08))",
     textDecoration: "line-through",
   },
 
   ".me-annotation--status-resolved": {
     opacity: "0.55",
-  },
-
-  ".me-annotation--actor-agent": {
-    boxShadow: "inset 3px 0 0 var(--me-annotation-agent-accent, rgba(59, 130, 246, 0.55))",
-  },
-
-  ".me-annotation--actor-user": {
-    boxShadow: "inset 3px 0 0 var(--me-annotation-user-accent, rgba(34, 197, 94, 0.55))",
-  },
-
-  ".me-annotation--actor-system": {
-    boxShadow: "inset 3px 0 0 var(--me-annotation-system-accent, rgba(107, 114, 128, 0.55))",
   },
 
   // ── Syntax token visibility (decorations.ts hides/shows these) ──────

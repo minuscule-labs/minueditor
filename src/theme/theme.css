@@ -61,6 +61,20 @@
     --me-callout-caution: #cf222e;
     --me-callout-caution-bg: rgba(207, 34, 46, 0.08);
 
+    /* ── Comments and change annotations ───────────────────── */
+    --me-annotation-accent: #6b7280;
+    --me-annotation-bg: rgba(107, 114, 128, 0.08);
+    --me-comment-accent: #9a6700;
+    --me-comment-bg: rgba(154, 103, 0, 0.09);
+    --me-generated-accent: #0969da;
+    --me-generated-bg: rgba(9, 105, 218, 0.08);
+    --me-added-accent: #1a7f37;
+    --me-added-bg: rgba(26, 127, 55, 0.08);
+    --me-updated-accent: #8250df;
+    --me-updated-bg: rgba(130, 80, 223, 0.08);
+    --me-deleted-accent: #cf222e;
+    --me-deleted-bg: rgba(207, 34, 46, 0.08);
+
     /* ── HR ────────────────────────────────────────────────── */
     --me-hr-color: #e0e0e0;
 

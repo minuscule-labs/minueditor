@@ -80,9 +80,13 @@ function buildAnnotationDecorations(state: EditorState, annotations: readonly Do
 
       for (let lineNumber = fromLine; lineNumber <= toLine; lineNumber++) {
         const line = doc.line(lineNumber)
+        const edgeClasses = [
+          lineNumber === fromLine ? 'me-annotation--line-first' : '',
+          lineNumber === toLine ? 'me-annotation--line-last' : '',
+        ].filter(Boolean).join(' ')
         ranges.push(
           Decoration.line({
-            class: className,
+            class: `${className} me-annotation--line${edgeClasses ? ` ${edgeClasses}` : ''}`,
             attributes,
           }).range(line.from),
         )
@@ -97,7 +101,7 @@ function buildAnnotationDecorations(state: EditorState, annotations: readonly Do
 
     ranges.push(
       Decoration.mark({
-        class: className,
+        class: `${className} me-annotation--range`,
         attributes,
       }).range(Math.max(0, from), Math.min(doc.length, to)),
     )

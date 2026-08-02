@@ -4,6 +4,7 @@
 
 - Added portable GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` callouts with live/source/static rendering parity.
 - Added callout slash commands, source-marker reveal behavior, theme variables, malformed-syntax fallback, tests, and a parity demo surface.
+- Aligned line comments and AI change highlights with the callout visual language using kind-specific tinted surfaces, right-side accent rails, grouped corners, and compact inline range highlights.
 - Added syntax-tree-backed heading enumeration with visible text, source ranges, Unicode-aware slugs, and duplicate disambiguation.
 - Added `getHeadings()` and `goToHeading(slug)` to the editor ref handle.
 - Added a development outline surface for reviewing navigation, active sections, duplicate anchors, and copy-link behavior.

@@ -294,6 +294,9 @@ describe('MarkdownEditor', () => {
     expect(annotation.className).toContain('me-annotation--kind-comment')
     expect(annotation.className).toContain('me-annotation--actor-agent')
     expect(annotation.className).toContain('me-annotation--status-open')
+    expect(annotation.className).toContain('me-annotation--line')
+    expect(annotation.className).toContain('me-annotation--line-first')
+    expect(annotation.className).toContain('me-annotation--line-last')
 
     fireEvent.click(annotation)
 
@@ -746,9 +749,9 @@ describe('MarkdownEditor', () => {
       expect(container.querySelector('[data-me-annotation-id="annotation-range"]')).toBeTruthy()
     })
 
-    expect(container.querySelector('[data-me-annotation-id="annotation-range"]')?.className).toContain(
-      'me-annotation--kind-generated',
-    )
+    const annotation = container.querySelector('[data-me-annotation-id="annotation-range"]')
+    expect(annotation?.className).toContain('me-annotation--kind-generated')
+    expect(annotation?.className).toContain('me-annotation--range')
   })
 
   it('exposes getState and markClean through the editor ref', async () => {

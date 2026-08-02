@@ -199,6 +199,12 @@ Supported types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`. The de
 
 Callouts are document content and travel with Markdown exports. They are separate from host-owned comments or `DocumentAnnotation` review metadata.
 
+### Comments and change highlights
+
+Line-anchored `DocumentAnnotation` decorations use the same tinted-surface visual language as callouts, with a right-side accent rail to distinguish review metadata from authored callout content. Comment, generated, added, updated, and deleted kinds have separate semantic colors. Range annotations remain compact inline highlights so they do not turn partial text selections into block surfaces.
+
+The host continues to own comment threads, actors, selection state, and side panels. Theme variables such as `--me-comment-accent`, `--me-comment-bg`, `--me-generated-accent`, and `--me-generated-bg` can override the defaults.
+
 ## Heading outlines and anchors
 
 MinuEditor exposes syntax-tree-backed heading data while leaving outline panels and note URL construction to the host application:
