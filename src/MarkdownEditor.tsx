@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -27,6 +28,11 @@ import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
 import { pasteAsPlainTextExtension, richPasteExtension } from './extensions/rich-paste'
+import {
+  mermaidBlockExtension,
+  mermaidSlashCommand,
+  normalizeMermaidConfig,
+} from './extensions/mermaid'
 import { createDefaultSlashCommands, editorSlashCommands, slashCommandExtension } from './extensions/slash-commands'
 import {
   normalizeWikiLinksConfig,
@@ -200,6 +206,7 @@ export const MarkdownEditor = forwardRef<
     maxHeight,
     onSubmit,
     richPaste = true,
+    mermaid = false,
     onImageUpload,
     onRequestImage,
     codeLanguages,
@@ -213,6 +220,17 @@ export const MarkdownEditor = forwardRef<
   },
   ref,
 ) {
+  const normalizedMermaid = normalizeMermaidConfig(mermaid)
+  const stableMermaidConfig = useMemo(
+    () => normalizedMermaid.enabled
+      ? {
+          enabled: true,
+          theme: normalizedMermaid.theme,
+          load: normalizedMermaid.load,
+        }
+      : false,
+    [normalizedMermaid.enabled, normalizedMermaid.load, normalizedMermaid.theme],
+  )
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
@@ -372,17 +390,24 @@ export const MarkdownEditor = forwardRef<
 
   const buildModeExtensions = useCallback((): Extension[] => {
     if (mode === 'source') return []
+    const mermaidEnabled = stableMermaidConfig !== false
     return [
       visualMarkdown,
       externalLinkWidgets,
       calloutDecorations,
       tableDecorations,
-      codeBlockDecorations(codeLanguages, codeHighlighter, codeHighlightStyle),
+      mermaidBlockExtension(stableMermaidConfig),
+      codeBlockDecorations(
+        codeLanguages,
+        codeHighlighter,
+        codeHighlightStyle,
+        mermaidEnabled ? ['mermaid'] : [],
+      ),
       markdownDecorations,
       checkboxDecorations,
       imageDecorations,
     ]
-  }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode])
+  }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode, stableMermaidConfig])
 
   const buildWikiLinkExtensions = useCallback((): Extension => {
     if (mode === 'source') return []
@@ -391,6 +416,7 @@ export const MarkdownEditor = forwardRef<
 
   const buildCompletionExtensions = useCallback((): Extension[] => {
     const wikiLinkConfig = normalizeWikiLinksConfig(wikiLinks)
+    const mermaidEnabled = stableMermaidConfig !== false
     const wikiLinkSources = wikiLinkConfig?.suggest ? [wikiLinkCompletions(wikiLinkConfig)] : []
 
     if (slashCommands !== false) {
@@ -401,6 +427,7 @@ export const MarkdownEditor = forwardRef<
               ? createDefaultSlashCommands({ imageCommand: () => getEditorCommands().openImagePicker() })
               : editorSlashCommands),
             ...(wikiLinkConfig ? [wikiLinkSlashCommand] : []),
+            ...(mermaidEnabled ? [mermaidSlashCommand] : []),
           ]
 
       return [
@@ -409,7 +436,7 @@ export const MarkdownEditor = forwardRef<
     }
 
     return wikiLinkConfig?.suggest ? [wikiLinkCompletionExtension(wikiLinkConfig)] : []
-  }, [getEditorCommands, slashCommands, wikiLinks])
+  }, [getEditorCommands, slashCommands, stableMermaidConfig, wikiLinks])
 
   // ── Init CM6 ──────────────────────────────────────────────────────────
   useEffect(() => {

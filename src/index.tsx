@@ -8,6 +8,7 @@ export type { MarkdownEditorHandle } from './MarkdownEditor'
 export { EditorToolbar } from './toolbar/Toolbar'
 export { FloatingToolbar } from './toolbar/FloatingToolbar'
 export { MarkdownRenderer } from './renderer'
+export type { MarkdownRendererProps } from './renderer'
 export {
   getMarkdownHeadings,
   parseMarkdownHeadings,
@@ -32,6 +33,9 @@ export type {
   WikiLinksConfig,
   EditorToolbarProps,
   DocumentAnnotation,
+  MermaidConfig,
+  MermaidEngine,
+  MermaidRenderResult,
   RichPasteConfig,
   CodeHighlighter,
 } from './types'

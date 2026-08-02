@@ -97,6 +97,26 @@ Use the bottom toolbar to drive the editor through the public ref handle.
 Select some text, then try **Bold**, *Italic*, Link, Image, Table, or Code.
 `
 
+const MERMAID_INITIAL = `# Mermaid rich blocks
+
+\`\`\`mermaid
+graph TD
+  A[Markdown source] --> B{Render safely?}
+  B -->|Yes| C[Interactive diagram]
+  B -->|Error| D[Editable source fallback]
+\`\`\`
+
+## Sequence example
+
+\`\`\`mermaid
+sequenceDiagram
+  participant H as Host
+  participant E as MinuEditor
+  H->>E: Portable fenced source
+  E-->>H: Lazy rendered diagram
+\`\`\`
+`
+
 const CALLOUT_INITIAL = `# GitHub-style callouts
 
 > [!NOTE]
@@ -367,6 +387,47 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           <button type="button" onClick={() => run('Table', () => editorRef.current?.insertTable())}>Table</button>
           <button type="button" onClick={() => run('Code block', () => editorRef.current?.insertCodeBlock())}>Code block</button>
           <span className="command-api-status">{status}</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function MermaidDemo({ theme }: { theme: ThemeChoice }) {
+  const [value, setValue] = useState(MERMAID_INITIAL)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const mermaid = useMemo(() => ({ theme: theme === 'dark' ? 'dark' as const : 'default' as const }), [theme])
+
+  return (
+    <section className="surface">
+      <h2>Mermaid rich-block lifecycle</h2>
+      <p className="surface-desc">
+        Opt-in, lazy, strict rendering with editable fenced source and static parity.
+      </p>
+      <div className="parity-demo-controls">
+        <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>
+          Editor mode: {mode}
+        </button>
+        <button type="button" onClick={() => setValue(MERMAID_INITIAL)}>Reset diagrams</button>
+      </div>
+      <div className="callout-demo-layout">
+        <div>
+          <h3 className="demo-column-title">Editor</h3>
+          <div className="editor-frame">
+            <MarkdownEditor
+              value={value}
+              onChange={setValue}
+              mode={mode}
+              mermaid={mermaid}
+              minHeight={520}
+            />
+          </div>
+        </div>
+        <div>
+          <h3 className="demo-column-title">Static renderer</h3>
+          <div className="editor-frame parity-renderer-frame">
+            <MarkdownRenderer value={value} mermaid={mermaid} />
+          </div>
         </div>
       </div>
     </section>
@@ -848,6 +909,8 @@ export default function App() {
         <ParityFixturesDemo />
 
         <RichPasteDemo />
+
+        <MermaidDemo theme={theme} />
 
         <CalloutDemo />
 

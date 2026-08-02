@@ -752,6 +752,9 @@ export function buildCodeBlockDecorations(state: EditorState, options: CodeBlock
 
       const block = getFencedBlockInfo(state, node.from);
       if (!block) return;
+      if (options.excludedLanguages?.some(
+        (language) => language.toLowerCase() === block.lang.toLowerCase(),
+      )) return;
 
       const highlighted = null;
 

@@ -31,8 +31,14 @@ export function codeBlockDecorations(
   codeLanguages: readonly LanguageDescription[] = [],
   codeHighlighter?: CodeHighlighter,
   codeHighlightStyle?: HighlightStyle,
+  excludedLanguages: readonly string[] = [],
 ) {
-  const options: CodeBlockOptions = { codeLanguages, codeHighlighter, codeHighlightStyle }
+  const options: CodeBlockOptions = {
+    codeLanguages,
+    codeHighlighter,
+    codeHighlightStyle,
+    excludedLanguages,
+  }
   return [
     activeCodeBlockField,
     codeBlockDecorationField(options),

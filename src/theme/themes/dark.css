@@ -35,6 +35,13 @@
   --me-callout-caution: #f85149;
   --me-callout-caution-bg: rgba(248, 81, 73, 0.12);
 
+  --me-mermaid-bg: #0f172a;
+  --me-mermaid-border: #334155;
+  --me-mermaid-header-bg: #111827;
+  --me-mermaid-muted: #94a3b8;
+  --me-mermaid-error: #fda4af;
+  --me-mermaid-error-bg: rgba(248, 81, 73, 0.12);
+
   --me-annotation-accent: #8b949e;
   --me-annotation-bg: rgba(139, 148, 158, 0.10);
   --me-comment-accent: #d29922;

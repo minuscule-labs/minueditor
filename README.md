@@ -199,7 +199,37 @@ Supported types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`. The de
 
 Callouts are document content and travel with Markdown exports. They are separate from host-owned comments or `DocumentAnnotation` review metadata.
 
-### Comments and change highlights
+## Mermaid diagrams
+
+Mermaid fenced blocks are opt-in and render in both `MarkdownEditor` and `MarkdownRenderer`:
+
+````md
+```mermaid
+graph TD
+  A[Markdown] --> B[Diagram]
+```
+````
+
+```tsx
+<MarkdownEditor value={value} onChange={setValue} mermaid />
+<MarkdownRenderer value={value} mermaid />
+```
+
+Mermaid is loaded lazily only when enabled. Rendering always uses Mermaid's strict security mode. In live mode, an inactive fence becomes a diagram; **Edit source** reveals the exact fenced Markdown. Source mode always shows Markdown. Invalid diagrams show a readable error and source fallback instead of losing content.
+
+A config object can select a Mermaid theme or provide a host-controlled lazy engine loader:
+
+```tsx
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  mermaid={{ theme: 'dark' }}
+/>
+```
+
+When Mermaid is disabled, `mermaid` fences remain ordinary editable and statically rendered code blocks. The initial async lifecycle is intentionally internal and derived from callouts plus Mermaid; future math or preview blocks can reuse it after proving matching loading, cancellation, error, accessibility, and fallback needs.
+
+## Comments and change highlights
 
 Line-anchored `DocumentAnnotation` decorations use the same tinted-surface visual language as callouts, with a right-side accent rail to distinguish review metadata from authored callout content. Comment, generated, added, updated, and deleted kinds have separate semantic colors. Range annotations remain compact inline highlights so they do not turn partial text selections into block surfaces.
 

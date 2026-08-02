@@ -103,6 +103,25 @@ export type WikiLinksConfig = {
   onCreate?: (target: string) => void | Promise<void>
 }
 
+export type MermaidRenderResult = {
+  svg: string
+  bindFunctions?: ((element: Element) => void) | undefined
+}
+
+export type MermaidEngine = {
+  initialize: (config: Record<string, unknown>) => void
+  render: (id: string, source: string) => Promise<MermaidRenderResult>
+}
+
+export type MermaidConfig = {
+  /** Enables Mermaid rendering. Defaults to true when a config object is supplied. */
+  enabled?: boolean
+  /** Mermaid visual theme. Security remains fixed to strict mode. */
+  theme?: 'default' | 'dark' | 'neutral' | 'forest' | 'base'
+  /** Optional lazy engine loader, primarily for host control and deterministic tests. */
+  load?: () => Promise<MermaidEngine>
+}
+
 export type RichPasteConfig = {
   /** Enables rich paste conversion. Defaults to true. */
   enabled?: boolean
@@ -159,6 +178,8 @@ export interface MarkdownEditorProps {
   onSubmit?: () => void
   /** Rich HTML and tabular paste conversion. Enabled by default; pass false to use native plain-text paste only. */
   richPaste?: boolean | RichPasteConfig
+  /** Opt-in Mermaid fenced-block rendering. Disabled by default to keep rich blocks host-controlled. */
+  mermaid?: boolean | MermaidConfig
   onImageUpload?: (file: File) => Promise<string>
   /** Optional host-provided image picker. When present, image commands call this instead of the built-in picker. */
   onRequestImage?: (context: MinuWidgetContext) => void

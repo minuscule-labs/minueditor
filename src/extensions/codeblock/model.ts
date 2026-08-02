@@ -9,6 +9,7 @@ export type CodeBlockOptions = {
   codeLanguages: readonly LanguageDescription[]
   codeHighlighter?: CodeHighlighter | undefined
   codeHighlightStyle?: HighlightStyle | undefined
+  excludedLanguages?: readonly string[] | undefined
 }
 
 export function renderCodeHtml(code: string, lang: string, highlighted: string | null): string {

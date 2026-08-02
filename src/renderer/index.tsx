@@ -1,16 +1,19 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Marked } from 'marked'
 import { renderCodeHtml, highlightCodeHtml } from '../extensions/highlight'
-import type { CodeHighlighter } from '../types'
+import type { CodeHighlighter, MermaidConfig } from '../types'
 import { enhanceRendererCallouts } from '../extensions/callouts'
+import { enhanceRendererMermaid, normalizeMermaidConfig } from '../extensions/mermaid'
 
-interface MarkdownRendererProps {
+export interface MarkdownRendererProps {
   /** The plain markdown string to render. */
   value: string
   /** Called when the user clicks anywhere on the rendered content. */
   onClick?: (() => void) | undefined
   /** Optional syntax highlighter for rendered fenced code. Defaults to plain escaped code. */
   codeHighlighter?: CodeHighlighter | undefined
+  /** Opt-in Mermaid fenced-block rendering. Disabled by default. */
+  mermaid?: boolean | MermaidConfig | undefined
   className?: string | undefined
 }
 
@@ -34,8 +37,20 @@ export function MarkdownRenderer({
   value,
   onClick,
   codeHighlighter,
+  mermaid = false,
   className,
 }: MarkdownRendererProps) {
+  const normalizedMermaid = normalizeMermaidConfig(mermaid)
+  const stableMermaidConfig = useMemo(
+    () => normalizedMermaid.enabled
+      ? {
+          enabled: true,
+          theme: normalizedMermaid.theme,
+          load: normalizedMermaid.load,
+        }
+      : false,
+    [normalizedMermaid.enabled, normalizedMermaid.load, normalizedMermaid.theme],
+  )
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Parse markdown synchronously (marked is sync by default)
@@ -47,6 +62,7 @@ export function MarkdownRenderer({
     if (!container) return
 
     enhanceRendererCallouts(container)
+    const cancelMermaid = enhanceRendererMermaid(container, stableMermaidConfig)
 
     container.querySelectorAll<HTMLTableElement>('table').forEach((table) => {
       if (table.parentElement?.classList.contains('me-renderer-table-scroller')) return
@@ -107,8 +123,9 @@ export function MarkdownRenderer({
 
     return () => {
       isDisposed = true
+      cancelMermaid()
     }
-  }, [html, codeHighlighter])
+  }, [html, codeHighlighter, stableMermaidConfig])
 
   return (
     <div

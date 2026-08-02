@@ -39,8 +39,8 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 2 | Editor/static parity fixtures | MinuEditor | Complete | 243 tests; typecheck; build; dist verification; manual review approved |
 | 2 | Static code-block shell | MinuEditor | Planned | Language, Copy, overflow, fallback, async safety |
 | 2 | Cursor and viewport stability | MinuEditor | Complete | 245 tests; typecheck; build; dist; approved |
-| 3 | Minimal rich-block lifecycle | MinuEditor | Planned | Approved after rich paste; derive from callouts and Mermaid, not in advance |
-| 3 | Mermaid | MinuEditor | Planned | Approved rich-block proof; lazy, safe, cancellable, editable source fallback |
+| 3 | Minimal rich-block lifecycle | MinuEditor | Complete | Cancellable serialized lifecycle; 274 tests; manual review approved |
+| 3 | Mermaid | MinuEditor | Complete | Lazy strict renderer; parity and StrictMode fixes approved |
 | 3 | Math | MinuEditor | Planned | Documented delimiters, lazy rendering, accessibility |
 | 3 | Host-resolved media cards | Shared | Deferred | No arbitrary editor-side network fetching |
 | 3 | CSV/TSV preview | MinuEditor | Deferred | Reuse table display after rich-block proof |
@@ -218,6 +218,33 @@ Verification:
 
 Manual review approved.
 
+### 2026-08-02 — Mermaid and minimal rich-block lifecycle
+
+**Status:** Complete
+
+Implemented:
+
+- Opt-in `mermaid` configuration for `MarkdownEditor` and `MarkdownRenderer`.
+- Dynamically imported Mermaid engine with fixed strict security and host-selectable visual theme.
+- Closed-fence matching with ordinary-code fallback for disabled, malformed, unclosed, or unsupported syntax.
+- Inactive live preview and explicit exact-source editing.
+- Static and read-only rendering parity, including React StrictMode effect replay cleanup/restart.
+- Loading, ready, bounded error, and source-fallback surfaces.
+- Cancellable async lifecycle that suppresses stale results and serializes Mermaid's singleton renderer across editor/static surfaces.
+- Mermaid slash command and development live/source/static demo.
+- Stable configuration derivation to avoid compartment/effect churn from equivalent inline config objects.
+- Internal lifecycle boundary and future-block review criteria in `docs/rich-block-lifecycle.md`.
+
+Verification:
+
+- `npm test -- --run` — 274 tests passed across 12 files.
+- `npm run typecheck` — passed.
+- `npm run build` — passed with Mermaid emitted as lazy chunks.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review approved after fixing singleton concurrency and React StrictMode static-renderer restart behavior.
+
 ## Next package
 
-Begin **Mermaid as the first rich-block lifecycle proof**; derive only the reusable lifecycle required by callouts and Mermaid.
+Review the measured performance candidates in MinuNotes `note_25c12e115f6b4f7a990b4414224f6cb4` and choose one bounded optimization package.

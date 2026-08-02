@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Fixed controlled `value` synchronization replacing the entire document, which could remap cursors or viewports far from their prior source location; external updates now use minimal changes, avoid `onChange` feedback, and stay out of undo history.
+- Added opt-in Mermaid fenced-block rendering with lazy loading, strict security, live/source/static parity, editable source reveal, cancellation, error fallback, themes, and a slash command.
+- Added the first minimal internal async rich-block lifecycle for stale-result suppression and cleanup, designed to expand from proven block requirements.
 - Added default rich paste conversion for safe clipboard HTML and tab-delimited spreadsheet data, with Markdown preservation, host-mediated image precedence, configurable conversion paths, and a Cmd/Ctrl+Shift+V plain-text escape hatch.
 - Added browser, Google Docs, Notion, spreadsheet, and existing-Markdown paste fixtures plus a development review lab.
 - Added portable GitHub-style `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION` callouts with live/source/static rendering parity.

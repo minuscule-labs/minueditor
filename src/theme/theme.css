@@ -61,6 +61,14 @@
     --me-callout-caution: #cf222e;
     --me-callout-caution-bg: rgba(207, 34, 46, 0.08);
 
+    /* ── Mermaid rich blocks ───────────────────────────────── */
+    --me-mermaid-bg: #ffffff;
+    --me-mermaid-border: #dbe2ea;
+    --me-mermaid-header-bg: #f8fafc;
+    --me-mermaid-muted: #64748b;
+    --me-mermaid-error: #b42318;
+    --me-mermaid-error-bg: #fff1f0;
+
     /* ── Comments and change annotations ───────────────────── */
     --me-annotation-accent: #6b7280;
     --me-annotation-bg: rgba(107, 114, 128, 0.08);
@@ -354,6 +362,85 @@
     color: inherit;
     padding: 0;
     font-size: var(--me-code-font-size, 0.875em);
+}
+
+.me-mermaid-block {
+    overflow: hidden;
+    margin: 0.75em 0;
+    border: 1px solid var(--me-mermaid-border, #dbe2ea);
+    border-radius: 8px;
+    background: var(--me-mermaid-bg, #fff);
+}
+
+.me-mermaid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 38px;
+    margin: 0;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--me-mermaid-border, #dbe2ea);
+    background: var(--me-mermaid-header-bg, #f8fafc);
+}
+
+.me-mermaid-label {
+    color: var(--me-mermaid-muted, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.me-mermaid-edit {
+    border: 1px solid var(--me-mermaid-border, #dbe2ea);
+    border-radius: 999px;
+    background: var(--me-mermaid-bg, #fff);
+    color: var(--me-text, #1a1a1a);
+    padding: 4px 9px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.me-mermaid-body {
+    min-height: 120px;
+    overflow: auto;
+    padding: 16px;
+    text-align: center;
+}
+
+.me-mermaid-body svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.me-mermaid-status {
+    display: grid;
+    min-height: 88px;
+    place-items: center;
+    color: var(--me-mermaid-muted, #64748b);
+    font-size: 12px;
+}
+
+.me-mermaid-block--error .me-mermaid-body {
+    text-align: left;
+}
+
+.me-mermaid-error {
+    margin-bottom: 10px;
+    border-radius: 6px;
+    background: var(--me-mermaid-error-bg, #fff1f0);
+    color: var(--me-mermaid-error, #b42318);
+    padding: 8px 10px;
+    font-size: 12px;
+}
+
+.me-mermaid-source-fallback {
+    margin: 0;
+    white-space: pre-wrap;
 }
 
 .me-renderer blockquote {
