@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed table, code, and Mermaid widget activation/editing causing viewport movement by preserving CodeMirror scroll snapshots and focusing nested controls without browser scrolling.
+- Fixed Arrow Up skipping across a final code widget after entering text below it.
+- Added a long-note cursor/widget stability lab with line, selection, and scroll telemetry.
 - Fixed controlled `value` synchronization replacing the entire document, which could remap cursors or viewports far from their prior source location; external updates now use minimal changes, avoid `onChange` feedback, and stay out of undo history.
 - Added opt-in Mermaid fenced-block rendering with lazy loading, strict security, live/source/static parity, editable source reveal, cancellation, error fallback, themes, and a slash command.
 - Added the first minimal internal async rich-block lifecycle for stale-result suppression and cleanup, designed to expand from proven block requirements.

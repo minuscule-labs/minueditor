@@ -2445,6 +2445,38 @@ describe('MarkdownEditor', () => {
     expect(document.activeElement).toBe(container.querySelector('.cm-content'))
   })
 
+  it('preserves the editor scroll anchor while activating and editing a table widget', async () => {
+    const value = '| Name | Status |\n| --- | --- |\n| Callouts | Ready |'
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={onChange} maxHeight={240} />,
+    )
+    const scroller = container.querySelector('.cm-scroller') as HTMLElement
+    scroller.scrollTop = 320
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget') as HTMLElement))
+    const input = await waitFor(() =>
+      container.querySelector('.me-table-input[data-row-index="1"][data-col-index="1"]') as HTMLInputElement,
+    )
+    expect(scroller.scrollTop).toBe(320)
+
+    fireEvent.input(input, { target: { value: 'Updated' } })
+    await waitFor(() => expect(onChange).toHaveBeenCalled())
+    expect(scroller.scrollTop).toBe(320)
+  })
+
+  it('preserves the editor scroll anchor while activating a code widget', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'```ts\nconst value = true\n```'} onChange={vi.fn()} maxHeight={240} />,
+    )
+    const scroller = container.querySelector('.cm-scroller') as HTMLElement
+    scroller.scrollTop = 280
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-codeblock-widget') as HTMLElement))
+    await waitFor(() => expect(container.querySelector('.me-codeblock-widget--editing')).toBeInTheDocument())
+    expect(scroller.scrollTop).toBe(280)
+  })
+
   it('exits a table widget downward to the line below the table', async () => {
     let view: EditorView | null = null
     const value = 'top text\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\nbottom text'
@@ -2827,6 +2859,58 @@ describe('MarkdownEditor', () => {
         container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]'),
       )
     })
+  })
+
+  it('moves to newly entered text below a final code block without skipping the block', async () => {
+    let view: EditorView | null = null
+    const initial = '```typescript\nconst value = true\n```'
+    const { container } = render(
+      <MarkdownEditor
+        value={initial}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({
+        changes: { from: view!.state.doc.length, insert: '\nadded text\n' },
+        selection: { anchor: view!.state.doc.length + '\nadded text\n'.length },
+      })
+      view!.focus()
+    })
+
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'ArrowUp' })
+
+    expect(view!.state.doc.lineAt(view!.state.selection.main.from).text).toBe('added text')
+    expect(container.querySelector('.me-codeblock-widget')).toBeInTheDocument()
+  })
+
+  it('moves up within newly entered code instead of exiting the code widget', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'```typescript\nconst value = true\n```'} onChange={vi.fn()} />,
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-codeblock-widget') as HTMLElement))
+    const wrapper = await waitFor(() =>
+      container.querySelector('.me-codeblock-widget--editing') as HTMLElement & {
+        __meCodeBlockEditor?: { view: EditorView }
+      },
+    )
+    const nestedView = wrapper.__meCodeBlockEditor!.view
+    act(() => {
+      const end = nestedView.state.doc.length
+      nestedView.dispatch({
+        changes: { from: end, insert: '\nadded text\n' },
+        selection: { anchor: end + '\nadded text\n'.length },
+      })
+    })
+
+    fireEvent.keyDown(nestedView.contentDOM, { key: 'ArrowUp' })
+
+    expect(nestedView.state.doc.lineAt(nestedView.state.selection.main.from).text).toBe('added text')
+    expect(container.querySelector('.me-codeblock-widget--editing')).toBeInTheDocument()
   })
 
   it('activates codeblock on ArrowUp from any cursor position on the line below', async () => {

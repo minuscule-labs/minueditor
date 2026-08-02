@@ -37,7 +37,11 @@ import { activeCodeBlockField, setActiveCodeBlock } from './state';
 import { githubDarkCodeHighlightStyle } from './highlight-style';
 import { nestedEditorTheme } from './theme';
 import type { CodeBlockEditorMount, CodeBlockElement, FencedBlockInfo } from './types';
-import { exitWidgetWithArrowKey, handleWidgetBoundaryMouseDown } from '../../internal/widget-navigation';
+import {
+  exitWidgetWithArrowKey,
+  focusElementWithoutScroll,
+  handleWidgetBoundaryMouseDown,
+} from '../../internal/widget-navigation';
 
 function focusNestedEditor(
   mount: CodeBlockEditorMount,
@@ -67,7 +71,7 @@ function focusCodeBlockLanguage(wrapper: HTMLElement): boolean {
     ".me-codeblock-lang-input",
   ) as HTMLInputElement | null;
   if (!langInput) return false;
-  langInput.focus();
+  focusElementWithoutScroll(langInput);
   langInput.setSelectionRange(langInput.value.length, langInput.value.length);
   return true;
 }
@@ -95,7 +99,7 @@ function focusCodeBlockCloseFence(wrapper: HTMLElement): boolean {
     ".me-codeblock-fence--close",
   ) as HTMLElement | null;
   if (!closeFence) return false;
-  closeFence.focus();
+  focusElementWithoutScroll(closeFence);
   return true;
 }
 
@@ -144,9 +148,8 @@ function activateCodeBlock(
   focusTarget: CodeBlockEditorMount["pendingFocusTarget"],
 ): boolean {
   view.dispatch({
-    effects: setActiveCodeBlock.of(block.blockFrom),
+    effects: [setActiveCodeBlock.of(block.blockFrom), view.scrollSnapshot()],
     selection,
-    scrollIntoView: true,
   });
 
   requestAnimationFrame(() => {
@@ -188,9 +191,8 @@ function deactivateCodeBlock(
   const block = getFencedBlockByStart(parentView.state, blockFrom)
   const targetPos = block ? block.blockTo : blockFrom
   parentView.dispatch({
-    effects: setActiveCodeBlock.of(null),
+    effects: [setActiveCodeBlock.of(null), parentView.scrollSnapshot()],
     selection: EditorSelection.cursor(targetPos),
-    scrollIntoView: true,
   })
   parentView.focus()
   return true
@@ -424,7 +426,7 @@ function createNestedEditorDom(
   bottomFence.addEventListener("mousedown", (event) => event.stopPropagation());
   bottomFence.addEventListener("click", (event) => {
     event.stopPropagation();
-    bottomFence.focus();
+    focusElementWithoutScroll(bottomFence);
   });
   bottomFence.addEventListener("keydown", (event) => {
     event.stopPropagation();
@@ -486,17 +488,28 @@ function createNestedEditorDom(
       extensions: [
         history(),
         keymap.of([
-          ...defaultKeymap,
-          ...historyKeymap,
-          indentWithTab,
           {
             key: "ArrowUp",
             run(innerView) {
               const sel = innerView.state.selection.main;
               if (!sel.empty) return false;
               const line = innerView.state.doc.lineAt(sel.head);
-              if (sel.head !== line.from || line.number !== 1) return false;
-              return focusCodeBlockLanguage(wrapper);
+              if (sel.head === line.from && line.number === 1) {
+                return focusCodeBlockLanguage(wrapper);
+              }
+
+              // Immediately after Enter, browser geometry can lag behind the
+              // nested document update and native vertical motion may skip the
+              // newly added previous line. Map this empty-line case by source.
+              if (line.length === 0 && line.number > 1) {
+                const previous = innerView.state.doc.line(line.number - 1);
+                innerView.dispatch({
+                  selection: EditorSelection.cursor(previous.from),
+                  scrollIntoView: true,
+                });
+                return true;
+              }
+              return false;
             },
           },
           {
@@ -513,6 +526,9 @@ function createNestedEditorDom(
               return focusCodeBlockCloseFence(wrapper);
             },
           },
+          ...defaultKeymap,
+          ...historyKeymap,
+          indentWithTab,
           {
             key: "Backspace",
             run(innerView) {
@@ -554,6 +570,7 @@ function createNestedEditorDom(
               to: block.contentTo,
               insert: nextCode,
             },
+            effects: view.scrollSnapshot(),
             selection: EditorSelection.create([
               EditorSelection.range(
                 block.contentFrom + update.state.selection.main.anchor,
@@ -819,6 +836,44 @@ export const codeBlockClickToEdit = EditorView.domEventHandlers({
   },
 });
 
+function moveUpToTextEnteredAfterCodeBlock(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const doc = view.state.doc;
+  const currentLine = doc.lineAt(selection.head);
+  if (
+    selection.head !== currentLine.from ||
+    currentLine.length !== 0 ||
+    currentLine.number <= 2
+  ) {
+    return false;
+  }
+
+  const previousLine = doc.line(currentLine.number - 1);
+  const possibleClosingFence = doc.line(currentLine.number - 2);
+  if (
+    previousLine.length === 0 ||
+    possibleClosingFence.text.trim() !== "```"
+  ) {
+    return false;
+  }
+
+  const block = getFencedBlockInfo(view.state, possibleClosingFence.from);
+  if (
+    !block ||
+    doc.lineAt(block.blockTo).number !== possibleClosingFence.number
+  ) {
+    return false;
+  }
+
+  view.dispatch({
+    effects: view.scrollSnapshot(),
+    selection: EditorSelection.cursor(previousLine.from),
+  });
+  return true;
+}
+
 export const codeBlockArrowNavigation = Prec.high(
   keymap.of([
     {
@@ -851,6 +906,7 @@ export const codeBlockArrowNavigation = Prec.high(
 
         const selection = view.state.selection.main
         if (!selection.empty) return false
+        if (moveUpToTextEnteredAfterCodeBlock(view)) return true
 
         const block = getAdjacentFencedBlock(view.state, selection.head, 'up')
         if (!block) return false

@@ -18,7 +18,11 @@ import {
   removeTableRowRange,
   updateTableCell,
 } from '../../internal/table-commands'
-import { exitWidgetWithArrowKey, handleWidgetBoundaryMouseDown } from '../../internal/widget-navigation'
+import {
+  exitWidgetWithArrowKey,
+  focusElementWithoutScroll,
+  handleWidgetBoundaryMouseDown,
+} from '../../internal/widget-navigation'
 
 function activateTable(
   view: EditorView,
@@ -26,9 +30,8 @@ function activateTable(
   target: { rowIndex: number; colIndex: number } = { rowIndex: 0, colIndex: 0 },
 ): boolean {
   view.dispatch({
-    effects: setActiveTable.of(block.from),
+    effects: [setActiveTable.of(block.from), view.scrollSnapshot()],
     selection: EditorSelection.cursor(block.from),
-    scrollIntoView: true,
   })
 
   requestAnimationFrame(() => {
@@ -45,9 +48,8 @@ function activateTable(
 function deactivateTable(view: EditorView, blockFrom: number): boolean {
   const block = getTableBlockByStart(view.state, blockFrom)
   view.dispatch({
-    effects: setActiveTable.of(null),
+    effects: [setActiveTable.of(null), view.scrollSnapshot()],
     selection: EditorSelection.cursor(block?.to ?? blockFrom),
-    scrollIntoView: true,
   })
   view.focus()
   return true
@@ -66,7 +68,7 @@ function focusTableInput(
   const offset = cursorOffset == null
     ? input.value.length
     : Math.max(0, Math.min(cursorOffset, input.value.length))
-  input.focus()
+  focusElementWithoutScroll(input)
   input.setSelectionRange(offset, offset)
   return true
 }

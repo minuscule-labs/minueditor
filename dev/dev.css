@@ -166,6 +166,22 @@ body {
   cursor: pointer;
 }
 
+.performance-lab-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+  color: #64748b;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.performance-lab-status span {
+  border-radius: 999px;
+  background: #eef2f7;
+  padding: 4px 8px;
+}
+
 .parity-demo-description {
   min-height: 1.5em;
   margin: 10px 0 0;
@@ -385,8 +401,13 @@ pre {
 }
 
 .app--theme-dark .parity-demo-controls label,
-.app--theme-dark .parity-demo-description {
+.app--theme-dark .parity-demo-description,
+.app--theme-dark .performance-lab-status {
   color: #94a3b8;
+}
+
+.app--theme-dark .performance-lab-status span {
+  background: #1e293b;
 }
 
 .app--theme-dark .parity-demo-controls select,

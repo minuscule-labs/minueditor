@@ -204,8 +204,8 @@ class MermaidWidget extends WidgetType {
         ? () => {
             view.focus()
             view.dispatch({
+              effects: view.scrollSnapshot(),
               selection: { anchor: this.block.contentFrom },
-              scrollIntoView: true,
             })
           }
         : undefined,

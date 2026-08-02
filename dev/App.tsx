@@ -7,6 +7,7 @@ import type {
   CodeHighlighter,
   DocumentAnnotation,
   MarkdownEditorHandle,
+  MarkdownEditorState,
   WikiLinksConfig,
 } from '../src/index'
 import { createShikiHighlighter } from '../src/shiki'
@@ -96,6 +97,24 @@ Use the bottom toolbar to drive the editor through the public ref handle.
 
 Select some text, then try **Bold**, *Italic*, Link, Image, Table, or Code.
 `
+
+const PERFORMANCE_INITIAL = [
+  '# Long-note stability lab',
+  '',
+  ...Array.from({ length: 24 }, (_, index) => {
+    const section = index + 1
+    const blocks = [
+      `## Section ${section}`,
+      '',
+      `Paragraph ${section} contains enough ordinary text to exercise wrapping and viewport anchoring while navigating a longer controlled document.`,
+    ]
+    if (section === 6) blocks.push('', '> [!NOTE]', '> This callout should not disturb nearby cursor positions.')
+    if (section === 12) blocks.push('', '| Feature | Status |', '| --- | --- |', '| Cursor mapping | Stable |')
+    if (section === 18) blocks.push('', '```ts', 'const preserveViewport = true', '```')
+    if (section === 22) blocks.push('', '```mermaid', 'graph LR', '  Source --> Preview', '```')
+    return blocks.join('\n')
+  }),
+].join('\n\n')
 
 const MERMAID_INITIAL = `# Mermaid rich blocks
 
@@ -388,6 +407,64 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
           <button type="button" onClick={() => run('Code block', () => editorRef.current?.insertCodeBlock())}>Code block</button>
           <span className="command-api-status">{status}</span>
         </div>
+      </div>
+    </section>
+  )
+}
+
+function PerformanceStabilityDemo({ theme }: { theme: ThemeChoice }) {
+  const ref = useRef<MarkdownEditorHandle>(null)
+  const [value, setValue] = useState(PERFORMANCE_INITIAL)
+  const [view, setView] = useState<EditorView | null>(null)
+  const [state, setState] = useState<MarkdownEditorState | null>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const mermaid = useMemo(() => ({ theme: theme === 'dark' ? 'dark' as const : 'default' as const }), [theme])
+
+  useEffect(() => {
+    if (!view) return
+    const scroller = view.scrollDOM
+    const updateScroll = () => setScrollTop(Math.round(scroller.scrollTop))
+    updateScroll()
+    scroller.addEventListener('scroll', updateScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', updateScroll)
+  }, [view])
+
+  function goToLine(lineNumber: number) {
+    const editor = ref.current?.view
+    if (!editor) return
+    const line = editor.state.doc.line(Math.min(lineNumber, editor.state.doc.lines))
+    ref.current?.setSelection(line.from)
+  }
+
+  return (
+    <section className="surface">
+      <h2>Long-note cursor and widget stability</h2>
+      <p className="surface-desc">
+        Stress surface for controlled updates, scrolling, and table/code/Mermaid geometry changes.
+      </p>
+      <div className="parity-demo-controls">
+        <button type="button" onClick={() => goToLine(70)}>Go to line 70</button>
+        <button type="button" onClick={() => setValue((current) => `Externally inserted above cursor.\n${current}`)}>
+          Insert externally at top
+        </button>
+        <button type="button" onClick={() => setValue(PERFORMANCE_INITIAL)}>Reset note</button>
+      </div>
+      <div className="performance-lab-status" aria-live="polite">
+        <span>Line {state?.activeLine.number ?? '—'}</span>
+        <span>Selection {state?.selection.from ?? '—'}–{state?.selection.to ?? '—'}</span>
+        <span>Scroll {scrollTop}px</span>
+      </div>
+      <div className="editor-frame">
+        <MarkdownEditor
+          ref={ref}
+          value={value}
+          onChange={setValue}
+          onViewReady={setView}
+          onStateChange={setState}
+          mermaid={mermaid}
+          minHeight={480}
+          maxHeight={480}
+        />
       </div>
     </section>
   )
@@ -911,6 +988,8 @@ export default function App() {
         <RichPasteDemo />
 
         <MermaidDemo theme={theme} />
+
+        <PerformanceStabilityDemo theme={theme} />
 
         <CalloutDemo />
 

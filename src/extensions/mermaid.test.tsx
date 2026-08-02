@@ -98,9 +98,12 @@ describe('Mermaid rich blocks', () => {
     )
 
     const edit = await waitFor(() => container.querySelector('.me-mermaid-edit') as HTMLButtonElement)
+    const scroller = container.querySelector('.cm-scroller') as HTMLElement
+    scroller.scrollTop = 240
     fireEvent.click(edit)
 
     await waitFor(() => expect(container.querySelector('.me-mermaid-block')).not.toBeInTheDocument())
+    expect(scroller.scrollTop).toBe(240)
     expect(container.querySelector('.cm-content')).toHaveTextContent('graph TD')
     expect(container.querySelector('.cm-content')).toHaveTextContent('A --> B')
   })

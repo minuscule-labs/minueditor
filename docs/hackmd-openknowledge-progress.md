@@ -39,6 +39,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 2 | Editor/static parity fixtures | MinuEditor | Complete | 243 tests; typecheck; build; dist verification; manual review approved |
 | 2 | Static code-block shell | MinuEditor | Planned | Language, Copy, overflow, fallback, async safety |
 | 2 | Cursor and viewport stability | MinuEditor | Complete | 245 tests; typecheck; build; dist; approved |
+| 2 | Rich-widget viewport stability | MinuEditor | Complete | 280 tests; manual review approved; scroll snapshots; stress lab |
 | 3 | Minimal rich-block lifecycle | MinuEditor | Complete | Cancellable serialized lifecycle; 274 tests; manual review approved |
 | 3 | Mermaid | MinuEditor | Complete | Lazy strict renderer; parity and StrictMode fixes approved |
 | 3 | Math | MinuEditor | Planned | Documented delimiters, lazy rendering, accessibility |
@@ -245,6 +246,28 @@ Verification:
 
 Manual review approved after fixing singleton concurrency and React StrictMode static-renderer restart behavior.
 
+### 2026-08-02 — Rich-widget viewport stability
+
+**Status:** Complete
+
+Implemented:
+
+- Preserve the editor scroller snapshot while table/code widgets enter or leave editing state.
+- Preserve the scroll anchor while nested table/code edits synchronize portable Markdown back to the parent editor.
+- Focus nested widget controls with `preventScroll` so browser page scrolling does not override CodeMirror anchoring.
+- Add table/code/Mermaid scroll-anchor regressions and a long-note manual stress surface with cursor line, selection, and scroll telemetry.
+- Move upward by source position after entering text below a final code widget, avoiding stale replacement-widget geometry.
+
+Verification:
+
+- `npm test -- --run` — 280 tests passed across 13 files.
+- `npm run typecheck` — passed.
+- `npm run build` — passed.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review confirmed the reported final-code-block Arrow Up jump is fixed.
+
 ## Next package
 
-Review the measured performance candidates in MinuNotes `note_25c12e115f6b4f7a990b4414224f6cb4` and choose one bounded optimization package.
+Select the next measured performance candidate only after a new bounded package is approved.

@@ -3,6 +3,10 @@ import type { EditorView } from '@codemirror/view'
 
 export type WidgetNavigationTarget = 'before' | 'inside-start' | 'inside-end' | 'after'
 
+export function focusElementWithoutScroll(element: HTMLElement): void {
+  element.focus({ preventScroll: true })
+}
+
 export type WidgetSourceRange = {
   from: number
   to: number

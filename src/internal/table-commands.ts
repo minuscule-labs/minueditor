@@ -6,6 +6,7 @@ import {
   type TableBlock,
 } from '../extensions/tables/model'
 import { setActiveTable } from '../extensions/tables/state'
+import { focusElementWithoutScroll } from './widget-navigation'
 
 export type TableCellTarget = {
   blockFrom: number
@@ -25,9 +26,11 @@ function applyTableBlockUpdate(
       to: block.to,
       insert: nextBlock ? formatTableMarkdown(nextBlock) : '',
     },
-    effects: setActiveTable.of(nextBlock ? block.from : null),
+    effects: [
+      setActiveTable.of(nextBlock ? block.from : null),
+      view.scrollSnapshot(),
+    ],
     selection: nextSelection,
-    scrollIntoView: true,
   })
 }
 
@@ -48,7 +51,7 @@ export function focusTableCell(
     ) as HTMLInputElement | null
     if (!input) return
 
-    input.focus()
+    focusElementWithoutScroll(input)
     input.setSelectionRange(input.value.length, input.value.length)
   })
 }
