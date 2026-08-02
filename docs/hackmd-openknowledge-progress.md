@@ -30,16 +30,16 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | --- | --- | --- | --- | --- |
 | 1 | Heading outline and anchors | MinuEditor | Complete | 220 tests; typecheck; build; dist verification; manual demo approved |
 | 1 | GitHub-style alerts/callouts | MinuEditor | Complete | 231 tests; typecheck; build; dist verification |
-| 1 | Code-language completion | MinuEditor | Planned | Aliases, suggestions, unsupported state |
-| 1 | Rich paste | MinuEditor | Planned | Browser/Docs/Notion/spreadsheet fixtures required |
-| 1 | Footnotes | MinuEditor | Planned | Navigation, diagnostics, accessible backlinks |
+| 1 | Code-language completion | MinuEditor | Deferred | Lower current value; revisit with diagnostics or user demand |
+| 1 | Rich paste | MinuEditor | Planned | Approved after parity fixtures; browser/Docs/Notion/spreadsheet fixtures required |
+| 1 | Footnotes | MinuEditor | Deferred | No current demand; unsupported syntax remains editable Markdown |
 | 2 | Shared diagnostics contract | Shared | Planned | Editor, MinuNotes UI, harness, and MCP schema |
 | 2 | Problems panel | MinuNotes | Planned | Host-owned panel using shared diagnostics |
 | 2 | Structured write advisories | MinuNotes | Planned | Non-fatal create/edit response advisories |
-| 2 | Editor/static parity fixtures | MinuEditor | Planned | Code, table, task, quote, link, image fixtures |
+| 2 | Editor/static parity fixtures | MinuEditor | Complete | 243 tests; typecheck; build; dist verification; manual review approved |
 | 2 | Static code-block shell | MinuEditor | Planned | Language, Copy, overflow, fallback, async safety |
-| 3 | Minimal rich-block lifecycle | MinuEditor | Planned | Derived from callouts, Mermaid, and math—not designed in advance |
-| 3 | Mermaid | MinuEditor | Planned | Lazy, safe, cancellable, editable source fallback |
+| 3 | Minimal rich-block lifecycle | MinuEditor | Planned | Approved after rich paste; derive from callouts and Mermaid, not in advance |
+| 3 | Mermaid | MinuEditor | Planned | Approved rich-block proof; lazy, safe, cancellable, editable source fallback |
 | 3 | Math | MinuEditor | Planned | Documented delimiters, lazy rendering, accessibility |
 | 3 | Host-resolved media cards | Shared | Deferred | No arbitrary editor-side network fetching |
 | 3 | CSV/TSV preview | MinuEditor | Deferred | Reuse table display after rich-block proof |
@@ -134,6 +134,41 @@ Verification:
 
 Manual review approved; further annotation polish is deferred until after the broader roadmap effort.
 
+### 2026-08-02 — Editor/static parity fixtures
+
+**Status:** Complete
+
+Implemented:
+
+- Canonical shared fixtures for inline formatting/links, lists/tasks/quotes, callout composition, tables/code, and media/safe fallbacks.
+- Semantic DOM assertions for both live editor and static renderer paths.
+- Explicit coverage for intentional static wikilink and annotation differences.
+- Source-mode portability and initial-render source-mutation checks.
+- Consolidated fixture selector and side-by-side visual review surface.
+- Review and extension guidance in `docs/editor-static-parity.md`.
+
+Verification:
+
+- `npm test -- --run` — 243 tests passed across 9 files.
+- `npm run typecheck` — passed.
+- `npm run build` — passed.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review approved after confirming the package benefit and visual fixture surface.
+
+### 2026-08-02 — Revised package sequence
+
+**Approved sequence:** editor/static parity fixtures → rich paste → Mermaid with a minimal expandable rich-block lifecycle.
+
+Decisions:
+
+- Defer code-language completion and footnotes until user demand or diagnostic evidence justifies them.
+- Keep unsupported Markdown editable rather than adding speculative UI.
+- Use semantic DOM assertions and a consolidated visual surface for parity; avoid brittle pixel snapshots.
+- Derive the rich-block lifecycle from callouts and Mermaid before adapting it to math, CSV previews, or host-resolved media.
+- Execute and review each package separately; do not advance automatically.
+
 ## Next package
 
-Review the remaining roadmap and choose the next approved package; code-language completion is not assumed.
+Complete and review **editor/static parity fixtures** before beginning rich paste.

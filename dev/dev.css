@@ -131,6 +131,52 @@ body {
   color: #64748b;
 }
 
+.parity-demo-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.parity-demo-controls label {
+  display: grid;
+  gap: 3px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.parity-demo-controls select,
+.parity-demo-controls button {
+  min-height: 34px;
+  border: 1px solid #d7dce3;
+  border-radius: 8px;
+  background: #fff;
+  color: #202735;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.parity-demo-controls button {
+  cursor: pointer;
+}
+
+.parity-demo-description {
+  min-height: 1.5em;
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.parity-renderer-frame {
+  min-height: 360px;
+}
+
 .callout-demo-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -333,6 +379,18 @@ pre {
 }
 
 .app--theme-dark .theme-picker select {
+  background: #111827;
+  border-color: #334155;
+  color: #e5e7eb;
+}
+
+.app--theme-dark .parity-demo-controls label,
+.app--theme-dark .parity-demo-description {
+  color: #94a3b8;
+}
+
+.app--theme-dark .parity-demo-controls select,
+.app--theme-dark .parity-demo-controls button {
   background: #111827;
   border-color: #334155;
   color: #e5e7eb;

@@ -13,6 +13,7 @@ import { createShikiHighlighter } from '../src/shiki'
 import '../src/theme/theme.css'
 import lightThemeUrl from '../src/theme/themes/light.css?url'
 import darkThemeUrl from '../src/theme/themes/dark.css?url'
+import { markdownParityFixtures } from './fixtures/markdown-parity'
 
 type ThemeChoice = 'base' | 'light' | 'dark'
 
@@ -371,6 +372,69 @@ function CommandApiDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter 
   )
 }
 
+function ParityFixturesDemo() {
+  const firstFixture = markdownParityFixtures[0]
+  const [fixtureId, setFixtureId] = useState(firstFixture.id)
+  const [value, setValue] = useState(firstFixture.markdown)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const fixture = markdownParityFixtures.find(({ id }) => id === fixtureId) ?? firstFixture
+
+  function selectFixture(nextId: string) {
+    const next = markdownParityFixtures.find(({ id }) => id === nextId) ?? firstFixture
+    setFixtureId(next.id)
+    setValue(next.markdown)
+  }
+
+  return (
+    <section className="surface">
+      <h2>Editor/static parity fixtures</h2>
+      <p className="surface-desc">
+        Canonical regression fixtures for semantic and visual comparison across both rendering paths.
+      </p>
+      <div className="parity-demo-controls">
+        <label>
+          <span>Fixture</span>
+          <select value={fixture.id} onChange={(event) => selectFixture(event.target.value)}>
+            {markdownParityFixtures.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>{candidate.title}</option>
+            ))}
+          </select>
+        </label>
+        <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>
+          Editor mode: {mode}
+        </button>
+        <button type="button" onClick={() => setValue(fixture.markdown)}>
+          Reset fixture
+        </button>
+      </div>
+      <p className="parity-demo-description">{fixture.description}</p>
+      <div className="callout-demo-layout">
+        <div>
+          <h3 className="demo-column-title">Editor</h3>
+          <div className="editor-frame">
+            <MarkdownEditor
+              value={value}
+              onChange={setValue}
+              mode={mode}
+              minHeight={360}
+              {...(fixture.annotations ? { annotations: fixture.annotations } : {})}
+              wikiLinks={{
+                resolve: (target) => ({ status: target === 'Project Alpha' ? 'resolved' : 'unresolved' }),
+              }}
+            />
+          </div>
+        </div>
+        <div>
+          <h3 className="demo-column-title">Static renderer</h3>
+          <div className="editor-frame parity-renderer-frame">
+            <MarkdownRenderer value={value} />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function CalloutDemo() {
   const [value, setValue] = useState(CALLOUT_INITIAL)
   const [mode, setMode] = useState<'live' | 'source'>('live')
@@ -716,6 +780,8 @@ export default function App() {
         <CommandApiDemo codeHighlighter={codeHighlighter} />
 
         <OutlineDemo codeHighlighter={codeHighlighter} />
+
+        <ParityFixturesDemo />
 
         <CalloutDemo />
 
