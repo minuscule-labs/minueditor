@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+## 0.11.1
+
 - Fixed multi-digit ordered-list markers being clipped by the live-editor marker gutter.
+- Right-anchored ordered markers so larger source numbers grow into the hanging-indent area while list content remains aligned.
+- Added numbered-list gutter stress coverage for single-, double-, triple-digit, nested, and wrapped items.
+
+Verified with typecheck, the full test suite, release build, distribution verification, and package dry run.
 
 ## 0.11.0
 
