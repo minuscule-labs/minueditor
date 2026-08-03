@@ -55,6 +55,15 @@ This is the **document** surface with basic live markdown only.
     - Nested list items should also wrap cleanly with their own marker gutter and text column, including enough prose to force wrapping across several visual lines in a narrow editor
         - Deeply nested list items keep increasing the standard list indent while preserving hanging wraps for long content that spans more than one line
 
+### Numbered lists
+
+8. Single-digit markers use the same right-aligned content boundary
+9. The final single-digit marker remains aligned
+10. Two-digit markers grow left into the hanging-indent area without hiding the period
+99. Wider two-digit markers preserve the same text column and wrapped-line alignment across a deliberately longer description
+100. Three-digit markers remain complete while list content starts at the same gutter boundary
+    100. Nested three-digit markers use the nested hanging-indent area without changing the parent content column
+
 ### Task lists
 
 - [ ] Build the editor core

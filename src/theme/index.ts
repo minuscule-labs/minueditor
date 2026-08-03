@@ -99,8 +99,11 @@ export const minueditorTheme = EditorView.theme({
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "flex-end",
-    width: "calc(var(--me-list-marker-gutter) - 0.5ch)",
+    boxSizing: "border-box",
+    width: "var(--me-list-marker-gutter)",
     height: "calc(var(--me-line-height, 1.6) * 1em)",
+    overflow: "visible",
+    whiteSpace: "nowrap",
     textAlign: "right",
   },
 
@@ -692,9 +695,15 @@ export const minueditorTheme = EditorView.theme({
     paddingRight: "0.5ch",
   },
 
-  ".me-ordered-list-marker": {
-    display: "inline-block",
+  ".me-list-line .me-ordered-list-marker": {
+    // Anchor the marker's right edge to the content gutter so 10., 100.,
+    // and longer source numbers grow into the hanging-indent area instead
+    // of being clipped or pushing list content out of alignment.
+    left: "calc(var(--me-list-marker-offset) + var(--me-list-indent) + var(--me-list-marker-gutter))",
+    width: "max-content",
     minWidth: "2.25ch",
+    transform: "translateX(-100%)",
+    display: "inline-block",
     textAlign: "right",
     paddingRight: "0.55ch",
     color: "var(--me-list-marker-color, var(--me-text, #1a1a1a))",

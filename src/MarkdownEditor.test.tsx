@@ -1191,6 +1191,17 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('preserves complete multi-digit ordered-list markers', async () => {
+    const { container } = render(
+      <MarkdownEditor value={'9. nine\n10. ten\n11. eleven\n100. hundred'} onChange={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      const markers = Array.from(container.querySelectorAll('.me-ordered-list-marker'))
+      expect(markers.map((marker) => marker.textContent)).toEqual(['9.', '10.', '11.', '100.'])
+    })
+  })
+
   it('shows the unordered bullet decoration on the active list line', async () => {
     const { container } = render(
       <MarkdownEditor value={'- bullet'} onChange={vi.fn()} />

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed multi-digit ordered-list markers being clipped by the live-editor marker gutter.
+
 ## 0.11.0
 
 - Fixed table, code, and Mermaid widget activation/editing causing viewport movement by preserving CodeMirror scroll snapshots and focusing nested controls without browser scrolling.
