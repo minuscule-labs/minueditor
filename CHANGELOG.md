@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.0
+
 - Fixed table, code, and Mermaid widget activation/editing causing viewport movement by preserving CodeMirror scroll snapshots and focusing nested controls without browser scrolling.
 - Fixed Arrow Up skipping across a final code widget after entering text below it.
 - Added a long-note cursor/widget stability lab with line, selection, and scroll telemetry.
@@ -16,6 +18,8 @@
 - Added syntax-tree-backed heading enumeration with visible text, source ranges, Unicode-aware slugs, and duplicate disambiguation.
 - Added `getHeadings()` and `goToHeading(slug)` to the editor ref handle.
 - Added a development outline surface for reviewing navigation, active sections, duplicate anchors, and copy-link behavior.
+
+Verified with typecheck, the full test suite, release build, distribution verification, and package dry run.
 
 ## 0.10.12
 
