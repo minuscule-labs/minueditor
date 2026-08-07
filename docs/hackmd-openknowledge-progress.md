@@ -2,9 +2,9 @@
 
 This document is the implementation ledger for product ideas adapted from the HackMD and OpenKnowledge reviews.
 
-- **Active package branch:** `feat/comments-v1`
+- **Active package branch:** `main`
 - **Product plan:** MinuNotes note `note_73a3afed52cc4ae197056d59e34d351c`
-- **Consumer-facing release notes:** [`CHANGELOG.md`](../CHANGELOG.md), under **Unreleased**
+- **Consumer-facing release notes:** [`CHANGELOG.md`](../CHANGELOG.md), under **0.12.0**
 
 ## Tracking rules
 
@@ -46,7 +46,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 3 | Host-resolved media cards | Shared | Deferred | No arbitrary editor-side network fetching |
 | 3 | CSV/TSV preview | MinuEditor | Deferred | Reuse table display after rich-block proof |
 | 4 | Annotation visual alignment | MinuEditor | Complete | 231 tests; typecheck; callout-compatible semantic styling |
-| 4 | Controlled comments v1 | Shared | Ready for review | 290 tests; versioned range/line anchors; line actions; host adapter |
+| 4 | Controlled comments v1 | Shared | Complete | 292 tests; manual review approved; versioned anchors; host adapter |
 | 4 | Agent activity summaries and diffs | MinuNotes | Planned | Existing actor/event/version data first |
 | 4 | Rollback and actor filtering | MinuNotes | Planned | No CRDT dependency |
 | 4 | Graph-health audits | MinuNotes | Planned | Dead/ambiguous links, hubs, permission-safe audits |
@@ -271,7 +271,7 @@ Manual review confirmed the reported final-code-block Arrow Up jump is fixed.
 
 ### 2026-08-04 — Controlled comments v1
 
-**Status:** Ready for review
+**Status:** Complete
 
 Approved scope:
 
@@ -289,14 +289,14 @@ Approved scope:
 
 Verification:
 
-- `npm test -- --run` — 290 tests passed across 13 files.
+- `npm test -- --run` — 292 tests passed across 13 files.
 - `npm run typecheck` — passed.
 - `npm run build` — passed.
 - `npm run verify:dist` — passed.
 - `git diff --check` — passed.
 
-Manual review remains for selection and whole-line creation, multiple comments on the same text, editing, resolve/reopen, deletion, source edits above/inside anchors, host-popover mode, dark theme, and narrow layout.
+Manual review approved the controlled API, whole-line actions, grouped cards with quoted anchors, anchor tradeoffs, source navigation, timestamps, and the host-popover boundary. Release approval was given for v0.12.0.
 
 ## Next package
 
-Complete and manually review **controlled comments v1** before beginning revision-based diff review or another feature.
+Choose the next bounded package explicitly; revision-based diff review remains a candidate but has not started.

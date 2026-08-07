@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.0 — 2026-08-06
+
 - Added a controlled Comments v1 API with selection-to-comment requests, whole-line comment actions, inline anchors, count-free right-gutter icons, a simple side panel, local anchor mapping, and detached-anchor handling.
 - Added support for viewing and creating multiple independent comments on the same exact text anchor and discovering overlapping comments on the same passage.
 - Distinguished `range` and `line` anchors so selected-text comments become outdated when their quote changes while whole-line comments follow edits until their anchored source is removed.
