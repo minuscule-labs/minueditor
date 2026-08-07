@@ -229,11 +229,28 @@ A config object can select a Mermaid theme or provide a host-controlled lazy eng
 
 When Mermaid is disabled, `mermaid` fences remain ordinary editable and statically rendered code blocks. The initial async lifecycle is intentionally internal and derived from callouts plus Mermaid; future math or preview blocks can reuse it after proving matching loading, cancellation, error, accessibility, and fallback needs.
 
-## Comments and change highlights
+## Comments and generic annotations
 
-Line-anchored `DocumentAnnotation` decorations use the same tinted-surface visual language as callouts, with a right-side accent rail to distinguish review metadata from authored callout content. Comment, generated, added, updated, and deleted kinds have separate semantic colors. Range annotations remain compact inline highlights so they do not turn partial text selections into block surfaces.
+Comments use a controlled, host-owned data model. MinuEditor supplies selection-to-comment requests, whole-line comment actions, inline source anchors, count-free right-gutter icons, a simple side-panel textarea, multiple independent and overlapping comments on the same passage, CRUD interactions, local anchor mapping, and detached-anchor presentation. The host supplies persistence, IDs, actors, permissions, and version identifiers:
 
-The host continues to own comment threads, actors, selection state, and side panels. Theme variables such as `--me-comment-accent`, `--me-comment-bg`, `--me-generated-accent`, and `--me-generated-bg` can override the defaults.
+```tsx
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  comments={{
+    items: comments,
+    documentVersion: contentHash,
+    onCreate: createComment,
+    onUpdate: updateComment,
+    onDelete: deleteComment,
+    onAnchorChange: persistMappedAnchor,
+  }}
+/>
+```
+
+Select text and use the Comment action, click a line’s right-side action to select that whole line, or call `editorRef.current?.requestComment()`. Comment bodies are simple text. `range` anchors preserve the selected quote and detach when it changes; `line` anchors follow edits to the complete source line until that source is removed. Hosts that prefer a popover can set `showPanel: false`, open creation UI from `onRequest(anchor)`, and use `onSelectGroup(comments)` to receive all comments represented by a clicked line icon. Resolve/reopen is represented through `status`; replies, mentions, reactions, and suggested edits are intentionally outside this editor contract. See `docs/comments.md` for the adapter and anchor behavior.
+
+The lower-level `DocumentAnnotation` API remains available for generic line/range metadata and future revision-based diff review. It is not an AI-specific wrapper. Theme variables such as `--me-comment-accent` and `--me-comment-bg` can override comment presentation.
 
 ## Heading outlines and anchors
 

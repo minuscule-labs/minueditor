@@ -2,7 +2,7 @@
 
 This document is the implementation ledger for product ideas adapted from the HackMD and OpenKnowledge reviews.
 
-- **Integration branch:** `feat/hackmd-openknowledge-roadmap`
+- **Active package branch:** `feat/comments-v1`
 - **Product plan:** MinuNotes note `note_73a3afed52cc4ae197056d59e34d351c`
 - **Consumer-facing release notes:** [`CHANGELOG.md`](../CHANGELOG.md), under **Unreleased**
 
@@ -46,6 +46,7 @@ This document is the implementation ledger for product ideas adapted from the Ha
 | 3 | Host-resolved media cards | Shared | Deferred | No arbitrary editor-side network fetching |
 | 3 | CSV/TSV preview | MinuEditor | Deferred | Reuse table display after rich-block proof |
 | 4 | Annotation visual alignment | MinuEditor | Complete | 231 tests; typecheck; callout-compatible semantic styling |
+| 4 | Controlled comments v1 | Shared | Ready for review | 290 tests; versioned range/line anchors; line actions; host adapter |
 | 4 | Agent activity summaries and diffs | MinuNotes | Planned | Existing actor/event/version data first |
 | 4 | Rollback and actor filtering | MinuNotes | Planned | No CRDT dependency |
 | 4 | Graph-health audits | MinuNotes | Planned | Dead/ambiguous links, hubs, permission-safe audits |
@@ -123,7 +124,7 @@ Manual review approved for live/source behavior, static parity, semantic colors,
 
 Direction:
 
-- Reuse the callout tinted-surface and semantic-color language for line comments and AI change highlights.
+- Reuse the callout tinted-surface and semantic-color language for line comments and generic change highlights.
 - Place review accents on the right so annotations remain distinguishable from authored callouts and can coexist on the same line.
 - Use comment/generated/added/updated/deleted kind colors; actor identity remains metadata rather than overriding semantic color.
 - Keep source-range annotations as compact inline highlights.
@@ -268,6 +269,34 @@ Verification:
 
 Manual review confirmed the reported final-code-block Arrow Up jump is fixed.
 
+### 2026-08-04 — Controlled comments v1
+
+**Status:** Ready for review
+
+Approved scope:
+
+- Host-owned comment records, persistence, actors, permissions, and network behavior.
+- Selection-to-comment requests and whole-line comment actions from MinuEditor.
+- Inline source-range anchors with compact count-free right-gutter icons.
+- Multiple independent, overlapping, or same-line comments with complete quoted-anchor cards.
+- Attached-card navigation to source ranges and host-formatted timestamps.
+- Simple controlled side-panel text editing, with `showPanel: false`, `onRequest`, and line-level `onSelectGroup` for host-owned popovers.
+- Create, edit, resolve/reopen, and delete callbacks.
+- Versioned `range` and `line` anchors: range quotes detach when changed, while whole-line anchors follow line edits until their source is removed.
+- Local CRUD development demo proving the MinuNotes adapter boundary.
+- No replies, mentions, reactions, suggested edits, or AI-specific wrapper.
+- Keep `DocumentAnnotation` generic for diagnostics and future revision-derived diff review.
+
+Verification:
+
+- `npm test -- --run` — 290 tests passed across 13 files.
+- `npm run typecheck` — passed.
+- `npm run build` — passed.
+- `npm run verify:dist` — passed.
+- `git diff --check` — passed.
+
+Manual review remains for selection and whole-line creation, multiple comments on the same text, editing, resolve/reopen, deletion, source edits above/inside anchors, host-popover mode, dark theme, and narrow layout.
+
 ## Next package
 
-Select the next measured performance candidate only after a new bounded package is approved.
+Complete and manually review **controlled comments v1** before beginning revision-based diff review or another feature.

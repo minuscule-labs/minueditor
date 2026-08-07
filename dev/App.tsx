@@ -5,7 +5,7 @@ import type { EditorView } from '@codemirror/view'
 import { EditorToolbar, MarkdownEditor, MarkdownRenderer, parseMarkdownHeadings } from '../src/index'
 import type {
   CodeHighlighter,
-  DocumentAnnotation,
+  EditorComment,
   MarkdownEditorHandle,
   MarkdownEditorState,
   WikiLinksConfig,
@@ -208,27 +208,6 @@ The anchor model may drift if the document changes a lot above the comment.
 Add replies, resolve state, and a sidebar thread view later.
 `
 
-const AI_DOC = `# AI change highlights
-
-The editor can render annotations for generated, updated, added, and deleted ranges.
-
-## Generated
-
-This paragraph was drafted by an agent.
-
-## Updated
-
-This paragraph was revised by an agent after a human edit.
-
-## Added
-
-This section was inserted during an automation pass.
-
-## Deleted
-
-This line remains in the document but should be struck through in the review surface.
-`
-
 const WIKI_INITIAL = `# Wikilink manual test
 
 Try:
@@ -248,125 +227,84 @@ const WIKI_NOTES = [
   { id: 'note_4', title: 'Daily Journal', folder: 'Personal' },
 ]
 
-function annotationById(annotations: readonly DocumentAnnotation[], id: string | null) {
-  if (!id) return null
-  return annotations.find((annotation) => annotation.id === id) ?? null
+function initialLocalComments(): EditorComment[] {
+  const quote = 'We should explain the tradeoff before merging.'
+  const from = COMMENT_DOC.indexOf(quote)
+  const anchor: EditorComment['anchor'] = {
+    anchorType: 'range',
+    from,
+    to: from + quote.length,
+    quote,
+    documentVersion: 'local-demo-v1',
+  }
+  return [
+    {
+      id: 'comment-1',
+      body: 'Can we include one concrete example here?',
+      status: 'open',
+      anchor,
+      author: { id: 'demo-user', type: 'user', name: 'Reviewer' },
+    },
+    {
+      id: 'comment-2',
+      body: 'I agree—an example would make the tradeoff easier to review.',
+      status: 'open',
+      anchor,
+      author: { id: 'demo-reviewer', type: 'user', name: 'Second reviewer' },
+    },
+  ]
 }
 
-function AnnotationSurface({
-  title,
-  description,
-  value,
-  annotations,
-  selectedId,
-  onAnnotationClick,
-  sidebarLabel,
-  codeHighlighter,
-}: {
-  title: string
-  description: string
-  value: string
-  annotations: readonly DocumentAnnotation[]
-  selectedId: string | null
-  onAnnotationClick: (annotation: DocumentAnnotation, view: EditorView) => void
-  sidebarLabel: string
-  codeHighlighter: CodeHighlighter
-}) {
-  const selectedAnnotation = useMemo(
-    () => annotationById(annotations, selectedId),
-    [annotations, selectedId],
-  )
+function CommentsCrudDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
+  const [value, setValue] = useState(COMMENT_DOC)
+  const [comments, setComments] = useState<EditorComment[]>(initialLocalComments)
+  const nextCommentId = useRef(3)
 
   return (
     <section className="surface">
-      <h2>{title}</h2>
-      <p className="surface-desc">{description}</p>
-      <div className="annotation-layout">
-        <div className="editor-frame">
-          <MarkdownEditor
-            value={value}
-            onChange={() => {}}
-            annotations={annotations}
-            onAnnotationClick={onAnnotationClick}
-            readOnly
-            minHeight={240}
-            slashCommands={false}
-            codeHighlighter={codeHighlighter}
-            codeLanguages={devCodeLanguages}
-          />
-        </div>
-        <aside className="annotation-panel">
-          <div className="annotation-panel__header">{sidebarLabel}</div>
-          {selectedAnnotation ? (
-            <div className="annotation-panel__body">
-              <div className="annotation-panel__label">{selectedAnnotation.label ?? selectedAnnotation.kind}</div>
-              <div className="annotation-panel__meta">
-                {selectedAnnotation.actorType ? <span>{selectedAnnotation.actorType}</span> : null}
-                {selectedAnnotation.status ? <span>{selectedAnnotation.status}</span> : null}
-                {selectedAnnotation.anchorType === 'line' ? (
-                  <span>
-                    lines {selectedAnnotation.startLine ?? 1}
-                    {selectedAnnotation.endLine && selectedAnnotation.endLine !== selectedAnnotation.startLine
-                      ? `-${selectedAnnotation.endLine}`
-                      : ''}
-                  </span>
-                ) : (
-                  <span>range {selectedAnnotation.from ?? 0}-{selectedAnnotation.to ?? 0}</span>
-                )}
-              </div>
-              <pre>{JSON.stringify(selectedAnnotation, null, 2)}</pre>
-            </div>
-          ) : (
-            <div className="annotation-panel__empty">Click an annotation to inspect it.</div>
-          )}
-        </aside>
+      <h2>Comments API and local CRUD</h2>
+      <p className="surface-desc">
+        Select text or use a line’s right-side comment icon. Inline anchors, count-free gutter icons,
+        multiple comments on the same text, the side panel, CRUD, anchor mapping, and detached states use the same controlled API a host can persist.
+      </p>
+      <div className="editor-frame">
+        <MarkdownEditor
+          value={value}
+          onChange={setValue}
+          minHeight={300}
+          codeHighlighter={codeHighlighter}
+          codeLanguages={devCodeLanguages}
+          comments={{
+            items: comments,
+            documentVersion: 'local-demo-v1',
+            onCreate: ({ body, anchor }) => {
+              const comment: EditorComment = {
+                id: `comment-${nextCommentId.current++}`,
+                body,
+                status: 'open',
+                anchor,
+                author: { id: 'demo-user', type: 'user', name: 'Local reviewer' },
+              }
+              setComments((current) => [...current, comment])
+              return comment
+            },
+            onUpdate: (id, update) => {
+              setComments((current) => current.map((comment) => (
+                comment.id === id ? { ...comment, ...update } : comment
+              )))
+            },
+            onDelete: (id) => {
+              setComments((current) => current.filter((comment) => comment.id !== id))
+            },
+            onAnchorChange: (id, anchor) => {
+              setComments((current) => current.map((comment) => (
+                comment.id === id ? { ...comment, anchor } : comment
+              )))
+            },
+          }}
+        />
       </div>
     </section>
-  )
-}
-
-function CommentAnnotationsDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
-  const [selectedId, setSelectedId] = useState<string | null>('comment-2')
-
-  const annotations = useMemo<readonly DocumentAnnotation[]>(
-    () => [
-      {
-        id: 'comment-1',
-        documentId: 'comments-doc',
-        kind: 'comment',
-        actorType: 'user',
-        anchorType: 'line',
-        startLine: 5,
-        endLine: 7,
-        label: 'Clarify scope',
-        status: 'open',
-      },
-      {
-        id: 'comment-2',
-        documentId: 'comments-doc',
-        kind: 'comment',
-        actorType: 'agent',
-        anchorType: 'line',
-        startLine: 9,
-        endLine: 11,
-        label: 'Add a follow-up',
-        status: 'open',
-      },
-    ],
-    [],
-  )
-
-  return (
-    <AnnotationSurface
-      title="Comment wrapper"
-      description="External comment threads rendered as annotations, not markdown metadata."
-      value={COMMENT_DOC}
-      annotations={annotations}
-      selectedId={selectedId}
-      sidebarLabel="Comment thread"
-      codeHighlighter={codeHighlighter}
-      onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
-    />
   )
 }
 
@@ -760,71 +698,6 @@ function OutlineDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) 
   )
 }
 
-function AIChangeHighlightsDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) {
-  const [selectedId, setSelectedId] = useState<string | null>('ai-updated')
-
-  const annotations = useMemo<readonly DocumentAnnotation[]>(
-    () => [
-      {
-        id: 'ai-generated',
-        documentId: 'ai-doc',
-        kind: 'generated',
-        actorType: 'agent',
-        actorId: 'pi',
-        anchorType: 'line',
-        startLine: 5,
-        endLine: 7,
-        label: 'AI drafted',
-      },
-      {
-        id: 'ai-updated',
-        documentId: 'ai-doc',
-        kind: 'updated',
-        actorType: 'agent',
-        actorId: 'pi',
-        anchorType: 'line',
-        startLine: 9,
-        endLine: 11,
-        label: 'AI revised',
-      },
-      {
-        id: 'ai-added',
-        documentId: 'ai-doc',
-        kind: 'added',
-        actorType: 'system',
-        anchorType: 'range',
-        from: AI_DOC.indexOf('This section was inserted'),
-        to: AI_DOC.indexOf('This section was inserted') + 'This section was inserted during an automation pass.'.length,
-        label: 'AI inserted text',
-      },
-      {
-        id: 'ai-deleted',
-        documentId: 'ai-doc',
-        kind: 'deleted',
-        actorType: 'agent',
-        anchorType: 'line',
-        startLine: 17,
-        endLine: 19,
-        label: 'AI removed candidate',
-      },
-    ],
-    [],
-  )
-
-  return (
-    <AnnotationSurface
-      title="AI change wrapper"
-      description="Generated, updated, added, and deleted ranges all render through the same annotation API."
-      value={AI_DOC}
-      annotations={annotations}
-      selectedId={selectedId}
-      sidebarLabel="Change metadata"
-      codeHighlighter={codeHighlighter}
-      onAnnotationClick={(annotation) => setSelectedId(annotation.id)}
-    />
-  )
-}
-
 export default function App() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
@@ -1002,9 +875,7 @@ export default function App() {
 
         <CalloutDemo />
 
-        <CommentAnnotationsDemo codeHighlighter={codeHighlighter} />
-
-        <AIChangeHighlightsDemo codeHighlighter={codeHighlighter} />
+        <CommentsCrudDemo codeHighlighter={codeHighlighter} />
 
         <section className="surface">
           <h2>Wikilink surface</h2>

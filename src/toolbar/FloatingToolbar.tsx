@@ -12,6 +12,8 @@ import {
 
 interface FloatingToolbarProps {
   view: EditorView | null
+  showFormatting?: boolean
+  onCommentRequest?: (view: EditorView) => void
 }
 
 interface Position {
@@ -38,7 +40,11 @@ const TOOLBAR_OFFSET = 8  // gap between toolbar bottom and selection top
  * Mounted as a portal at document.body to escape overflow clipping.
  * Dismisses when the selection collapses or focus leaves the editor.
  */
-export function FloatingToolbar({ view }: FloatingToolbarProps) {
+export function FloatingToolbar({
+  view,
+  showFormatting = true,
+  onCommentRequest,
+}: FloatingToolbarProps) {
   const [visible, setVisible] = useState(false)
   const [pos, setPos] = useState<Position>({ top: 0, left: 0 })
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -113,7 +119,7 @@ export function FloatingToolbar({ view }: FloatingToolbarProps) {
         zIndex: 9999,
       }}
     >
-      {FLOATING_BUTTONS.map((btn) => (
+      {showFormatting ? FLOATING_BUTTONS.map((btn) => (
         <button
           key={btn.label}
           type="button"
@@ -128,7 +134,19 @@ export function FloatingToolbar({ view }: FloatingToolbarProps) {
         >
           {btn.label}
         </button>
-      ))}
+      )) : null}
+      {onCommentRequest ? (
+        <button
+          type="button"
+          title="Comment"
+          aria-label="Comment"
+          className="me-toolbar-btn me-toolbar-btn--comment"
+          onMouseDown={(event) => {
+            event.preventDefault()
+            onCommentRequest(view)
+          }}
+        >Comment</button>
+      ) : null}
     </div>,
     document.body
   )

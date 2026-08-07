@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added a controlled Comments v1 API with selection-to-comment requests, whole-line comment actions, inline anchors, count-free right-gutter icons, a simple side panel, local anchor mapping, and detached-anchor handling.
+- Added support for viewing and creating multiple independent comments on the same exact text anchor and discovering overlapping comments on the same passage.
+- Distinguished `range` and `line` anchors so selected-text comments become outdated when their quote changes while whole-line comments follow edits until their anchored source is removed.
+- Added comment-card navigation to attached source ranges and host-formatted `createdAt`/`updatedAt` timestamps.
+- Added host-adaptable create, edit, resolve/reopen, delete, anchor-change, and selection callbacks plus a local CRUD development demo.
+- Removed the AI-specific change-wrapper demo while retaining generic `DocumentAnnotation` primitives for future revision-based diff review.
+
 ## 0.11.1
 
 - Fixed multi-digit ordered-list markers being clipped by the live-editor marker gutter.

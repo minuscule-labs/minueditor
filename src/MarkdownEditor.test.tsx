@@ -7,6 +7,7 @@ import { tags } from '@lezer/highlight'
 import { javascript } from '@codemirror/lang-javascript'
 import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor, minimalTextChange, type MarkdownEditorHandle } from './MarkdownEditor'
+import type { EditorComment } from './types'
 import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
 import { toggleBold, toggleItalic } from './toolbar/commands'
 
@@ -342,6 +343,294 @@ describe('MarkdownEditor', () => {
       actorType: 'agent',
       status: 'open',
     })
+  })
+
+  it('renders controlled comments with inline anchors, gutter badges, and CRUD controls', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onUpdate = vi.fn()
+    const onDelete = vi.fn()
+    const formatTimestamp = vi.fn(() => 'Just now')
+    const comment: EditorComment = {
+      id: 'comment-1',
+      body: 'Clarify this sentence.',
+      status: 'open',
+      anchor: { anchorType: 'range', from: 6, to: 10, quote: 'beta' },
+      createdAt: '2026-08-05T07:00:00.000Z',
+    }
+    const { container } = render(
+      <MarkdownEditor
+        ref={ref}
+        value={'Alpha beta gamma'}
+        onChange={vi.fn()}
+        comments={{ items: [comment], onUpdate, onDelete, formatTimestamp }}
+      />
+    )
+
+    const badge = await waitFor(() => container.querySelector('.me-comment-gutter-badge') as HTMLButtonElement)
+    expect(container.querySelector('.me-comment-anchor')).toHaveTextContent('beta')
+    fireEvent.click(badge)
+    expect(ref.current!.getSelection()).toMatchObject({ from: 6, to: 10, empty: false })
+    expect(container.querySelector('time')).toHaveAttribute('dateTime', comment.createdAt)
+    expect(container.querySelector('time')).toHaveTextContent('Just now')
+    expect(formatTimestamp).toHaveBeenCalledWith(comment.createdAt, comment)
+
+    const textarea = await waitFor(() => container.querySelector('.me-comment-panel textarea') as HTMLTextAreaElement)
+    expect(textarea.value).toBe('Clarify this sentence.')
+    fireEvent.input(textarea, { target: { value: 'Updated comment.' } })
+    fireEvent.click(Array.from(container.querySelectorAll('.me-comment-panel button')).find((button) => button.textContent === 'Save')!)
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('comment-1', { body: 'Updated comment.' }))
+
+    fireEvent.click(Array.from(container.querySelectorAll('.me-comment-panel button')).find((button) => button.textContent === 'Resolve')!)
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('comment-1', { status: 'resolved' }))
+
+    fireEvent.click(Array.from(container.querySelectorAll('.me-comment-panel button')).find((button) => button.textContent === 'Delete')!)
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('comment-1'))
+  })
+
+  it('uses one icon and exposes every comment anchored on the same source line', async () => {
+    const onSelectGroup = vi.fn()
+    const comments: EditorComment[] = [
+      { id: 'one', body: 'First', status: 'open', anchor: { anchorType: 'range', from: 0, to: 10, quote: 'Alpha beta' } },
+      { id: 'two', body: 'Second', status: 'resolved', anchor: { anchorType: 'range', from: 11, to: 16, quote: 'gamma' } },
+      { id: 'three', body: 'Detached', status: 'open', anchor: { anchorType: 'range', from: 11, to: 16, quote: 'gamma', detached: true } },
+    ]
+    const { container } = render(
+      <MarkdownEditor
+        value={'Alpha beta gamma'}
+        onChange={vi.fn()}
+        comments={{ items: comments, onCreate: vi.fn(), onSelectGroup }}
+      />
+    )
+
+    const badge = await waitFor(() => container.querySelector('.me-comment-gutter-badge') as HTMLButtonElement)
+    expect(badge).toHaveAttribute('aria-label', 'Open comments')
+    expect(badge.querySelector('svg')).toBeInTheDocument()
+    expect(badge).not.toHaveTextContent('2')
+    fireEvent.click(badge)
+    expect(onSelectGroup).toHaveBeenCalledWith([comments[0], comments[1]])
+    expect(container.querySelector('.me-comment-panel__related')).toHaveTextContent('gamma')
+    expect(container.querySelector('.me-comment-panel__related')).toHaveTextContent('Second')
+    fireEvent.click(container.querySelector('.me-comment-panel__add-related')!)
+    expect(container.querySelector('.me-comment-panel__quote')).toHaveTextContent('Alpha beta')
+    fireEvent.click(container.querySelector('.me-comment-panel__close')!)
+    const detachedItem = Array.from(container.querySelectorAll('.me-comment-panel__item'))
+      .find((item) => item.textContent?.includes('Detached')) as HTMLButtonElement
+    fireEvent.click(detachedItem)
+    expect(container.querySelector('.me-comment-panel__detached')).toBeInTheDocument()
+  })
+
+  it('selects an entire source line when its right-side comment action is clicked', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onCreate = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        ref={ref}
+        value={'First line\nSecond line'}
+        onChange={vi.fn()}
+        comments={{ items: [], onCreate }}
+      />
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    act(() => {
+      ref.current!.setSelection(11)
+      ref.current!.focus()
+    })
+    const activeLine = await waitFor(() => container.querySelector('.me-comment-gutter-line--active') as HTMLElement)
+    fireEvent.click(activeLine.querySelector('[aria-label="Comment on line"]')!)
+
+    await waitFor(() => {
+      expect(ref.current!.getSelection()).toMatchObject({ from: 11, to: 22, empty: false })
+      expect(container.querySelector('.me-comment-panel__quote')).toHaveTextContent('Second line')
+    })
+  })
+
+  it('supports host-owned comment popovers through line requests without the built-in panel', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onRequest = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        ref={ref}
+        value={'First line\nSecond line'}
+        onChange={vi.fn()}
+        comments={{ items: [], showPanel: false, onRequest }}
+      />
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    act(() => {
+      ref.current!.setSelection(11)
+      ref.current!.focus()
+    })
+    const activeLine = await waitFor(() => container.querySelector('.me-comment-gutter-line--active') as HTMLElement)
+    fireEvent.click(activeLine.querySelector('[aria-label="Comment on line"]')!)
+
+    expect(onRequest).toHaveBeenCalledWith(expect.objectContaining({
+      anchorType: 'line',
+      from: 11,
+      to: 22,
+      quote: 'Second line',
+    }))
+    expect(container.querySelector('.me-comment-panel')).not.toBeInTheDocument()
+  })
+
+  it('allows hosts to disable the built-in comment panel while retaining editor anchors', async () => {
+    const comment: EditorComment = {
+      id: 'comment-1',
+      body: 'Host panel',
+      status: 'open',
+      anchor: { anchorType: 'range', from: 0, to: 5, quote: 'Alpha' },
+    }
+    const { container } = render(
+      <MarkdownEditor
+        value={'Alpha beta'}
+        onChange={vi.fn()}
+        comments={{ items: [comment], showPanel: false }}
+      />
+    )
+
+    await waitFor(() => expect(container.querySelector('.me-comment-anchor')).toBeInTheDocument())
+    expect(container.querySelector('.me-comment-panel')).not.toBeInTheDocument()
+    expect(container.querySelector('.minueditor-wrap')).not.toHaveClass('minueditor-wrap--comments')
+  })
+
+  it('requests a comment for the selected source range through the editor handle', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onCreate = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        ref={ref}
+        value={'Alpha beta gamma'}
+        onChange={vi.fn()}
+        comments={{ items: [], documentVersion: 'hash-1', onCreate }}
+      />
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    act(() => {
+      expect(ref.current!.setSelection(6, 10)).toBe(true)
+      expect(ref.current!.requestComment()).toBe(true)
+    })
+
+    const textarea = await waitFor(() => container.querySelector('.me-comment-panel textarea') as HTMLTextAreaElement)
+    expect(container.querySelector('.me-comment-panel__quote')).toHaveTextContent('beta')
+    fireEvent.input(textarea, { target: { value: 'Review this.' } })
+    fireEvent.click(Array.from(container.querySelectorAll('.me-comment-panel button')).find((button) => button.textContent === 'Comment')!)
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith({
+      body: 'Review this.',
+      anchor: expect.objectContaining({
+        anchorType: 'range',
+        from: 6,
+        to: 10,
+        quote: 'beta',
+        documentVersion: 'hash-1',
+      }),
+    }))
+  })
+
+  it('maps comment anchors through edits and reports changed quoted text as detached', async () => {
+    const onAnchorChange = vi.fn()
+    let view: EditorView | null = null
+    const comment: EditorComment = {
+      id: 'comment-1',
+      body: 'Review beta.',
+      status: 'open',
+      anchor: { anchorType: 'range', from: 6, to: 10, quote: 'beta' },
+    }
+    render(
+      <MarkdownEditor
+        value={'Alpha beta gamma'}
+        onChange={vi.fn()}
+        comments={{ items: [comment], onAnchorChange }}
+        onViewReady={(nextView) => { view = nextView }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ changes: { from: 0, insert: 'X ' } })
+    })
+    expect(onAnchorChange).toHaveBeenCalledWith(
+      'comment-1',
+      expect.objectContaining({ from: 8, to: 12, quote: 'beta' }),
+    )
+
+    onAnchorChange.mockClear()
+    act(() => {
+      view!.dispatch({ changes: { from: 7, to: 8, insert: 'B' } })
+    })
+    expect(onAnchorChange).toHaveBeenCalledWith(
+      'comment-1',
+      expect.objectContaining({ detached: true }),
+    )
+  })
+
+  it('keeps whole-line comments attached through line edits while range comments become detached', async () => {
+    const onAnchorChange = vi.fn()
+    let view: EditorView | null = null
+    const lineAnchor = { anchorType: 'line' as const, from: 0, to: 10, quote: 'First line' }
+    const comments: EditorComment[] = [
+      { id: 'line-comment', body: 'Line', status: 'open', anchor: lineAnchor },
+      { id: 'range-comment', body: 'Range', status: 'open', anchor: { ...lineAnchor, anchorType: 'range' } },
+    ]
+    render(
+      <MarkdownEditor
+        value={'First line\nSecond line'}
+        onChange={vi.fn()}
+        comments={{ items: comments, onAnchorChange }}
+        onViewReady={(nextView) => { view = nextView }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ changes: { from: 5, insert: ' updated' } })
+    })
+
+    expect(onAnchorChange).toHaveBeenCalledWith(
+      'line-comment',
+      expect.objectContaining({
+        anchorType: 'line',
+        from: 0,
+        to: 18,
+        quote: 'First updated line',
+      }),
+    )
+    const mappedLineAnchor = onAnchorChange.mock.calls.find(([id]) => id === 'line-comment')?.[1]
+    expect(mappedLineAnchor).not.toHaveProperty('detached')
+    expect(onAnchorChange).toHaveBeenCalledWith(
+      'range-comment',
+      expect.objectContaining({ anchorType: 'range', detached: true }),
+    )
+  })
+
+  it('detaches a whole-line comment when its anchored source is fully removed', async () => {
+    const onAnchorChange = vi.fn()
+    let view: EditorView | null = null
+    const comment: EditorComment = {
+      id: 'line-comment',
+      body: 'Line',
+      status: 'open',
+      anchor: { anchorType: 'line', from: 0, to: 10, quote: 'First line' },
+    }
+    render(
+      <MarkdownEditor
+        value={'First line\nSecond line'}
+        onChange={vi.fn()}
+        comments={{ items: [comment], onAnchorChange }}
+        onViewReady={(nextView) => { view = nextView }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ changes: { from: 0, to: 11, insert: '' } })
+    })
+    expect(onAnchorChange).toHaveBeenCalledWith(
+      'line-comment',
+      expect.objectContaining({ anchorType: 'line', detached: true }),
+    )
   })
 
   it('uses live mode by default for visual widgets and markdown token hiding', async () => {

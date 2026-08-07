@@ -51,6 +51,7 @@ Optional consumer-owned integrations:
 
 1. `codeLanguages` supplies CodeMirror language descriptions for fenced-code editing.
 2. `codeHighlighter` supplies rendered HTML for fenced-code syntax highlighting.
+3. `comments` supplies controlled host-owned records and CRUD callbacks; MinuEditor renders anchors, badges, and the simple panel without performing network or persistence work.
 
 Syntax highlighting is not part of the default dependency path. Code blocks render as escaped plain HTML unless a consumer passes a highlighter. The Shiki helper lives behind the separate `@dpklabs/minueditor/shiki` subpath.
 
@@ -86,6 +87,12 @@ Image insertion UI:
 1. the editor owns the `/Image` picker UI, upload/link tabs, markdown insertion, loading state, and error display
 2. consumers still own storage providers and return the final URL through `onImageUpload`
 3. if `onImageUpload` is absent, the picker still supports link insertion and disables upload
+
+## Comment Boundary
+
+MinuEditor owns selection-to-comment requests, inline anchor decorations, right-gutter badges, the simple text panel, local source-range mapping, and detached-anchor presentation.
+
+The host owns IDs, persistence, actors, permissions, document-version identifiers, activity events, API behavior, and reattachment against later document revisions. Range anchors preserve their original quote and become detached when that quote changes; whole-line anchors follow edits to their source line and refresh their quote/context unless the anchored source is fully removed. Replies, mentions, reactions, and suggested edits are outside the Comments v1 contract. Generic `DocumentAnnotation` decorations remain separate and can support future version-derived diff review without introducing an AI-specific document wrapper.
 
 ## Extension Layout
 

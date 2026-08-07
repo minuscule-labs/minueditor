@@ -149,6 +149,63 @@ export interface DocumentAnnotation {
   className?: string
 }
 
+export type EditorCommentStatus = 'open' | 'resolved'
+
+export interface EditorCommentAnchor {
+  anchorType: 'range' | 'line'
+  from: number
+  to: number
+  quote: string
+  prefix?: string
+  suffix?: string
+  documentVersion?: string
+  detached?: boolean
+}
+
+export interface EditorCommentAuthor {
+  id: string
+  type: 'user' | 'agent'
+  name?: string
+}
+
+export interface EditorComment {
+  id: string
+  body: string
+  status: EditorCommentStatus
+  anchor: EditorCommentAnchor
+  author?: EditorCommentAuthor
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface EditorCommentCreateInput {
+  body: string
+  anchor: EditorCommentAnchor
+}
+
+export interface EditorCommentUpdateInput {
+  body?: string
+  status?: EditorCommentStatus
+}
+
+export interface EditorCommentsConfig {
+  items: readonly EditorComment[]
+  documentVersion?: string
+  /** Shows MinuEditor's simple side panel. Defaults to true; disable when the host renders its own panel. */
+  showPanel?: boolean
+  /** Receives a selected anchor so a host can open its own popover or composer. */
+  onRequest?: (anchor: EditorCommentAnchor) => void
+  onCreate?: (input: EditorCommentCreateInput) => void | EditorComment | Promise<void | EditorComment>
+  onUpdate?: (id: string, update: EditorCommentUpdateInput) => void | Promise<void>
+  onDelete?: (id: string) => void | Promise<void>
+  onAnchorChange?: (id: string, anchor: EditorCommentAnchor) => void
+  onSelect?: (comment: EditorComment | null) => void
+  /** Called from a gutter icon with every comment anchored on that source line. */
+  onSelectGroup?: (comments: readonly EditorComment[]) => void
+  /** Formats created/updated timestamps in the built-in panel. */
+  formatTimestamp?: (timestamp: string, comment: EditorComment) => string
+}
+
 export type MarkdownEditorMode = 'live' | 'source'
 
 export interface MarkdownEditorProps {
@@ -159,6 +216,8 @@ export interface MarkdownEditorProps {
   wikiLinks?: boolean | WikiLinksConfig
   annotations?: readonly DocumentAnnotation[]
   onAnnotationClick?: (annotation: DocumentAnnotation, view: EditorView) => void
+  /** Controlled host-owned comments with editor rendering and CRUD callbacks. */
+  comments?: EditorCommentsConfig
   placeholder?: string
   readOnly?: boolean
   /** Visual editing mode. `live` hides inactive markdown syntax and renders widgets; `source` shows raw markdown. Defaults to `live`. */

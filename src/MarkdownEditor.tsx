@@ -19,6 +19,7 @@ import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
 import { calloutDecorations } from './extensions/callouts'
 import { documentAnnotationExtension } from './extensions/annotations'
+import { commentDecorationsExtension } from './extensions/comments'
 import { checkboxDecorations } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
@@ -42,7 +43,13 @@ import {
   wikiLinkSlashCommand,
 } from './extensions/wikilinks'
 import { FloatingToolbar } from './toolbar/FloatingToolbar'
-import type { MarkdownEditorProps, MarkdownEditorState } from './types'
+import { CommentPanel } from './comments/CommentPanel'
+import type {
+  EditorComment,
+  EditorCommentAnchor,
+  MarkdownEditorProps,
+  MarkdownEditorState,
+} from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
 import {
   enterAfterHiddenInlineSuffix,
@@ -90,6 +97,7 @@ export interface MarkdownEditorHandle {
   getMarkdown: () => string | null
   getSelection: () => MarkdownEditorState['selection'] | null
   setSelection: (from: number, to?: number) => boolean
+  requestComment: () => boolean
   getHeadings: () => readonly MarkdownHeading[]
   goToHeading: (slug: string) => boolean
   focus: () => boolean
@@ -215,6 +223,7 @@ export const MarkdownEditor = forwardRef<
     onStateChange,
     annotations,
     onAnnotationClick,
+    comments,
     onViewReady,
     className,
   },
@@ -239,6 +248,7 @@ export const MarkdownEditor = forwardRef<
   const readOnlyCompartment = useRef(new Compartment());
   const modeCompartment = useRef(new Compartment())
   const annotationsCompartment = useRef(new Compartment())
+  const commentsCompartment = useRef(new Compartment())
   const wikiLinksCompartment = useRef(new Compartment())
   const completionCompartment = useRef(new Compartment())
   const richPasteCompartment = useRef(new Compartment())
@@ -249,6 +259,7 @@ export const MarkdownEditor = forwardRef<
   const commandsRef = useRef<MinuEditorCommands | null>(null)
   const onStateChangeRef = useRef(onStateChange)
   const onAnnotationClickRef = useRef(onAnnotationClick)
+  const commentsRef = useRef(comments)
   const editorStateRef = useRef<MarkdownEditorState | null>(null)
   const handleAnnotationClick = useCallback(
     (annotation: NonNullable<MarkdownEditorProps['annotations']>[number], view: EditorView) => {
@@ -280,6 +291,81 @@ export const MarkdownEditor = forwardRef<
   // Store the view in state so consumers of cmView (FloatingToolbar, onViewReady)
   // see it after CM6 mounts — viewRef alone wouldn't trigger a re-render.
   const [cmView, setCmView] = useState<EditorView | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  const [activeCommentGroupIds, setActiveCommentGroupIds] = useState<readonly string[]>([])
+  const [draftCommentAnchor, setDraftCommentAnchor] = useState<EditorCommentAnchor | null>(null)
+
+  const navigateToComment = useCallback((comment: EditorComment | null) => {
+    const view = viewRef.current
+    if (!view || !comment || comment.anchor.detached) return
+    const { from, to } = comment.anchor
+    if (from < 0 || to <= from || to > view.state.doc.length) return
+    view.dispatch({ selection: { anchor: from, head: to }, scrollIntoView: true })
+  }, [])
+
+  const selectComment = useCallback((comment: EditorComment | null) => {
+    setDraftCommentAnchor(null)
+    setActiveCommentGroupIds([])
+    setActiveCommentId(comment?.id ?? null)
+    navigateToComment(comment)
+    commentsRef.current?.onSelect?.(comment)
+  }, [navigateToComment])
+
+  const selectCommentGroup = useCallback((group: readonly EditorComment[]) => {
+    const first = group[0] ?? null
+    setDraftCommentAnchor(null)
+    setActiveCommentGroupIds(group.map((comment) => comment.id))
+    setActiveCommentId(first?.id ?? null)
+    navigateToComment(first)
+    commentsRef.current?.onSelect?.(first)
+    commentsRef.current?.onSelectGroup?.(group)
+  }, [navigateToComment])
+
+  const selectCommentWithinGroup = useCallback((comment: EditorComment) => {
+    setDraftCommentAnchor(null)
+    setActiveCommentId(comment.id)
+    navigateToComment(comment)
+    commentsRef.current?.onSelect?.(comment)
+  }, [navigateToComment])
+
+  const requestComment = useCallback((
+    view: EditorView,
+    anchorType: EditorCommentAnchor['anchorType'] = 'range',
+  ): boolean => {
+    const selection = view.state.selection.main
+    const commentConfig = commentsRef.current
+    if (selection.empty || (!commentConfig?.onCreate && !commentConfig?.onRequest)) return false
+    const doc = view.state.doc
+    const from = selection.from
+    const to = selection.to
+    const anchor: EditorCommentAnchor = {
+      anchorType,
+      from,
+      to,
+      quote: doc.sliceString(from, to),
+      prefix: doc.sliceString(Math.max(0, from - 32), from),
+      suffix: doc.sliceString(to, Math.min(doc.length, to + 32)),
+      ...(commentConfig.documentVersion
+        ? { documentVersion: commentConfig.documentVersion }
+        : {}),
+    }
+    setActiveCommentId(null)
+    setActiveCommentGroupIds([])
+    commentConfig.onSelect?.(null)
+    commentConfig.onRequest?.(anchor)
+    setDraftCommentAnchor(anchor)
+    return true
+  }, [])
+
+  const requestLineComment = useCallback((from: number, to: number) => {
+    const view = viewRef.current
+    if (!view || to <= from) return
+    view.dispatch({
+      effects: view.scrollSnapshot(),
+      selection: { anchor: from, head: to },
+    })
+    requestComment(view, 'line')
+  }, [requestComment])
 
   const emitState = useCallback((view: EditorView) => {
     const nextState = buildEditorState(
@@ -311,6 +397,7 @@ export const MarkdownEditor = forwardRef<
       },
       getMarkdown: () => viewRef.current?.state.doc.toString() ?? null,
       getSelection: () => editorStateRef.current?.selection ?? null,
+      requestComment: () => withView(requestComment),
       setSelection: (from: number, to = from) => withView((view) => {
         const docLength = view.state.doc.length
         const anchor = Math.max(0, Math.min(from, docLength))
@@ -354,7 +441,7 @@ export const MarkdownEditor = forwardRef<
       insertTable: commands.insertTable,
       insertCodeBlock: commands.insertCodeBlock,
     }
-  }, [cmView, emitState, getEditorCommands])
+  }, [cmView, emitState, getEditorCommands, requestComment])
 
   // Keep onViewReady fresh without re-init
   useEffect(() => {
@@ -375,6 +462,9 @@ export const MarkdownEditor = forwardRef<
   useEffect(() => {
     onAnnotationClickRef.current = onAnnotationClick
   }, [onAnnotationClick])
+  useEffect(() => {
+    commentsRef.current = comments
+  }, [comments])
 
   useEffect(() => {
     if (baselineValue === undefined) return
@@ -451,6 +541,58 @@ export const MarkdownEditor = forwardRef<
           (transaction) => transaction.annotation(externalValueUpdate) === true,
         )
         if (!cameFromValueProp) onChangeRef.current(newValue)
+
+        const commentConfig = commentsRef.current
+        if (commentConfig?.onAnchorChange) {
+          for (const comment of commentConfig.items) {
+            const previous = comment.anchor
+            let from = update.changes.mapPos(previous.from, 1)
+            let to = update.changes.mapPos(previous.to, -1)
+            const validRange = from >= 0 && to > from && to <= update.state.doc.length
+            let detached = previous.detached === true || !validRange
+            let quote = previous.quote
+            let prefix = previous.prefix
+            let suffix = previous.suffix
+
+            if (!detached && previous.anchorType === 'line') {
+              if (update.changes.touchesRange(previous.from, previous.to) === 'cover') {
+                detached = true
+              } else {
+                const firstLine = update.state.doc.lineAt(from)
+                const lastLine = update.state.doc.lineAt(Math.max(from, to))
+                from = firstLine.from
+                to = lastLine.to
+                quote = update.state.doc.sliceString(from, to)
+                prefix = update.state.doc.sliceString(Math.max(0, from - 32), from)
+                suffix = update.state.doc.sliceString(to, Math.min(update.state.doc.length, to + 32))
+              }
+            } else if (!detached) {
+              detached = update.state.doc.sliceString(from, to) !== previous.quote
+              prefix = update.state.doc.sliceString(Math.max(0, from - 32), from)
+              suffix = update.state.doc.sliceString(to, Math.min(update.state.doc.length, to + 32))
+            }
+
+            const nextAnchor: EditorCommentAnchor = {
+              ...previous,
+              from,
+              to,
+              quote,
+              ...(prefix !== undefined ? { prefix } : {}),
+              ...(suffix !== undefined ? { suffix } : {}),
+              ...(detached ? { detached: true } : {}),
+            }
+            if (
+              nextAnchor.from !== previous.from ||
+              nextAnchor.to !== previous.to ||
+              nextAnchor.quote !== previous.quote ||
+              nextAnchor.prefix !== previous.prefix ||
+              nextAnchor.suffix !== previous.suffix ||
+              Boolean(nextAnchor.detached) !== Boolean(previous.detached)
+            ) {
+              commentConfig.onAnchorChange(comment.id, nextAnchor)
+            }
+          }
+        }
       }
       if (update.docChanged || update.selectionSet || update.focusChanged) {
         emitState(update.view)
@@ -577,6 +719,16 @@ export const MarkdownEditor = forwardRef<
       completionCompartment.current.of(buildCompletionExtensions()),
       imagePickerExtension(() => onImageUploadRef.current),
       annotationsCompartment.current.of(documentAnnotationExtension(annotations, handleAnnotationClick)),
+      commentsCompartment.current.of(
+        comments
+          ? commentDecorationsExtension(
+              comments.items,
+              selectComment,
+              selectCommentGroup,
+              comments.onCreate || comments.onRequest ? requestLineComment : undefined,
+            )
+          : [],
+      ),
       EditorView.lineWrapping,
       updateListener,
       EditorView.clipboardOutputFilter.of((text, state) => selectedMarkdownText(state).text || text),
@@ -701,6 +853,23 @@ export const MarkdownEditor = forwardRef<
     })
   }, [annotations, handleAnnotationClick])
 
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: commentsCompartment.current.reconfigure(
+        comments
+          ? commentDecorationsExtension(
+              comments.items,
+              selectComment,
+              selectCommentGroup,
+              comments.onCreate || comments.onRequest ? requestLineComment : undefined,
+            )
+          : [],
+      ),
+    })
+  }, [comments?.items, comments?.onCreate, comments?.onRequest, requestLineComment, selectComment, selectCommentGroup])
+
   // ── Sync readOnly prop changes via Compartment ────────────────────────
   useEffect(() => {
     const view = viewRef.current
@@ -717,9 +886,32 @@ export const MarkdownEditor = forwardRef<
   // ── Render ────────────────────────────────────────────────────────────
 
   return (
-    <div className={`minueditor-wrap${className ? ` ${className}` : ''}`}>
+    <div className={`minueditor-wrap${comments && comments.showPanel !== false ? ' minueditor-wrap--comments' : ''}${className ? ` ${className}` : ''}`}>
       <div ref={containerRef} className="minueditor" data-minueditor />
-      {floatingToolbar && <FloatingToolbar view={cmView} />}
+      {(floatingToolbar || comments?.onCreate || comments?.onRequest) && (
+        <FloatingToolbar
+          view={cmView}
+          showFormatting={floatingToolbar}
+          {...(comments?.onCreate || comments?.onRequest ? { onCommentRequest: requestComment } : {})}
+        />
+      )}
+      {comments && comments.showPanel !== false ? (
+        <CommentPanel
+          config={comments}
+          activeId={activeCommentId}
+          activeGroupIds={activeCommentGroupIds}
+          draftAnchor={draftCommentAnchor}
+          onSelect={selectComment}
+          onSelectWithinGroup={selectCommentWithinGroup}
+          onDraftAnchor={(anchor) => {
+            setActiveCommentId(null)
+            setActiveCommentGroupIds([])
+            commentsRef.current?.onSelect?.(null)
+            setDraftCommentAnchor(anchor)
+          }}
+          onCancelDraft={() => setDraftCommentAnchor(null)}
+        />
+      ) : null}
     </div>
   )
 })
