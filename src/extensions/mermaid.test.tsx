@@ -2,7 +2,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { StrictMode } from 'react'
-import { fireEvent, render, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { MarkdownEditor } from '../MarkdownEditor'
 import { MarkdownRenderer } from '../renderer'
@@ -88,6 +88,30 @@ describe('Mermaid rich blocks', () => {
     }))
     expect(renderDiagram).toHaveBeenCalledWith(expect.stringMatching(/^me-mermaid-/), 'graph TD\n  A --> B')
     expect(container.querySelector('.me-codeblock-widget')).not.toBeInTheDocument()
+  })
+
+  it('renders a diagram after incremental parsing reaches a distant viewport', async () => {
+    const { load } = fakeEngine()
+    let view: EditorView | null = null
+    const filler = Array.from({ length: 6000 }, (_, index) => `Paragraph ${index}`).join('\n\n')
+    const diagram = 'graph TD\n  Source --> Curated'
+    const value = `${filler}\n\n\`\`\`mermaid\n${diagram}\n\`\`\``
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        mermaid={{ load }}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />,
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: value.lastIndexOf('```mermaid') }, scrollIntoView: true })
+    })
+    await waitFor(() => expect(container.querySelector('[data-testid="diagram"]')).toBeInTheDocument())
   })
 
   it('reveals exact source from the diagram edit control', async () => {

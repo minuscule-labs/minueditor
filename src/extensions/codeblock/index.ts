@@ -1,5 +1,5 @@
 import { StateField, type EditorState } from '@codemirror/state'
-import type { HighlightStyle, LanguageDescription } from '@codemirror/language'
+import { syntaxTree, type HighlightStyle, type LanguageDescription } from '@codemirror/language'
 import type { DecorationSet } from '@codemirror/view'
 import type { CodeHighlighter } from '../../types'
 import { EditorView } from '@codemirror/view'
@@ -18,7 +18,12 @@ function codeBlockDecorationField(options: CodeBlockOptions) {
       return buildCodeBlockDecorations(state, options)
     },
     update(value, tr) {
-      if (!tr.docChanged && !tr.effects.some((effect) => effect.is(setActiveCodeBlock))) {
+      const syntaxTreeChanged = syntaxTree(tr.startState) !== syntaxTree(tr.state)
+      if (
+        !tr.docChanged &&
+        !syntaxTreeChanged &&
+        !tr.effects.some((effect) => effect.is(setActiveCodeBlock))
+      ) {
         return value
       }
       return buildCodeBlockDecorations(tr.state, options)

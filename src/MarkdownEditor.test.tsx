@@ -3270,6 +3270,35 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('renders fenced code blocks after incremental parsing reaches a distant viewport', async () => {
+    let view: EditorView | null = null
+    const filler = Array.from(
+      { length: 6000 },
+      (_, index) => `Paragraph ${index}: acquisition source and curated output remain distinct.`,
+    ).join('\n\n')
+    const finalCode = 'const finalSnapshot = structuredClone(mapped.doc);'
+    const value = `# Long implementation note\n\n${filler}\n\n\`\`\`typescript\n${finalCode}\n\`\`\``
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      const codePosition = value.indexOf(finalCode)
+      view!.dispatch({ selection: { anchor: codePosition }, scrollIntoView: true })
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-body')).toHaveTextContent(finalCode)
+    })
+  })
+
   it('activates codeblock on ArrowDown from any cursor position on the line above', async () => {
     let view: EditorView | null = null
     const { container } = render(

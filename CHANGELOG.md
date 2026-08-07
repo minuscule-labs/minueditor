@@ -8,6 +8,7 @@
 - Added comment-card navigation to attached source ranges and host-formatted `createdAt`/`updatedAt` timestamps.
 - Added host-adaptable create, edit, resolve/reopen, delete, anchor-change, and selection callbacks plus a local CRUD development demo.
 - Removed the AI-specific change-wrapper demo while retaining generic `DocumentAnnotation` primitives for future revision-based diff review.
+- Fixed fenced code and Mermaid widgets later in long notes remaining as raw Markdown after incremental parsing reached their viewport.
 
 ## 0.11.1
 

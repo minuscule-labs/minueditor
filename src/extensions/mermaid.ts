@@ -259,7 +259,8 @@ export function mermaidBlockExtension(input?: boolean | MermaidConfig): Extensio
       return buildMermaidDecorations(state, config)
     },
     update(value, transaction) {
-      if (!transaction.docChanged && !transaction.selection) return value
+      const syntaxTreeChanged = syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+      if (!transaction.docChanged && !transaction.selection && !syntaxTreeChanged) return value
       return buildMermaidDecorations(transaction.state, config)
     },
     provide: (field) => EditorView.decorations.from(field),
