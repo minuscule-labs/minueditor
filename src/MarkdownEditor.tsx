@@ -64,6 +64,7 @@ import { expandInlineMarkdownRange, type SourceRange } from './internal/inline-m
 import { createEditorCommands, type MinuEditorCommands } from './internal/editor-commands'
 import { createWidgetContext } from './internal/editor-context'
 import { getMarkdownHeadings, type MarkdownHeading } from './headings'
+import { resourceUrlConfigFacet } from './internal/resource-url-extension'
 
 type TextChange = { from: number; to: number; insert: string }
 
@@ -204,6 +205,7 @@ export const MarkdownEditor = forwardRef<
     placeholder,
     readOnly = false,
     mode = 'live',
+    resourceUrlResolver,
     floatingToolbar = false,
     autoFocus = false,
     spellCheck = true,
@@ -247,6 +249,9 @@ export const MarkdownEditor = forwardRef<
   const readOnlyRef = useRef(readOnly)
   const readOnlyCompartment = useRef(new Compartment());
   const modeCompartment = useRef(new Compartment())
+  const resourceUrlCompartment = useRef(new Compartment())
+  const resourceUrlResolverIdentityRef = useRef(resourceUrlResolver)
+  const resourceUrlGenerationRef = useRef(0)
   const annotationsCompartment = useRef(new Compartment())
   const commentsCompartment = useRef(new Compartment())
   const wikiLinksCompartment = useRef(new Compartment())
@@ -714,6 +719,10 @@ export const MarkdownEditor = forwardRef<
         codeLanguages: codeLanguages ? [...codeLanguages] : [],
       }),
       minueditorTheme,
+      resourceUrlCompartment.current.of(resourceUrlConfigFacet.of({
+        resolver: resourceUrlResolver,
+        generation: resourceUrlGenerationRef.current,
+      })),
       modeCompartment.current.of(buildModeExtensions()),
       wikiLinksCompartment.current.of(buildWikiLinkExtensions()),
       completionCompartment.current.of(buildCompletionExtensions()),
@@ -802,6 +811,23 @@ export const MarkdownEditor = forwardRef<
       ],
     })
   }, [value])
+
+  useEffect(() => {
+    if (resourceUrlResolverIdentityRef.current === resourceUrlResolver) return
+    resourceUrlResolverIdentityRef.current = resourceUrlResolver
+    resourceUrlGenerationRef.current += 1
+
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: resourceUrlCompartment.current.reconfigure(
+        resourceUrlConfigFacet.of({
+          resolver: resourceUrlResolver,
+          generation: resourceUrlGenerationRef.current,
+        }),
+      ),
+    })
+  }, [resourceUrlResolver])
 
   useEffect(() => {
     const view = viewRef.current

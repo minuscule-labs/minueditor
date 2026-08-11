@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added an optional synchronous `resourceUrlResolver` to `MarkdownEditor` and `MarkdownRenderer`, allowing hosts to preserve canonical Markdown image/link destinations while using context-specific runtime URLs for rendering, navigation, and browser-style address copying.
+- Added public `ResourceKind`, `ResourceUrlContext`, and `ResourceUrlResolver` types.
+- Added syntax-tree-backed live image/link destination parsing, including safe relative links, image/link titles, angle-bracket destinations, and balanced parentheses without changing canonical editor content.
+- Added isolated static renderer configuration plus resolver refresh handling for mounted live image widgets.
+- Hardened standard Markdown link and image destinations with explicit kind-specific URL validation. Executable, unknown, `file:`, and `data:` schemes now fail closed even when no resolver is supplied. Raw HTML remains outside this policy.
+
 ## 0.12.0 — 2026-08-06
 
 - Added a controlled Comments v1 API with selection-to-comment requests, whole-line comment actions, inline anchors, count-free right-gutter icons, a simple side panel, local anchor mapping, and detached-anchor handling.

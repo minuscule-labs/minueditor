@@ -6,57 +6,79 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from '@codemirror/view'
+import { markdownResources } from '../internal/markdown-resources'
+import { resourceUrlConfigFacet } from '../internal/resource-url-extension'
+import { resolveAndValidateResourceUrl, validateResourceUrl } from '../internal/resource-urls'
 
 export type ExternalLinkSpan = {
   from: number
   to: number
+  labelFrom: number
+  labelTo: number
   label: string
   url: string
+  destinationMarkdown: string
+  titleMarkdown?: string
 }
 
-const MARKDOWN_LINK_RE = /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g
-
-function externalLinkSpans(lineText: string, lineFrom: number): ExternalLinkSpan[] {
-  const spans: ExternalLinkSpan[] = []
-  MARKDOWN_LINK_RE.lastIndex = 0
-
-  for (const match of lineText.matchAll(MARKDOWN_LINK_RE)) {
-    if (match.index == null || !match[1] || !match[2]) continue
-
-    const from = lineFrom + match.index
-    spans.push({
-      from,
-      to: from + match[0].length,
-      label: match[1],
-      url: match[2],
-    })
-  }
-
-  return spans
+function externalLinkSpans(view: EditorView, from: number, to: number): ExternalLinkSpan[] {
+  return markdownResources(view.state, from, to)
+    .filter((resource) => resource.kind === 'link')
+    .map((resource) => ({
+      from: resource.from,
+      to: resource.to,
+      labelFrom: resource.labelFrom,
+      labelTo: resource.labelTo,
+      label: resource.label,
+      url: resource.destination,
+      destinationMarkdown: view.state.doc.sliceString(resource.urlFrom, resource.urlTo),
+      ...(resource.title
+        ? { titleMarkdown: view.state.doc.sliceString(resource.title.from, resource.title.to) }
+        : {}),
+    }))
 }
 
 function labelFrom(span: ExternalLinkSpan): number {
-  return span.from + 1
+  return span.labelFrom
 }
 
 function labelTo(span: ExternalLinkSpan): number {
-  return labelFrom(span) + span.label.length
+  return span.labelTo
 }
 
 function closeFrom(span: ExternalLinkSpan): number {
-  return labelTo(span)
+  return span.labelTo
 }
 
-function linkMarkdown(label: string, url: string): string {
-  return `[${label}](${url})`
+function markdownDestination(url: string): string {
+  if (!/[\s<>]/.test(url)) return url
+  return `<${url.replace(/</g, '%3C').replace(/>/g, '%3E')}>`
 }
 
-function openExternalUrl(url: string): void {
-  window.open(url, '_blank', 'noopener,noreferrer')
+function linkMarkdown(span: ExternalLinkSpan, label: string, url: string): string {
+  const destination = url === span.url ? span.destinationMarkdown : markdownDestination(url)
+  const title = span.titleMarkdown ? ` ${span.titleMarkdown}` : ''
+  return `[${label}](${destination}${title})`
 }
 
-function copyExternalUrl(url: string): void {
-  void navigator.clipboard?.writeText(url)
+function resolvedLinkUrl(view: EditorView, url: string): string | null {
+  const config = view.state.facet(resourceUrlConfigFacet)
+  const resource = resolveAndValidateResourceUrl(url, 'link', config.resolver)
+  return resource.validation.allowed ? resource.validation.url : null
+}
+
+function openExternalUrl(view: EditorView, url: string): boolean {
+  const resolved = resolvedLinkUrl(view, url)
+  if (!resolved) return false
+  window.open(resolved, '_blank', 'noopener,noreferrer')
+  return true
+}
+
+function copyExternalUrl(view: EditorView, url: string): boolean {
+  const resolved = resolvedLinkUrl(view, url)
+  if (!resolved) return false
+  void navigator.clipboard?.writeText(resolved)
+  return true
 }
 
 function selectionOverlapsSpan(view: EditorView, span: ExternalLinkSpan): boolean {
@@ -68,30 +90,25 @@ function selectionOverlapsSpan(view: EditorView, span: ExternalLinkSpan): boolea
 
 function currentSpanAt(view: EditorView, from: number, to: number): ExternalLinkSpan | null {
   if (from < 0 || to > view.state.doc.length || from >= to) return null
-  const line = view.state.doc.lineAt(from)
-  for (const span of externalLinkSpans(line.text, line.from)) {
-    if (span.from === from && span.to === to) return span
-  }
-  return null
+  return externalLinkSpans(view, from, to).find(
+    (span) => span.from === from && span.to === to,
+  ) ?? null
 }
 
 function spanAtPosition(view: EditorView, pos: number): ExternalLinkSpan | null {
   const safePos = Math.max(0, Math.min(pos, view.state.doc.length))
   const line = view.state.doc.lineAt(safePos)
-  for (const span of externalLinkSpans(line.text, line.from)) {
-    if (safePos >= span.from && safePos <= span.to) return span
-  }
-  return null
+  return externalLinkSpans(view, line.from, line.to).find(
+    (span) => safePos >= span.from && safePos <= span.to,
+  ) ?? null
 }
 
 function spanForSelection(view: EditorView): ExternalLinkSpan | null {
   const selection = view.state.selection.main
   if (!selection.empty) {
-    const line = view.state.doc.lineAt(selection.from)
-    for (const span of externalLinkSpans(line.text, line.from)) {
-      if (selection.from >= span.from && selection.to <= span.to) return span
-    }
-    return null
+    return externalLinkSpans(view, selection.from, selection.to).find(
+      (span) => selection.from >= span.from && selection.to <= span.to,
+    ) ?? null
   }
   return spanAtPosition(view, selection.from)
 }
@@ -100,44 +117,48 @@ function buildExternalLinkDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
   const rangesToScan = view.visibleRanges.length > 0 ? view.visibleRanges : [{ from: 0, to: doc.length }]
+  const visited = new Set<number>()
 
   for (const { from, to } of rangesToScan) {
-    const fromLine = doc.lineAt(from)
-    const toLine = doc.lineAt(to)
+    const scanFrom = doc.lineAt(from).from
+    const scanTo = doc.lineAt(to).to
+    const scannedSpans = externalLinkSpans(view, scanFrom, scanTo)
+    for (const span of scannedSpans) {
+      if (visited.has(span.from)) continue
+      visited.add(span.from)
+      // Unsafe canonical destinations remain editable as source but do not
+      // receive interactive link controls.
+      if (!validateResourceUrl(span.url, 'link').allowed) continue
 
-    for (let lineNumber = fromLine.number; lineNumber <= toLine.number; lineNumber += 1) {
-      const line = doc.line(lineNumber)
-      for (const span of externalLinkSpans(line.text, line.from)) {
-        // Stable live preview: keep raw markdown visible while the cursor or
-        // selection is inside the markdown link. This avoids hidden syntax
-        // keyboard edge cases and matches the robust Obsidian/SilverBullet
-        // model.
-        if (selectionOverlapsSpan(view, span)) continue
+      // Stable live preview: keep raw markdown visible while the cursor or
+      // selection is inside the markdown link. This avoids hidden syntax
+      // keyboard edge cases and matches the robust Obsidian/SilverBullet
+      // model.
+      if (selectionOverlapsSpan(view, span)) continue
 
-        builder.add(span.from, span.from + 1, Decoration.replace({}))
-        builder.add(
-          labelFrom(span),
-          labelTo(span),
-          Decoration.mark({
-            class: 'me-link me-link-widget',
-            attributes: {
-              title: span.url,
-              'data-me-link-url': span.url,
-              'data-me-link-label': span.label,
-              'data-me-link-from': String(span.from),
-              'data-me-link-to': String(span.to),
-            },
-          }),
-        )
-        builder.add(closeFrom(span), span.to, Decoration.replace({}))
-      }
+      builder.add(span.from, span.labelFrom, Decoration.replace({}))
+      builder.add(
+        labelFrom(span),
+        labelTo(span),
+        Decoration.mark({
+          class: 'me-link me-link-widget',
+          attributes: {
+            title: span.url,
+            'data-me-link-url': span.url,
+            'data-me-link-label': span.label,
+            'data-me-link-from': String(span.from),
+            'data-me-link-to': String(span.to),
+          },
+        }),
+      )
+      builder.add(closeFrom(span), span.to, Decoration.replace({}))
     }
   }
 
   return builder.finish()
 }
 
-type HoverLinkData = ExternalLinkSpan
+type HoverLinkData = Pick<ExternalLinkSpan, 'from' | 'to' | 'label' | 'url'>
 
 function ensureExternalLinkControlStyles(): void {
   let style = document.getElementById('me-link-control-styles') as HTMLStyleElement | null
@@ -314,17 +335,12 @@ class ExternalLinkEditorPanel {
       if (!current) return
       const nextLabel = label.value.trim() || current.label
       const nextUrl = url.value.trim() || current.url
-      const insert = linkMarkdown(nextLabel, nextUrl)
+      const insert = linkMarkdown(current, nextLabel, nextUrl)
       this.view.dispatch({
         changes: { from: current.from, to: current.to, insert },
         selection: { anchor: current.from + 1 + nextLabel.length },
       })
-      this.span = {
-        from: current.from,
-        to: current.from + insert.length,
-        label: nextLabel,
-        url: nextUrl,
-      }
+      this.span = spanAtPosition(this.view, current.from)
     }
 
     const remove = () => {
@@ -453,7 +469,7 @@ class ExternalLinkHoverControls {
 
     this.dom.textContent = ''
 
-    const open = this.button('', () => openExternalUrl(data.url))
+    const open = this.button('', () => openExternalUrl(this.view, data.url))
     open.className = 'me-link-hover-controls__open'
     open.setAttribute('aria-label', 'Open link')
     open.title = data.url
@@ -464,7 +480,7 @@ class ExternalLinkHoverControls {
     openText.textContent = data.url
     open.append(openText)
 
-    const copy = this.button('⧉', () => copyExternalUrl(data.url))
+    const copy = this.button('⧉', () => copyExternalUrl(this.view, data.url))
     copy.className = 'me-link-hover-controls__copy'
     copy.setAttribute('aria-label', 'Copy link')
     copy.title = 'Copy link'
@@ -529,7 +545,7 @@ function linkDataFromElement(element: HTMLElement): HoverLinkData | null {
   const label = element.dataset.meLinkLabel
   const url = element.dataset.meLinkUrl
 
-  if (!Number.isFinite(from) || !Number.isFinite(to) || !label || !url) return null
+  if (!Number.isFinite(from) || !Number.isFinite(to) || label == null || url == null) return null
   return { from, to, label, url }
 }
 
@@ -544,7 +560,11 @@ function closestLinkWidget(target: EventTarget | null): HTMLElement | null {
 
 let suppressNextModifiedLinkClick = false
 
-function openModifiedLinkEvent(event: MouseEvent, phase: 'down' | 'click'): boolean {
+function openModifiedLinkEvent(
+  event: MouseEvent,
+  view: EditorView,
+  phase: 'down' | 'click',
+): boolean {
   if ((!event.metaKey && !event.ctrlKey) || event.altKey || event.shiftKey) return false
 
   const link = closestLinkWidget(event.target)
@@ -561,7 +581,7 @@ function openModifiedLinkEvent(event: MouseEvent, phase: 'down' | 'click'): bool
     return true
   }
 
-  openExternalUrl(data.url)
+  if (!openExternalUrl(view, data.url)) return false
   if (phase === 'down') {
     suppressNextModifiedLinkClick = true
     window.setTimeout(() => {
@@ -572,11 +592,11 @@ function openModifiedLinkEvent(event: MouseEvent, phase: 'down' | 'click'): bool
 }
 
 const externalLinkEventHandlers = EditorView.domEventHandlers({
-  mousedown(event) {
-    return openModifiedLinkEvent(event, 'down')
+  mousedown(event, view) {
+    return openModifiedLinkEvent(event, view, 'down')
   },
-  click(event) {
-    return openModifiedLinkEvent(event, 'click')
+  click(event, view) {
+    return openModifiedLinkEvent(event, view, 'click')
   },
 })
 

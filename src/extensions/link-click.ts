@@ -1,23 +1,7 @@
 import { EditorView } from '@codemirror/view'
-
-const MARKDOWN_LINK_REGEX = /(?<!!)\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g
-
-function linkAtPosition(lineText: string, lineFrom: number, pos: number): string | null {
-  MARKDOWN_LINK_REGEX.lastIndex = 0
-
-  for (const match of lineText.matchAll(MARKDOWN_LINK_REGEX)) {
-    if (match.index == null) continue
-    const label = match[1]
-    const href = match[2]
-    if (!label || !href) continue
-
-    const from = lineFrom + match.index
-    const to = from + match[0].length
-    if (pos >= from && pos <= to) return href
-  }
-
-  return null
-}
+import { markdownResourceAt } from '../internal/markdown-resources'
+import { resourceUrlConfigFacet } from '../internal/resource-url-extension'
+import { resolveAndValidateResourceUrl } from '../internal/resource-urls'
 
 export const linkClickNavigation = EditorView.domEventHandlers({
   click(event, view) {
@@ -26,12 +10,19 @@ export const linkClickNavigation = EditorView.domEventHandlers({
     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
     if (pos == null) return false
 
-    const line = view.state.doc.lineAt(pos)
-    const href = linkAtPosition(line.text, line.from, pos)
-    if (!href) return false
+    const resource = markdownResourceAt(view.state, pos, 'link')
+    if (!resource) return false
+
+    const config = view.state.facet(resourceUrlConfigFacet)
+    const resolved = resolveAndValidateResourceUrl(
+      resource.destination,
+      'link',
+      config.resolver,
+    )
+    if (!resolved.validation.allowed) return false
 
     event.preventDefault()
-    window.open(href, '_blank', 'noopener,noreferrer')
+    window.open(resolved.validation.url, '_blank', 'noopener,noreferrer')
     return true
   },
 })

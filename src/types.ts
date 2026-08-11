@@ -206,6 +206,17 @@ export interface EditorCommentsConfig {
   formatTimestamp?: (timestamp: string, comment: EditorComment) => string
 }
 
+export type ResourceKind = 'image' | 'link'
+
+export interface ResourceUrlContext {
+  kind: ResourceKind
+}
+
+export type ResourceUrlResolver = (
+  source: string,
+  context: ResourceUrlContext,
+) => string
+
 export type MarkdownEditorMode = 'live' | 'source'
 
 export interface MarkdownEditorProps {
@@ -222,6 +233,8 @@ export interface MarkdownEditorProps {
   readOnly?: boolean
   /** Visual editing mode. `live` hides inactive markdown syntax and renders widgets; `source` shows raw markdown. Defaults to `live`. */
   mode?: MarkdownEditorMode
+  /** Resolves parsed canonical Markdown image/link destinations for runtime display and navigation only. */
+  resourceUrlResolver?: ResourceUrlResolver
   floatingToolbar?: boolean
   autoFocus?: boolean
   /** Enables browser/OS spellcheck for the editable document body. Defaults to true. */

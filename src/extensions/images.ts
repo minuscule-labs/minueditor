@@ -2,8 +2,10 @@ import { EditorView, WidgetType, Decoration, keymap } from '@codemirror/view'
 import type { DecorationSet } from '@codemirror/view'
 import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
 import { Prec, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
-import { syntaxTree } from '@codemirror/language'
 import { handleWidgetBoundaryMouseDown, placeCursorAtWidgetBoundary } from '../internal/widget-navigation'
+import { markdownResources } from '../internal/markdown-resources'
+import { resourceUrlConfigFacet } from '../internal/resource-url-extension'
+import { resolveAndValidateResourceUrl } from '../internal/resource-urls'
 
 let uploadPlaceholderId = 0
 let imagePickerId = 0
@@ -62,7 +64,11 @@ function insertUploadPlaceholder(
 class ImageWidget extends WidgetType {
   constructor(
     readonly alt: string,
+    /** Canonical parsed Markdown destination. */
     readonly src: string,
+    readonly resolvedSrc: string | null,
+    readonly title: string | undefined,
+    readonly resolverGeneration: number,
     readonly from: number,
     readonly to: number,
   ) {
@@ -70,7 +76,13 @@ class ImageWidget extends WidgetType {
   }
 
   override eq(other: ImageWidget): boolean {
-    return this.alt === other.alt && this.src === other.src && this.from === other.from && this.to === other.to
+    return this.alt === other.alt
+      && this.src === other.src
+      && this.resolvedSrc === other.resolvedSrc
+      && this.title === other.title
+      && this.resolverGeneration === other.resolverGeneration
+      && this.from === other.from
+      && this.to === other.to
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -88,10 +100,13 @@ class ImageWidget extends WidgetType {
       placeholder.className = 'me-image-uploading'
       placeholder.textContent = `Uploading ${this.alt}…`
       content.appendChild(placeholder)
+    } else if (this.resolvedSrc == null) {
+      content.appendChild(brokenImagePlaceholder(this.alt))
     } else {
       const img = document.createElement('img')
-      img.src = this.src
+      img.src = this.resolvedSrc
       img.alt = this.alt
+      if (this.title) img.title = this.title
       img.className = 'me-image'
       img.setAttribute('loading', 'lazy')
 
@@ -137,6 +152,8 @@ function buildImageDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const doc = view.state.doc
   const activeLines = new Set<number>()
+  const resourceConfig = view.state.facet(resourceUrlConfigFacet)
+  const visited = new Set<number>()
   if (view.hasFocus) {
     for (const range of view.state.selection.ranges) {
       const from = doc.lineAt(range.from).number
@@ -146,34 +163,44 @@ function buildImageDecorations(view: EditorView): DecorationSet {
   }
 
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(view.state).iterate({
-      from,
-      to,
-      enter(node) {
-        if (node.name !== 'Image') return
+    const scanFrom = doc.lineAt(from).from
+    const scanTo = doc.lineAt(to).to
+    for (const resource of markdownResources(view.state, scanFrom, scanTo)) {
+      if (resource.kind !== 'image' || visited.has(resource.from)) continue
+      visited.add(resource.from)
 
-        const line = doc.lineAt(node.from)
-        if (activeLines.has(line.number)) return
+      const line = doc.lineAt(resource.from)
+      if (activeLines.has(line.number)) continue
 
-        const rawText = doc.sliceString(node.from, node.to)
-        // Standard markdown image: ![alt](src)
-        const match = rawText.match(/^!\[([^\]]*)\]\(([^)]*)\)$/)
-        if (!match) return
+      const rawText = doc.sliceString(resource.from, resource.to)
+      // Block widget navigation is only safe for standalone image lines.
+      if (line.text.trim() !== rawText) continue
 
-        // Block widget navigation is only safe for standalone image lines.
-        if (line.text.trim() !== rawText) return
+      const resolved = resolveAndValidateResourceUrl(
+        resource.destination,
+        'image',
+        resourceConfig.resolver,
+      )
+      const resolvedSrc = resolved.validation.allowed
+        ? resolved.validation.url
+        : null
 
-        const [, alt, src] = match
-
-        builder.add(
-          line.from,
-          line.to,
-          Decoration.replace({
-            widget: new ImageWidget(alt, src, line.from, line.to),
-          })
-        )
-      },
-    })
+      builder.add(
+        line.from,
+        line.to,
+        Decoration.replace({
+          widget: new ImageWidget(
+            resource.label,
+            resource.destination,
+            resolvedSrc,
+            resource.title?.value,
+            resourceConfig.generation,
+            line.from,
+            line.to,
+          ),
+        })
+      )
+    }
   }
 
   return builder.finish()
@@ -182,9 +209,11 @@ function buildImageDecorations(view: EditorView): DecorationSet {
 function imageLineRangeAtLine(view: EditorView, lineNumber: number): { from: number; to: number } | null {
   if (lineNumber < 1 || lineNumber > view.state.doc.lines) return null
   const line = view.state.doc.line(lineNumber)
-  const trimmed = line.text.trim()
-  if (!/^!\[[^\]]*\]\([^)]+\)$/.test(trimmed)) return null
-  return { from: line.from, to: line.to }
+  const image = markdownResources(view.state, line.from, line.to).find((resource) => {
+    if (resource.kind !== 'image') return false
+    return line.text.trim() === view.state.doc.sliceString(resource.from, resource.to)
+  })
+  return image ? { from: line.from, to: line.to } : null
 }
 
 export const imageArrowNavigation = Prec.high(
@@ -229,7 +258,8 @@ export const imageDecorations = ViewPlugin.fromClass(
         update.docChanged ||
         update.viewportChanged ||
         update.selectionSet ||
-        update.focusChanged
+        update.focusChanged ||
+        update.startState.facet(resourceUrlConfigFacet) !== update.state.facet(resourceUrlConfigFacet)
       ) {
         this.decorations = buildImageDecorations(update.view)
       }

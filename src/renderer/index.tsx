@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Marked } from 'marked'
+import type { RendererThis, Tokens } from 'marked'
 import { renderCodeHtml, highlightCodeHtml } from '../extensions/highlight'
-import type { CodeHighlighter, MermaidConfig } from '../types'
+import type { CodeHighlighter, MermaidConfig, ResourceUrlResolver } from '../types'
+import {
+  decodeMarkdownResourceDestination,
+  encodeResourceUrlForHtmlAttribute,
+  escapeHtmlAttribute,
+  resolveAndValidateResourceUrl,
+} from '../internal/resource-urls'
 import { enhanceRendererCallouts } from '../extensions/callouts'
 import { enhanceRendererMermaid, normalizeMermaidConfig } from '../extensions/mermaid'
 
@@ -14,18 +21,71 @@ export interface MarkdownRendererProps {
   codeHighlighter?: CodeHighlighter | undefined
   /** Opt-in Mermaid fenced-block rendering. Disabled by default. */
   mermaid?: boolean | MermaidConfig | undefined
+  /** Resolves parsed canonical Markdown image/link destinations for runtime rendering only. */
+  resourceUrlResolver?: ResourceUrlResolver | undefined
   className?: string | undefined
 }
 
-const renderer = new Marked({
-  gfm: true,
-  breaks: false,
-  renderer: {
-    code({ text, lang }) {
-      return renderCodeHtml(text, lang || '')
+function renderLink(
+  this: RendererThis,
+  token: Tokens.Link,
+  resourceUrlResolver?: ResourceUrlResolver,
+): string {
+  const text = this.parser.parseInline(token.tokens)
+  const canonicalHref = decodeMarkdownResourceDestination(token.href)
+  const resource = resolveAndValidateResourceUrl(canonicalHref, 'link', resourceUrlResolver)
+  if (!resource.validation.allowed) return text
+
+  const href = encodeResourceUrlForHtmlAttribute(resource.validation.url)
+  if (href == null) return text
+
+  let output = `<a href="${href}"`
+  if (token.title) {
+    output += ` title="${escapeHtmlAttribute(decodeMarkdownResourceDestination(token.title))}"`
+  }
+  return `${output}>${text}</a>`
+}
+
+function renderImage(
+  this: RendererThis,
+  token: Tokens.Image,
+  resourceUrlResolver?: ResourceUrlResolver,
+): string {
+  const alt = token.tokens
+    ? this.parser.parseInline(token.tokens, this.parser.textRenderer)
+    : token.text
+  const escapedAlt = escapeHtmlAttribute(decodeMarkdownResourceDestination(alt))
+  const canonicalHref = decodeMarkdownResourceDestination(token.href)
+  const resource = resolveAndValidateResourceUrl(canonicalHref, 'image', resourceUrlResolver)
+  if (!resource.validation.allowed) return escapedAlt
+
+  const src = encodeResourceUrlForHtmlAttribute(resource.validation.url)
+  if (src == null) return escapedAlt
+
+  let output = `<img src="${src}" alt="${escapedAlt}"`
+  if (token.title) {
+    output += ` title="${escapeHtmlAttribute(decodeMarkdownResourceDestination(token.title))}"`
+  }
+  return `${output}>`
+}
+
+function createMarkdownParser(resourceUrlResolver?: ResourceUrlResolver): Marked {
+  return new Marked({
+    gfm: true,
+    breaks: false,
+    renderer: {
+      code({ text, lang }) {
+        return renderCodeHtml(text, lang || '')
+      },
+      link(token) {
+        return renderLink.call(this, token, resourceUrlResolver)
+      },
+      image(token) {
+        return renderImage.call(this, token, resourceUrlResolver)
+      },
     },
-  },
-})
+  })
+}
 
 /**
  * MarkdownRenderer — renders markdown as static HTML.
@@ -38,6 +98,7 @@ export function MarkdownRenderer({
   onClick,
   codeHighlighter,
   mermaid = false,
+  resourceUrlResolver,
   className,
 }: MarkdownRendererProps) {
   const normalizedMermaid = normalizeMermaidConfig(mermaid)
@@ -52,9 +113,13 @@ export function MarkdownRenderer({
     [normalizedMermaid.enabled, normalizedMermaid.load, normalizedMermaid.theme],
   )
   const containerRef = useRef<HTMLDivElement>(null)
+  const markdownParser = useMemo(
+    () => createMarkdownParser(resourceUrlResolver),
+    [resourceUrlResolver],
+  )
 
   // Parse markdown synchronously (marked is sync by default)
-  const html = renderer.parse(value) as string
+  const html = useMemo(() => markdownParser.parse(value) as string, [markdownParser, value])
 
   // Wire up checkbox interactivity after render
   useEffect(() => {

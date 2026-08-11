@@ -8,6 +8,7 @@ import type {
   EditorComment,
   MarkdownEditorHandle,
   MarkdownEditorState,
+  ResourceUrlResolver,
   WikiLinksConfig,
 } from '../src/index'
 import { createShikiHighlighter } from '../src/shiki'
@@ -143,6 +144,26 @@ sequenceDiagram
   H->>E: Portable fenced source
   E-->>H: Lazy rendered diagram
 \`\`\`
+`
+
+const RESOURCE_URL_INITIAL = `# Resource URL resolver
+
+The stored Markdown below uses canonical application-relative destinations.
+
+![Inline canonical image](attachments/diagram.svg "Resolved image")
+
+[Open the resolved project](notes/project-alpha "Resolved link")
+
+Reference-style resources are also resolved by the static renderer:
+
+![Reference image][diagram]
+
+[Reference project][project]
+
+External destinations pass through unchanged: [example.com](https://example.com).
+
+[diagram]: attachments/diagram.svg
+[project]: notes/project-alpha
 `
 
 const CALLOUT_INITIAL = `# GitHub-style callouts
@@ -454,6 +475,85 @@ function MermaidDemo({ theme }: { theme: ThemeChoice }) {
           </div>
         </div>
       </div>
+    </section>
+  )
+}
+
+function ResourceUrlResolverDemo() {
+  const [value, setValue] = useState(RESOURCE_URL_INITIAL)
+  const [enabled, setEnabled] = useState(true)
+  const [variant, setVariant] = useState<'a' | 'b'>('a')
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+
+  const resolver = useMemo<ResourceUrlResolver | undefined>(() => {
+    if (!enabled) return undefined
+
+    return (source, { kind }) => {
+      if (kind === 'image' && source === 'attachments/diagram.svg') {
+        return `/resource-resolver-${variant}.svg`
+      }
+      if (kind === 'link' && source === 'notes/project-alpha') {
+        return `https://example.com/resolved/project-alpha?variant=${variant}`
+      }
+      return source
+    }
+  }, [enabled, variant])
+
+  return (
+    <section className="surface">
+      <h2>Resource URL resolver lab</h2>
+      <p className="surface-desc">
+        Canonical Markdown stays unchanged while live and static browser destinations are resolved at runtime.
+      </p>
+      <div className="parity-demo-controls">
+        <button type="button" onClick={() => setEnabled((current) => !current)}>
+          Resolver: {enabled ? 'on' : 'off'}
+        </button>
+        <button type="button" onClick={() => setVariant((current) => current === 'a' ? 'b' : 'a')}>
+          Resolver variant: {variant.toUpperCase()}
+        </button>
+        <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>
+          Editor mode: {mode}
+        </button>
+        <button type="button" onClick={() => setValue(RESOURCE_URL_INITIAL)}>Reset Markdown</button>
+      </div>
+      <p className="parity-demo-description">
+        Toggle variants to verify existing image widgets refresh. Hover the inline link to copy its resolved
+        address, or Cmd/Ctrl-click it to open. Reference resources intentionally render only in the static view.
+      </p>
+      <div className="callout-demo-layout">
+        <div>
+          <h3 className="demo-column-title">Editor</h3>
+          <div className="editor-frame">
+            <MarkdownEditor
+              value={value}
+              onChange={setValue}
+              mode={mode}
+              minHeight={440}
+              {...(resolver ? { resourceUrlResolver: resolver } : {})}
+            />
+          </div>
+        </div>
+        <div>
+          <h3 className="demo-column-title">Static renderer</h3>
+          <div className="editor-frame parity-renderer-frame">
+            <MarkdownRenderer
+              value={value}
+              {...(resolver ? { resourceUrlResolver: resolver } : {})}
+            />
+          </div>
+        </div>
+      </div>
+      <details open>
+        <summary>Canonical Markdown (never resolved in storage)</summary>
+        <pre>{value}</pre>
+      </details>
+      <details>
+        <summary>Expected runtime mapping</summary>
+        <pre>{enabled
+          ? `attachments/diagram.svg → /resource-resolver-${variant}.svg\nnotes/project-alpha → https://example.com/resolved/project-alpha?variant=${variant}`
+          : 'Resolver disabled; canonical relative destinations are used directly.'}</pre>
+      </details>
     </section>
   )
 }
@@ -866,6 +966,8 @@ export default function App() {
         <OutlineDemo codeHighlighter={codeHighlighter} />
 
         <ParityFixturesDemo />
+
+        <ResourceUrlResolverDemo />
 
         <RichPasteDemo />
 

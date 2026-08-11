@@ -449,6 +449,55 @@ Disable all rich conversion or individual conversion paths with `richPaste`:
 
 Converted output is always Markdown; no HTML becomes canonical editor state.
 
+## Runtime resource URLs
+
+Use `resourceUrlResolver` when Markdown should store canonical image/link destinations while the current application needs deployment-specific runtime URLs. Pass the same pure, synchronous resolver to editing and static-rendering surfaces:
+
+```tsx
+import {
+  MarkdownEditor,
+  MarkdownRenderer,
+  type ResourceUrlResolver,
+} from '@dpklabs/minueditor'
+
+const resourceUrlResolver: ResourceUrlResolver = (source) =>
+  new URL(source, 'https://content.example.com').toString()
+
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  resourceUrlResolver={resourceUrlResolver}
+/>
+
+<MarkdownRenderer
+  value={value}
+  resourceUrlResolver={resourceUrlResolver}
+/>
+```
+
+The resolver receives the destination parsed from standard Markdown and `{ kind: 'image' | 'link' }`. It must be inexpensive, side-effect-free, and return synchronously. Keep its function identity stable while its mapping is unchanged; live image widgets refresh when resolver identity changes.
+
+A host can restrict rewriting to its own canonical resources:
+
+```tsx
+const resourceUrlResolver: ResourceUrlResolver = (source) => {
+  if (!source.startsWith('/internal/attachments/')) return source
+  return new URL(source, configuredApiOrigin).toString()
+}
+```
+
+Resolution affects only runtime image display and link navigation:
+
+- Stored Markdown, source mode, editing fields, selections, saves, and Markdown copy remain canonical.
+- Rendered `src`/`href`, link opening, and browser-style **Copy link address** use the resolved destination.
+- Resolver exceptions fall back to the canonical destination and still pass URL validation.
+- Standard Markdown URL validation runs with or without a resolver. Executable, unknown, `file:`, and `data:` destinations are denied; links and images have separate allowed-scheme policies.
+- Raw HTML destinations are not resolved or sanitized by this feature.
+- Wikilinks continue to use the separate `wikiLinks` / `WikiLinkResolution` API.
+- Static rendering resolves inline links, reference links, and autolinks. The live editor adds relative-link behavior to inline links only; it does not add reference-link or autolink widgets.
+
+A synchronous URL cannot add authorization headers or mint a signed URL. In particular, `<img>` requests cannot attach a bearer token. Use cookie-authenticated endpoints, share-scoped URLs, already available signed URLs, or pre-created blob URLs as appropriate.
+
 ## Image uploads
 
 Image uploads are intentionally bring-your-own-storage.

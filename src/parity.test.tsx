@@ -70,6 +70,46 @@ describe('editor/static parity fixtures', () => {
     })
   }
 
+  it('keeps canonical resources stable while resolving live and static destinations', async () => {
+    const value = [
+      '[Download](/internal/attachments/att_link/content)',
+      '',
+      '![Diagram](/internal/attachments/att_image/content)',
+    ].join('\n')
+    const resolver = (source: string) => `https://api.example.com${source}`
+    const onChange = vi.fn()
+    const editor = render(
+      <MarkdownEditor
+        value={value}
+        onChange={onChange}
+        resourceUrlResolver={resolver}
+      />,
+    )
+    const renderer = render(
+      <MarkdownRenderer value={value} resourceUrlResolver={resolver} />,
+    )
+
+    await waitFor(() => {
+      expect(editor.container.querySelector('.me-link-widget')).toHaveAttribute(
+        'data-me-link-url',
+        '/internal/attachments/att_link/content',
+      )
+      expect(editor.container.querySelector('.me-image')).toHaveAttribute(
+        'src',
+        'https://api.example.com/internal/attachments/att_image/content',
+      )
+    })
+    expect(renderer.container.querySelector('a')).toHaveAttribute(
+      'href',
+      'https://api.example.com/internal/attachments/att_link/content',
+    )
+    expect(renderer.container.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://api.example.com/internal/attachments/att_image/content',
+    )
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('keeps portable syntax visible in source mode', () => {
     const fixture = markdownParityFixtures.find(({ id }) => id === 'callout-composition')
     expect(fixture).toBeDefined()
