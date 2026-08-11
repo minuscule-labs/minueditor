@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.0 — 2026-08-11
+
 - Added an optional synchronous `resourceUrlResolver` to `MarkdownEditor` and `MarkdownRenderer`, allowing hosts to preserve canonical Markdown image/link destinations while using context-specific runtime URLs for rendering, navigation, and browser-style address copying.
 - Added public `ResourceKind`, `ResourceUrlContext`, and `ResourceUrlResolver` types.
 - Added syntax-tree-backed live image/link destination parsing, including safe relative links, image/link titles, angle-bracket destinations, and balanced parentheses without changing canonical editor content.

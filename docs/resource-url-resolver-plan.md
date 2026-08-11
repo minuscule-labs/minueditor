@@ -397,4 +397,4 @@ Raw HTML sanitization, inline image widgets, live reference/autolink widgets, wi
 - [x] Safe relative links work in live editing.
 - [x] Canonical document, editing, history, comments, and Markdown-copy invariants hold.
 - [x] Documentation and changelog distinguish resolution from security hardening.
-- [ ] A versioned MinuEditor release exists before MinuNotes integration.
+- [x] A versioned MinuEditor release exists before MinuNotes integration.
