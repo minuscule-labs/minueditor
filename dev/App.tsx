@@ -239,6 +239,10 @@ Try:
 - [[note_2|Meeting Notes]]
 
 In title mode, put the cursor in the label/title part after \`|\` and select another suggestion.
+
+Smart-paste test URL (copy it, then paste on an empty line or over selected text):
+
+\`https://notes.example.com/notes/note_1\`
 `
 
 const WIKI_NOTES = [
@@ -811,6 +815,17 @@ export default function App() {
   const codeHighlighter = useMemo(() => createShikiHighlighter(), [])
   const wikiLinksConfig = useMemo<WikiLinksConfig>(() => ({
     labelBehavior: 'title',
+    resolvePastedUrl: (sourceUrl, context) => {
+      const url = new URL(sourceUrl)
+      if (url.origin !== 'https://notes.example.com' || url.search || url.hash) return null
+      const match = /^\/notes\/(note_[a-zA-Z0-9_-]+)\/?$/.exec(url.pathname)
+      if (!match) return null
+      setWikiEvents((events) => [
+        `smart paste ${match[1]}${context.selectedText ? ` label="${context.selectedText}"` : ''} mode=${context.mode}`,
+        ...events.slice(0, 8),
+      ])
+      return { target: match[1] }
+    },
     resolve: (target) => {
       const note = WIKI_NOTES.find((candidate) => candidate.id === target || candidate.title === target)
       return note
@@ -982,7 +997,12 @@ export default function App() {
         <section className="surface">
           <h2>Wikilink surface</h2>
           <p className="surface-desc">
-            ID-backed wikilinks · title-mode completion · raw reveal · Cmd/Ctrl-click open
+            ID-backed wikilinks · title-mode completion · internal URL smart paste · raw reveal · Cmd/Ctrl-click open
+          </p>
+          <p className="parity-demo-description">
+            Copy <code>https://notes.example.com/notes/note_1</code> and paste it into the editor.
+            A bare paste stores <code>[[note_1]]</code>; pasting over selected text stores a labeled wikilink.
+            External URLs retain standard Markdown-link behavior.
           </p>
           <div className="editor-frame">
             <MarkdownEditor

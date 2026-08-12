@@ -1,76 +1,141 @@
 import { EditorView } from '@codemirror/view'
+import type { MarkdownEditorMode, WikiLinkPasteResolver } from '../types'
 
 const URL_REGEX = /^https?:\/\/[^\s]+$/
 const EMPTY_LIST_ITEM_REGEX = /^\s*(?:[-*+]|\d+\.)\s+(?:\[[ xX/]\]\s+)?$/
+const INVALID_WIKILINK_TEXT = /[\u0000-\u001f\u007f]|\]\]/
+
+export type AutolinkPasteConfig = {
+  mode: MarkdownEditorMode
+  resolvePastedUrl?: WikiLinkPasteResolver
+}
+
+function exactHttpUrl(source: string): string | null {
+  const candidate = source.trim()
+  return candidate && URL_REGEX.test(candidate) ? candidate : null
+}
+
+function eligibleSemanticUrl(source: string): boolean {
+  try {
+    const parsed = new URL(source)
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      !parsed.username &&
+      !parsed.password
+    )
+  } catch {
+    return false
+  }
+}
+
+function safeWikiLinkPart(value: string): boolean {
+  return value.length > 0 && !INVALID_WIKILINK_TEXT.test(value)
+}
+
+function safeWikiLinkTarget(value: string): boolean {
+  return Boolean(value.trim()) && !value.includes('|') && safeWikiLinkPart(value)
+}
+
+function resolvedWikiLink(
+  sourceUrl: string,
+  selectedText: string,
+  config: AutolinkPasteConfig,
+): string | null {
+  const resolver = config.resolvePastedUrl
+  if (
+    !resolver ||
+    !eligibleSemanticUrl(sourceUrl) ||
+    (selectedText && !safeWikiLinkPart(selectedText))
+  ) return null
+
+  try {
+    const resolution = resolver(sourceUrl, {
+      selectedText,
+      mode: config.mode,
+    })
+    const target = resolution?.target
+    if (
+      typeof target !== 'string' ||
+      !safeWikiLinkTarget(target)
+    ) return null
+    return selectedText ? `[[${target}|${selectedText}]]` : `[[${target}]]`
+  } catch {
+    return null
+  }
+}
 
 /**
- * Intercepts paste events. When a plain-text URL is pasted:
- * - Selected text → wrap as `[selected text](url)`
- * - No selection → insert `[url](url)` so pasted links render consistently,
- *   including mid-line / after existing text.
- *
- * HTTP and HTTPS only. No DNS lookup.
+ * Intercepts exact HTTP(S) URL paste events. Recognized host URLs become
+ * canonical wikilinks; all other candidates retain standard Markdown-link
+ * insertion behavior.
  */
-export const autolinkPaste = EditorView.domEventHandlers({
-  paste(event, view) {
-    if (!view.state.facet(EditorView.editable)) return false
+export function autolinkPaste(config: AutolinkPasteConfig) {
+  return EditorView.domEventHandlers({
+    paste(event, view) {
+      if (!view.state.facet(EditorView.editable)) return false
+      if (Array.from(event.clipboardData?.items ?? []).some((item) => item.kind === 'file')) {
+        return false
+      }
 
-    const getData = event.clipboardData?.getData
-    const text = typeof getData === 'function' ? getData.call(event.clipboardData, 'text/plain')?.trim() : ''
-    if (!text || !URL_REGEX.test(text)) return false
+      const getData = event.clipboardData?.getData
+      const plain = typeof getData === 'function'
+        ? getData.call(event.clipboardData, 'text/plain')
+        : ''
+      const text = exactHttpUrl(plain ?? '')
+      if (!text) return false
 
-    event.preventDefault()
+      const state = view.state
+      const sel = state.selection.main
+      const selectedText = sel.empty ? '' : state.doc.sliceString(sel.from, sel.to)
+      const wikiLink = resolvedWikiLink(text, selectedText, config)
 
-    const state = view.state
-    const sel = state.selection.main
+      event.preventDefault()
 
-    // Case 1: text is selected → wrap as markdown link
-    if (!sel.empty) {
-      const selectedText = state.doc.sliceString(sel.from, sel.to)
-      view.dispatch({
-        changes: {
-          from: sel.from,
-          to: sel.to,
-          insert: `[${selectedText}](${text})`,
-        },
-        // Keep the cursor at the visual end of the editable label, not in
-        // the hidden markdown URL suffix.
-        selection: { anchor: sel.from + 1 + selectedText.length },
-      })
+      if (wikiLink) {
+        view.dispatch({
+          changes: { from: sel.from, to: sel.to, insert: wikiLink },
+          selection: {
+            anchor: selectedText
+              ? sel.from + wikiLink.length - 2
+              : sel.from + wikiLink.length,
+          },
+          scrollIntoView: true,
+        })
+        return true
+      }
+
+      if (!sel.empty) {
+        view.dispatch({
+          changes: {
+            from: sel.from,
+            to: sel.to,
+            insert: `[${selectedText}](${text})`,
+          },
+          selection: { anchor: sel.from + 1 + selectedText.length },
+        })
+        return true
+      }
+
+      const line = state.doc.lineAt(sel.from)
+      const lineContent = line.text.trim()
+      const insert = `[${text}](${text})`
+
+      if (lineContent === '' || EMPTY_LIST_ITEM_REGEX.test(line.text)) {
+        const insertFrom = lineContent === '' ? line.from : sel.from
+        view.dispatch({
+          changes: lineContent === ''
+            ? { from: line.from, to: line.to, insert }
+            : { from: sel.from, insert },
+          selection: { anchor: insertFrom + insert.length },
+        })
+      } else {
+        view.dispatch({
+          changes: { from: sel.from, insert },
+          selection: { anchor: sel.from + insert.length },
+        })
+      }
+
       return true
-    }
-
-    // Case 2: nothing selected — check if we're on an otherwise empty line
-    const line = state.doc.lineAt(sel.from)
-    const lineContent = line.text.trim()
-
-    if (lineContent === '' || EMPTY_LIST_ITEM_REGEX.test(line.text)) {
-      // Empty line/list item → insert [url](url)
-      const insert = `[${text}](${text})`
-      const insertFrom = lineContent === '' ? line.from : sel.from
-      view.dispatch({
-        changes: lineContent === ''
-          ? {
-              from: line.from,
-              to: line.to,
-              insert,
-            }
-          : { from: sel.from, insert },
-        // Place the cursor after the full link so the pasted URL immediately
-        // renders as a clean live-preview link.
-        selection: { anchor: insertFrom + insert.length },
-      })
-    } else {
-      // Mid-line → keep pasted URLs renderable as standard markdown links.
-      const insert = `[${text}](${text})`
-      view.dispatch({
-        changes: { from: sel.from, insert },
-        // Place the cursor after the full link so the pasted URL immediately
-        // renders as a clean live-preview link.
-        selection: { anchor: sel.from + insert.length },
-      })
-    }
-
-    return true
-  },
-})
+    },
+  })
+}

@@ -15,6 +15,7 @@ import {
   EditorView,
   keymap,
   ViewPlugin,
+  WidgetType,
   type ViewUpdate,
 } from '@codemirror/view'
 import type {
@@ -170,6 +171,32 @@ function selectionOverlapsSpan(view: EditorView, span: WikiLinkSpan): boolean {
   })
 }
 
+class ResolvedWikiLinkTitleWidget extends WidgetType {
+  constructor(
+    readonly target: string,
+    readonly title: string,
+    readonly status: WikiLinkStatus,
+  ) {
+    super()
+  }
+
+  eq(other: ResolvedWikiLinkTitleWidget): boolean {
+    return this.target === other.target && this.title === other.title && this.status === other.status
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = `me-wikilink me-wikilink-label ${statusClass(this.status)}`
+    span.dataset.meWikilinkTarget = this.target
+    span.textContent = this.title
+    return span
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 function buildWikiLinkDecorations(
   view: EditorView,
   resolve: (target: string) => ResolutionCacheEntry,
@@ -192,7 +219,8 @@ function buildWikiLinkDecorations(
         // avoids fragile hidden-marker cursor/delete behavior.
         if (selectionOverlapsSpan(view, span)) continue
 
-        const status = resolutionStatus(resolve(span.target))
+        const resolution = resolve(span.target)
+        const status = resolutionStatus(resolution)
         const markerClass = statusClass(status)
         const labelFrom = span.label ? span.labelFrom : span.targetFrom
         const labelTo = span.label ? span.labelTo : span.targetTo
@@ -208,14 +236,26 @@ function buildWikiLinkDecorations(
         }
 
         if (labelTo > labelFrom) {
-          ranges.push(
-            Decoration.mark({
-              class: `me-wikilink me-wikilink-label ${markerClass}`,
-              attributes: {
-                'data-me-wikilink-target': span.target,
-              },
-            }).range(labelFrom, labelTo),
-          )
+          if (!span.label && resolution.title && resolution.title !== span.target) {
+            ranges.push(
+              Decoration.replace({
+                widget: new ResolvedWikiLinkTitleWidget(
+                  span.target,
+                  resolution.title,
+                  status,
+                ),
+              }).range(labelFrom, labelTo),
+            )
+          } else {
+            ranges.push(
+              Decoration.mark({
+                class: `me-wikilink me-wikilink-label ${markerClass}`,
+                attributes: {
+                  'data-me-wikilink-target': span.target,
+                },
+              }).range(labelFrom, labelTo),
+            )
+          }
         }
       }
     }

@@ -744,9 +744,14 @@ export const MarkdownEditor = forwardRef<
       shortcutGuard,
       richPasteCompartment.current.of([
         pasteAsPlainTextExtension(richPaste !== false),
+        autolinkPaste({
+          mode,
+          ...(typeof wikiLinks === 'object' && wikiLinks.resolvePastedUrl
+            ? { resolvePastedUrl: wikiLinks.resolvePastedUrl }
+            : {}),
+        }),
         richPasteExtension(richPaste),
       ]),
-      autolinkPaste,
       linkClickNavigation,
       imagePasteHandler(() => onImageUploadRef.current),
       imageArrowNavigation,
@@ -863,10 +868,16 @@ export const MarkdownEditor = forwardRef<
     view.dispatch({
       effects: richPasteCompartment.current.reconfigure([
         pasteAsPlainTextExtension(richPaste !== false),
+        autolinkPaste({
+          mode,
+          ...(typeof wikiLinks === 'object' && wikiLinks.resolvePastedUrl
+            ? { resolvePastedUrl: wikiLinks.resolvePastedUrl }
+            : {}),
+        }),
         richPasteExtension(richPaste),
       ]),
     })
-  }, [richPaste])
+  }, [mode, richPaste, wikiLinks])
 
   useEffect(() => {
     const view = viewRef.current

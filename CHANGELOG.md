@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added optional `wikiLinks.resolvePastedUrl` smart paste so hosts can recognize exact internal HTTP(S) URLs and store canonical ID-backed wikilinks, including selected-text labels and safe fallback to existing URL paste behavior.
+- Added runtime title display for bare ID-backed wikilinks through the existing `WikiLinksConfig.resolve` result without changing Markdown.
+- Added public `WikiLinkPasteContext`, `WikiLinkPasteResolution`, and `WikiLinkPasteResolver` types.
+
 ## 0.13.0 — 2026-08-11
 
 - Added an optional synchronous `resourceUrlResolver` to `MarkdownEditor` and `MarkdownRenderer`, allowing hosts to preserve canonical Markdown image/link destinations while using context-specific runtime URLs for rendering, navigation, and browser-style address copying.

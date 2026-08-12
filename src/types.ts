@@ -79,6 +79,20 @@ export type WikiLinkSuggestionContext = {
   signal?: AbortSignal
 }
 
+export type WikiLinkPasteContext = {
+  selectedText: string
+  mode: MarkdownEditorMode
+}
+
+export type WikiLinkPasteResolution = {
+  target: string
+}
+
+export type WikiLinkPasteResolver = (
+  sourceUrl: string,
+  context: WikiLinkPasteContext,
+) => WikiLinkPasteResolution | null
+
 export type WikiLinksConfig = {
   enabled?: boolean
   /** Opens decorated inactive wikilinks on plain mouse down. Defaults to false so hosts can opt in. */
@@ -86,6 +100,8 @@ export type WikiLinksConfig = {
   /** Opens wikilinks on Cmd/Ctrl-click. Defaults to true. */
   openOnModifierClick?: boolean
   resolve?: (target: string) => WikiLinkResolution | Promise<WikiLinkResolution>
+  /** Recognizes an exact pasted HTTP(S) URL and returns a canonical wikilink target. */
+  resolvePastedUrl?: WikiLinkPasteResolver
   /**
    * Controls default completion behavior for the text after `|`.
    * - `alias` preserves Obsidian-like custom aliases. Defaults to target-only completion.

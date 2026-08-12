@@ -449,6 +449,35 @@ Disable all rich conversion or individual conversion paths with `richPaste`:
 
 Converted output is always Markdown; no HTML becomes canonical editor state.
 
+## Internal URL smart paste
+
+A host can recognize one of its own pasted HTTP(S) URLs and store a stable ID-backed wikilink instead of a deployment-specific Markdown URL:
+
+```tsx
+import type { WikiLinkPasteResolver } from '@dpklabs/minueditor'
+
+const resolvePastedUrl: WikiLinkPasteResolver = (sourceUrl) => {
+  const url = new URL(sourceUrl)
+  if (url.origin !== configuredWebOrigin || url.search || url.hash) return null
+  const match = /^\/notes\/(note_[a-zA-Z0-9_-]+)\/?$/.exec(url.pathname)
+  return match ? { target: match[1] } : null
+}
+
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  wikiLinks={{
+    resolvePastedUrl,
+    resolve: resolveWikiLink,
+    onOpen: openWikiLink,
+  }}
+/>
+```
+
+A recognized bare URL stores `[[note_123]]`; when pasted over selected `Project plan` text it stores `[[note_123|Project plan]]`. Bare-link titles remain runtime-resolved through `wikiLinks.resolve`, so renames do not rewrite Markdown.
+
+The callback runs only for exact HTTP(S) clipboard text without embedded credentials. It is synchronous and should match exact approved origins and route/ID formats. Returning `null`, throwing, or returning an unsafe target preserves normal URL paste behavior. File paste and **Cmd/Ctrl+Shift+V** bypass semantic conversion.
+
 ## Runtime resource URLs
 
 Use `resourceUrlResolver` when Markdown should store canonical image/link destinations while the current application needs deployment-specific runtime URLs. Pass the same pure, synchronous resolver to editing and static-rendering surfaces:
