@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.2 — 2026-08-23
+
 - Fixed slash-command autocomplete positioning around live editor widgets by anchoring completion ranges to the `/` character while preserving clean labels, aliases, filtering, and command application behavior.
 
 ## 0.13.1 — 2026-08-11
