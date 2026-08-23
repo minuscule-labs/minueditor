@@ -230,13 +230,18 @@ function slashCommandRange(context: CompletionContext): { from: number; to: numb
 }
 
 function toCompletion(command: SlashCommand): Completion {
+  const searchTerms = [command.label, ...(command.keywords ?? [])].join(' ')
   const completion: Completion = {
-    label: command.label,
+    // Keep the slash in the matched text so CodeMirror can anchor the tooltip
+    // before line-end widgets. displayLabel keeps the menu text unchanged.
+    label: `/${searchTerms}`,
+    displayLabel: command.label,
+    sortText: command.label,
     type: 'keyword',
     apply(view, _completion, from, to) {
       view.dispatch({
-        changes: { from: from - 1, to, insert: '' },
-        selection: { anchor: from - 1 },
+        changes: { from, to, insert: '' },
+        selection: { anchor: from },
       })
       command.run(view)
     },
@@ -255,10 +260,10 @@ export function slashCommandCompletions(
   if (!range) return null
 
   return {
-    from: range.from + 1,
+    from: range.from,
     to: range.to,
     options: commands.map(toCompletion),
-    validFor: /^[\w-]*$/,
+    validFor: /^\/[\w-]*$/,
   }
 }
 

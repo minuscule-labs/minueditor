@@ -17,7 +17,7 @@ function applyEditorSlashCommand(view: EditorView, label: string) {
     pos: view.state.selection.main.from,
     explicit: true,
   } as CompletionContext, editorSlashCommands)
-  const option = result!.options.find((completion) => completion.label === label)!
+  const option = result!.options.find((completion) => completion.displayLabel === label)!
   const apply = option.apply
   expect(typeof apply).toBe('function')
   if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)

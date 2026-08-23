@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed slash-command autocomplete positioning around live editor widgets by anchoring completion ranges to the `/` character while preserving clean labels, aliases, filtering, and command application behavior.
+
 ## 0.13.1 — 2026-08-11
 
 - Added optional `wikiLinks.resolvePastedUrl` smart paste so hosts can recognize exact internal HTTP(S) URLs and store canonical ID-backed wikilinks, including selected-text labels and safe fallback to existing URL paste behavior.

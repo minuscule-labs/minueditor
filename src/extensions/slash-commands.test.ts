@@ -1,7 +1,11 @@
-import type { CompletionContext } from '@codemirror/autocomplete'
+import {
+  currentCompletions,
+  startCompletion,
+  type CompletionContext,
+} from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { slashCommandCompletions, slashCommandExtension } from './slash-commands'
 
 let views: EditorView[] = []
@@ -29,7 +33,7 @@ function applySlashCommand(view: EditorView, label: string) {
     pos: view.state.selection.main.from,
     explicit: true,
   } as CompletionContext)
-  const option = result!.options.find((completion) => completion.label === label)!
+  const option = result!.options.find((completion) => completion.displayLabel === label)!
   const apply = option.apply
   expect(typeof apply).toBe('function')
   if (typeof apply === 'function') apply(view, option, result!.from, result!.to!)
@@ -53,7 +57,7 @@ describe('slashCommandExtension', () => {
       explicit: true,
     } as CompletionContext)
 
-    expect(result?.from).toBe(1)
+    expect(result?.from).toBe(0)
     expect(result?.to).toBe(3)
     const from = result!.from
     const to = result!.to
@@ -65,7 +69,7 @@ describe('slashCommandExtension', () => {
     expect(view.state.doc.toString()).toBe('# ')
   })
 
-  it('uses the text after slash as the filtered query', () => {
+  it('uses the slash-inclusive range as the filtered query and anchor', () => {
     const view = createView('/h1')
     const result = slashCommandCompletions({
       state: view.state,
@@ -73,8 +77,46 @@ describe('slashCommandExtension', () => {
       explicit: true,
     } as CompletionContext)
 
-    expect(view.state.doc.sliceString(result!.from, result!.to)).toBe('h1')
-    expect(result!.validFor).toEqual(/^[\w-]*$/)
+    expect(view.state.doc.sliceString(result!.from, result!.to)).toBe('/h1')
+    expect(result!.validFor).toEqual(/^\/[\w-]*$/)
+  })
+
+  it('matches labels and aliases while displaying labels without a slash', () => {
+    const view = createView('/')
+    const result = slashCommandCompletions({
+      state: view.state,
+      pos: view.state.selection.main.from,
+      explicit: true,
+    } as CompletionContext)
+    const heading = result!.options.find((option) => option.displayLabel === 'Heading 1')
+    const table = result!.options.find((option) => option.displayLabel === 'Table')
+
+    expect(heading).toMatchObject({
+      label: '/Heading 1 h1 title',
+      displayLabel: 'Heading 1',
+      sortText: 'Heading 1',
+    })
+    expect(table).toMatchObject({
+      label: '/Table grid',
+      displayLabel: 'Table',
+    })
+    expect(result!.options.every((option) => !option.displayLabel?.startsWith('/'))).toBe(true)
+  })
+
+  it.each([
+    ['/hea', 'Heading 1'],
+    ['/table', 'Table'],
+    ['/h1', 'Heading 1'],
+    ['/grid', 'Table'],
+  ])('filters %s by labels and aliases', async (query, expectedLabel) => {
+    const view = createView(query)
+
+    expect(startCompletion(view)).toBe(true)
+    await vi.waitFor(() => {
+      expect(currentCompletions(view.state).map((option) => option.displayLabel)).toContain(
+        expectedLabel,
+      )
+    })
   })
 
   it('places the cursor after a task list marker', () => {
@@ -112,7 +154,7 @@ describe('slashCommandExtension', () => {
       explicit: true,
     } as CompletionContext)
 
-    expect(result?.options.map((option) => option.label)).toEqual(expect.arrayContaining([
+    expect(result?.options.map((option) => option.displayLabel)).toEqual(expect.arrayContaining([
       'Note Callout',
       'Tip Callout',
       'Important Callout',
