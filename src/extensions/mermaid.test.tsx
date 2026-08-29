@@ -34,8 +34,9 @@ describe('Mermaid rich blocks', () => {
   it('is opt-in and normalizes host configuration', () => {
     expect(normalizeMermaidConfig(undefined).enabled).toBe(false)
     expect(normalizeMermaidConfig(false).enabled).toBe(false)
-    expect(normalizeMermaidConfig(true)).toMatchObject({ enabled: true, theme: 'default' })
-    expect(normalizeMermaidConfig({ theme: 'dark' })).toMatchObject({ enabled: true, theme: 'dark' })
+    expect(normalizeMermaidConfig(true)).toMatchObject({ enabled: true, interactive: true, theme: 'default' })
+    expect(normalizeMermaidConfig({ theme: 'dark' })).toMatchObject({ enabled: true, interactive: true, theme: 'dark' })
+    expect(normalizeMermaidConfig({ interactive: false })).toMatchObject({ enabled: true, interactive: false })
   })
 
   it('finds closed backtick and tilde Mermaid fences only', () => {
@@ -88,6 +89,45 @@ describe('Mermaid rich blocks', () => {
     }))
     expect(renderDiagram).toHaveBeenCalledWith(expect.stringMatching(/^me-mermaid-/), 'graph TD\n  A --> B')
     expect(container.querySelector('.me-codeblock-widget')).not.toBeInTheDocument()
+  })
+
+  it('pans and zooms rendered diagrams with accessible controls', async () => {
+    const { load } = fakeEngine()
+    const { container } = render(
+      <MarkdownRenderer value={'```mermaid\ngraph TD\n```'} mermaid={{ load }} />,
+    )
+
+    await waitFor(() => expect(container.querySelector('[data-testid="diagram"]')).toBeInTheDocument())
+    const diagram = container.querySelector('[data-testid="diagram"]') as SVGElement
+    const body = container.querySelector('.me-mermaid-body') as HTMLElement
+    const zoomIn = container.querySelector('[aria-label="Zoom in"]') as HTMLButtonElement
+    const zoomOut = container.querySelector('[aria-label="Zoom out"]') as HTMLButtonElement
+    const reset = container.querySelector('[aria-label="Reset diagram view"]') as HTMLButtonElement
+
+    expect(body).toHaveAttribute('tabindex', '0')
+    expect(zoomOut).toBeDisabled()
+    fireEvent.click(zoomIn)
+    expect(diagram.style.transform).toContain('scale(1.25)')
+    expect(zoomOut).not.toBeDisabled()
+    fireEvent.keyDown(body, { key: 'ArrowRight' })
+    expect(diagram.style.transform).toContain('translate(-30px, 0px)')
+    fireEvent.click(reset)
+    expect(diagram.style.transform).toBe('translate(0px, 0px) scale(1)')
+    expect(reset).toBeDisabled()
+  })
+
+  it('allows Mermaid interaction to be disabled', async () => {
+    const { load } = fakeEngine()
+    const { container } = render(
+      <MarkdownRenderer
+        value={'```mermaid\ngraph TD\n```'}
+        mermaid={{ load, interactive: false }}
+      />,
+    )
+
+    await waitFor(() => expect(container.querySelector('[data-testid="diagram"]')).toBeInTheDocument())
+    expect(container.querySelector('.me-mermaid-controls')).not.toBeInTheDocument()
+    expect(container.querySelector('.me-mermaid-body')).not.toHaveAttribute('tabindex')
   })
 
   it('renders a diagram after incremental parsing reaches a distant viewport', async () => {

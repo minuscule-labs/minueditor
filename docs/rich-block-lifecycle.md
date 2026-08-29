@@ -30,6 +30,7 @@ Callouts prove the synchronous subset: portable matching, inactive preview, exac
 - `securityLevel` is fixed to `strict`; hosts cannot weaken it through MinuEditor configuration.
 - MinuEditor performs no diagram-side network fetching.
 - Editable mode exposes an **Edit source** control.
+- Rendered diagrams expose pan, zoom, reset, touch, and keyboard interactions by default; hosts may disable them with `interactive: false`.
 - Read-only and static modes render without source-edit controls.
 - Invalid diagrams retain a visible source fallback.
 - A host may provide a compatible lazy engine loader for deterministic loading or tests.

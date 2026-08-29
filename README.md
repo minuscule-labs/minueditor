@@ -217,6 +217,8 @@ graph TD
 
 Mermaid is loaded lazily only when enabled. Rendering always uses Mermaid's strict security mode. In live mode, an inactive fence becomes a diagram; **Edit source** reveals the exact fenced Markdown. Source mode always shows Markdown. Invalid diagrams show a readable error and source fallback instead of losing content.
 
+Rendered diagrams support drag/touch panning, wheel or pinch zooming, keyboard navigation, and accessible zoom/reset controls in both the editor and static renderer. Keyboard users can pan with the arrow keys, zoom with `+`/`-`, and reset with `0` or Escape. Interaction is enabled by default and can be disabled with `mermaid={{ interactive: false }}`.
+
 A config object can select a Mermaid theme or provide a host-controlled lazy engine loader:
 
 ```tsx

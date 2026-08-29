@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.14.0 — 2026-08-29
+
+- Added interactive Mermaid diagram panning and zooming across live editor, read-only, and static renderer surfaces, including wheel, pointer, pinch, keyboard, reset controls, and an `interactive: false` opt-out.
+
 ## 0.13.2 — 2026-08-23
 
 - Fixed slash-command autocomplete positioning around live editor widgets by anchoring completion ranges to the `/` character while preserving clean labels, aliases, filtering, and command application behavior.

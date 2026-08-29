@@ -236,11 +236,12 @@ export const MarkdownEditor = forwardRef<
     () => normalizedMermaid.enabled
       ? {
           enabled: true,
+          interactive: normalizedMermaid.interactive,
           theme: normalizedMermaid.theme,
           load: normalizedMermaid.load,
         }
       : false,
-    [normalizedMermaid.enabled, normalizedMermaid.load, normalizedMermaid.theme],
+    [normalizedMermaid.enabled, normalizedMermaid.interactive, normalizedMermaid.load, normalizedMermaid.theme],
   )
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);

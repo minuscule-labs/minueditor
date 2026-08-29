@@ -19,6 +19,7 @@ export type MermaidBlock = {
 
 type NormalizedMermaidConfig = {
   enabled: boolean
+  interactive: boolean
   theme: NonNullable<MermaidConfig['theme']>
   load: () => Promise<MermaidEngine>
 }
@@ -38,11 +39,14 @@ export function normalizeMermaidConfig(
   input: boolean | MermaidConfig | undefined,
 ): NormalizedMermaidConfig {
   if (input == null || input === false) {
-    return { enabled: false, theme: 'default', load: loadDefaultMermaid }
+    return { enabled: false, interactive: true, theme: 'default', load: loadDefaultMermaid }
   }
-  if (input === true) return { enabled: true, theme: 'default', load: loadDefaultMermaid }
+  if (input === true) {
+    return { enabled: true, interactive: true, theme: 'default', load: loadDefaultMermaid }
+  }
   return {
     enabled: input.enabled !== false,
+    interactive: input.interactive !== false,
     theme: input.theme ?? 'default',
     load: input.load ?? loadDefaultMermaid,
   }
@@ -111,6 +115,200 @@ async function renderMermaid(
   return result
 }
 
+function createMermaidInteraction(
+  body: HTMLElement,
+  svg: SVGElement,
+  controls: HTMLElement,
+): () => void {
+  const minimumScale = 1
+  const maximumScale = 5
+  const zoomFactor = 1.25
+  const pointers = new Map<number, { x: number; y: number }>()
+  let scale = minimumScale
+  let x = 0
+  let y = 0
+  let gesture: {
+    scale: number
+    x: number
+    y: number
+    distance: number
+    midpoint: { x: number; y: number }
+  } | null = null
+
+  const zoomIn = controls.querySelector<HTMLButtonElement>('[data-me-mermaid-action="zoom-in"]')!
+  const zoomOut = controls.querySelector<HTMLButtonElement>('[data-me-mermaid-action="zoom-out"]')!
+  const reset = controls.querySelector<HTMLButtonElement>('[data-me-mermaid-action="reset"]')!
+
+  const applyTransform = () => {
+    if (scale === minimumScale) {
+      x = 0
+      y = 0
+    }
+    svg.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
+    zoomOut.disabled = scale <= minimumScale
+    zoomIn.disabled = scale >= maximumScale
+    reset.disabled = scale === minimumScale && x === 0 && y === 0
+  }
+
+  const zoomTo = (nextScale: number, clientX?: number, clientY?: number) => {
+    const clamped = Math.min(maximumScale, Math.max(minimumScale, nextScale))
+    if (clamped === scale) return
+    const rect = body.getBoundingClientRect()
+    const anchorX = (clientX ?? rect.left + rect.width / 2) - rect.left - rect.width / 2
+    const anchorY = (clientY ?? rect.top + rect.height / 2) - rect.top - rect.height / 2
+    const ratio = clamped / scale
+    x = ratio * x + (1 - ratio) * anchorX
+    y = ratio * y + (1 - ratio) * anchorY
+    scale = clamped
+    applyTransform()
+  }
+
+  const resetView = () => {
+    scale = minimumScale
+    x = 0
+    y = 0
+    applyTransform()
+  }
+
+  const onZoomIn = () => zoomTo(scale * zoomFactor)
+  const onZoomOut = () => zoomTo(scale / zoomFactor)
+  const onReset = () => resetView()
+  const onDoubleClick = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    resetView()
+  }
+  const onWheel = (event: WheelEvent) => {
+    const nextScale = scale * Math.exp(-event.deltaY * 0.002)
+    const clamped = Math.min(maximumScale, Math.max(minimumScale, nextScale))
+    if (clamped === scale) return
+    event.preventDefault()
+    event.stopPropagation()
+    zoomTo(clamped, event.clientX, event.clientY)
+  }
+  const pointerMidpoint = () => {
+    const [first, second] = [...pointers.values()]
+    return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }
+  }
+  const pointerDistance = () => {
+    const [first, second] = [...pointers.values()]
+    return Math.hypot(second.x - first.x, second.y - first.y)
+  }
+  const onPointerDown = (event: PointerEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    body.focus()
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    body.setPointerCapture?.(event.pointerId)
+    if (pointers.size === 2) {
+      gesture = {
+        scale,
+        x,
+        y,
+        distance: Math.max(1, pointerDistance()),
+        midpoint: pointerMidpoint(),
+      }
+    }
+  }
+  const onPointerMove = (event: PointerEvent) => {
+    const previous = pointers.get(event.pointerId)
+    if (!previous) return
+    event.preventDefault()
+    event.stopPropagation()
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (pointers.size >= 2 && gesture) {
+      const midpoint = pointerMidpoint()
+      const nextScale = Math.min(
+        maximumScale,
+        Math.max(minimumScale, gesture.scale * pointerDistance() / gesture.distance),
+      )
+      const ratio = nextScale / gesture.scale
+      const rect = body.getBoundingClientRect()
+      const anchorX = gesture.midpoint.x - rect.left - rect.width / 2
+      const anchorY = gesture.midpoint.y - rect.top - rect.height / 2
+      x = ratio * gesture.x + (1 - ratio) * anchorX + midpoint.x - gesture.midpoint.x
+      y = ratio * gesture.y + (1 - ratio) * anchorY + midpoint.y - gesture.midpoint.y
+      scale = nextScale
+    } else {
+      x += event.clientX - previous.x
+      y += event.clientY - previous.y
+    }
+    applyTransform()
+  }
+  const onPointerUp = (event: PointerEvent) => {
+    if (!pointers.has(event.pointerId)) return
+    event.preventDefault()
+    event.stopPropagation()
+    pointers.delete(event.pointerId)
+    body.releasePointerCapture?.(event.pointerId)
+    gesture = null
+  }
+  const onKeyDown = (event: KeyboardEvent) => {
+    const panStep = 30
+    if (event.key === '+' || event.key === '=') zoomTo(scale * zoomFactor)
+    else if (event.key === '-') zoomTo(scale / zoomFactor)
+    else if (event.key === '0' || event.key === 'Escape') resetView()
+    else if (event.key === 'ArrowLeft') x += panStep
+    else if (event.key === 'ArrowRight') x -= panStep
+    else if (event.key === 'ArrowUp') y += panStep
+    else if (event.key === 'ArrowDown') y -= panStep
+    else return
+    event.preventDefault()
+    event.stopPropagation()
+    applyTransform()
+  }
+
+  zoomIn.addEventListener('click', onZoomIn)
+  zoomOut.addEventListener('click', onZoomOut)
+  reset.addEventListener('click', onReset)
+  body.addEventListener('wheel', onWheel, { passive: false })
+  body.addEventListener('pointerdown', onPointerDown)
+  body.addEventListener('pointermove', onPointerMove)
+  body.addEventListener('pointerup', onPointerUp)
+  body.addEventListener('pointercancel', onPointerUp)
+  body.addEventListener('keydown', onKeyDown)
+  body.addEventListener('dblclick', onDoubleClick)
+  controls.querySelectorAll('button').forEach((button) => button.removeAttribute('disabled'))
+  applyTransform()
+
+  return () => {
+    zoomIn.removeEventListener('click', onZoomIn)
+    zoomOut.removeEventListener('click', onZoomOut)
+    reset.removeEventListener('click', onReset)
+    body.removeEventListener('wheel', onWheel)
+    body.removeEventListener('pointerdown', onPointerDown)
+    body.removeEventListener('pointermove', onPointerMove)
+    body.removeEventListener('pointerup', onPointerUp)
+    body.removeEventListener('pointercancel', onPointerUp)
+    body.removeEventListener('keydown', onKeyDown)
+    body.removeEventListener('dblclick', onDoubleClick)
+  }
+}
+
+function createMermaidControls(): HTMLElement {
+  const controls = document.createElement('span')
+  controls.className = 'me-mermaid-controls'
+  controls.setAttribute('aria-label', 'Diagram view controls')
+  const definitions = [
+    { action: 'zoom-out', label: 'Zoom out', text: '−' },
+    { action: 'reset', label: 'Reset diagram view', text: 'Reset' },
+    { action: 'zoom-in', label: 'Zoom in', text: '+' },
+  ]
+  for (const definition of definitions) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.dataset.meMermaidAction = definition.action
+    button.setAttribute('aria-label', definition.label)
+    button.title = definition.label
+    button.textContent = definition.text
+    button.disabled = true
+    button.addEventListener('mousedown', (event) => event.preventDefault())
+    button.addEventListener('click', (event) => event.stopPropagation())
+    controls.appendChild(button)
+  }
+  return controls
+}
+
 function createMermaidSurface(
   source: string,
   config: NormalizedMermaidConfig,
@@ -128,6 +326,13 @@ function createMermaidSurface(
   label.textContent = 'Mermaid'
   header.appendChild(label)
 
+  const headerActions = document.createElement('span')
+  headerActions.className = 'me-mermaid-header-actions'
+  let controls: HTMLElement | null = null
+  if (config.interactive) {
+    controls = createMermaidControls()
+    headerActions.appendChild(controls)
+  }
   if (editable && requestEdit) {
     const edit = document.createElement('button')
     edit.type = 'button'
@@ -135,8 +340,9 @@ function createMermaidSurface(
     edit.textContent = 'Edit source'
     edit.addEventListener('mousedown', (event) => event.preventDefault())
     edit.addEventListener('click', requestEdit)
-    header.appendChild(edit)
+    headerActions.appendChild(edit)
   }
+  if (headerActions.childElementCount > 0) header.appendChild(headerActions)
   wrapper.appendChild(header)
 
   const body = document.createElement('div')
@@ -148,13 +354,21 @@ function createMermaidSurface(
   body.appendChild(status)
   wrapper.appendChild(body)
 
-  wrapper.__meCancelMermaid = startAsyncBlockRender({
+  let cleanupInteraction: () => void = () => undefined
+  const cancelRender = startAsyncBlockRender({
     render: (signal) => renderMermaid(source, config, signal),
     apply(result) {
       wrapper.classList.remove('me-mermaid-block--loading')
       wrapper.classList.add('me-mermaid-block--ready')
       body.innerHTML = result.svg
       result.bindFunctions?.(body)
+      const svg = body.querySelector<SVGElement>('svg')
+      if (controls && svg) {
+        body.classList.add('me-mermaid-body--interactive')
+        body.tabIndex = 0
+        body.setAttribute('aria-label', 'Interactive Mermaid diagram. Use arrow keys to pan, plus and minus to zoom, and zero to reset.')
+        cleanupInteraction = createMermaidInteraction(body, svg, controls)
+      }
     },
     fail(error) {
       wrapper.classList.remove('me-mermaid-block--loading')
@@ -173,6 +387,10 @@ function createMermaidSurface(
       body.appendChild(sourceFallback)
     },
   })
+  wrapper.__meCancelMermaid = () => {
+    cancelRender()
+    cleanupInteraction()
+  }
 
   return wrapper
 }
@@ -191,6 +409,7 @@ class MermaidWidget extends WidgetType {
       this.block.to === other.block.to &&
       this.block.source === other.block.source &&
       this.config.theme === other.config.theme &&
+      this.config.interactive === other.config.interactive &&
       this.config.load === other.config.load &&
       this.isEditable === other.isEditable
   }

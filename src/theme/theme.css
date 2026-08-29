@@ -640,15 +640,39 @@
     text-transform: uppercase;
 }
 
-.me-mermaid-edit {
+.me-mermaid-header-actions,
+.me-mermaid-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.me-mermaid-edit,
+.me-mermaid-controls button {
     border: 1px solid var(--me-mermaid-border, #dbe2ea);
-    border-radius: 999px;
     background: var(--me-mermaid-bg, #fff);
     color: var(--me-text, #1a1a1a);
-    padding: 4px 9px;
     font: inherit;
     font-size: 11px;
     cursor: pointer;
+}
+
+.me-mermaid-edit {
+    border-radius: 999px;
+    padding: 4px 9px;
+}
+
+.me-mermaid-controls button {
+    min-width: 27px;
+    min-height: 27px;
+    border-radius: 6px;
+    padding: 2px 6px;
+    line-height: 1;
+}
+
+.me-mermaid-controls button:disabled {
+    cursor: default;
+    opacity: 0.45;
 }
 
 .me-mermaid-body {
@@ -663,6 +687,27 @@
     max-width: 100%;
     height: auto;
     margin: 0 auto;
+}
+
+.me-mermaid-body--interactive {
+    overflow: hidden;
+    cursor: grab;
+    outline: none;
+    touch-action: none;
+    user-select: none;
+}
+
+.me-mermaid-body--interactive:active {
+    cursor: grabbing;
+}
+
+.me-mermaid-body--interactive:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--me-focus, #0969da);
+}
+
+.me-mermaid-body--interactive svg {
+    transform-origin: center center;
+    will-change: transform;
 }
 
 .me-mermaid-status {
