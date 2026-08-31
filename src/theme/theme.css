@@ -677,7 +677,31 @@
 }
 
 .me-mermaid-controls [data-me-mermaid-action="pan-up"] {
-    grid-column: 2;
+    grid-area: 1 / 2;
+}
+
+.me-mermaid-controls [data-me-mermaid-action="zoom-in"] {
+    grid-area: 1 / 3;
+}
+
+.me-mermaid-controls [data-me-mermaid-action="pan-left"] {
+    grid-area: 2 / 1;
+}
+
+.me-mermaid-controls [data-me-mermaid-action="reset"] {
+    grid-area: 2 / 2;
+}
+
+.me-mermaid-controls [data-me-mermaid-action="pan-right"] {
+    grid-area: 2 / 3;
+}
+
+.me-mermaid-controls [data-me-mermaid-action="pan-down"] {
+    grid-area: 3 / 2;
+}
+
+.me-mermaid-controls [data-me-mermaid-action="zoom-out"] {
+    grid-area: 3 / 3;
 }
 
 .me-mermaid-controls button {

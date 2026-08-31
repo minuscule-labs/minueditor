@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.14.2 — 2026-08-31
+
+- Fixed Mermaid pan and zoom controls to occupy explicit grid positions so the bottom row aligns with the directional pad.
+
 ## 0.14.1 — 2026-08-31
 
 - Changed Mermaid interaction to explicit inline pan/zoom/reset controls so trackpad gestures continue scrolling the document, and added an expanded modal with drag, wheel, pinch, keyboard, and touch navigation.
