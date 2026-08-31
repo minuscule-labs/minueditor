@@ -91,7 +91,7 @@ describe('Mermaid rich blocks', () => {
     expect(container.querySelector('.me-codeblock-widget')).not.toBeInTheDocument()
   })
 
-  it('pans and zooms rendered diagrams with accessible controls', async () => {
+  it('uses explicit inline controls without capturing wheel gestures', async () => {
     const { load } = fakeEngine()
     const { container } = render(
       <MarkdownRenderer value={'```mermaid\ngraph TD\n```'} mermaid={{ load }} />,
@@ -106,14 +106,42 @@ describe('Mermaid rich blocks', () => {
 
     expect(body).toHaveAttribute('tabindex', '0')
     expect(zoomOut).toBeDisabled()
+    const initialTransform = diagram.style.transform
+    fireEvent.wheel(body, { deltaY: -100 })
+    expect(diagram.style.transform).toBe(initialTransform)
     fireEvent.click(zoomIn)
     expect(diagram.style.transform).toContain('scale(1.25)')
     expect(zoomOut).not.toBeDisabled()
-    fireEvent.keyDown(body, { key: 'ArrowRight' })
-    expect(diagram.style.transform).toContain('translate(-30px, 0px)')
+    fireEvent.click(container.querySelector('[aria-label="Pan right"]')!)
+    expect(diagram.style.transform).toContain('translate(-40px, 0px)')
     fireEvent.click(reset)
     expect(diagram.style.transform).toBe('translate(0px, 0px) scale(1)')
     expect(reset).toBeDisabled()
+  })
+
+  it('opens an accessible modal for direct pan and zoom interaction', async () => {
+    const { load } = fakeEngine()
+    const { container, unmount } = render(
+      <MarkdownRenderer value={'```mermaid\ngraph TD\n```'} mermaid={{ load }} />,
+    )
+
+    await waitFor(() => expect(container.querySelector('[aria-label="Expand Mermaid diagram"]')).toBeInTheDocument())
+    const expand = container.querySelector('[aria-label="Expand Mermaid diagram"]') as HTMLButtonElement
+    await waitFor(() => expect(expand).not.toBeDisabled())
+    fireEvent.click(expand)
+
+    const modal = document.body.querySelector('.me-mermaid-modal') as HTMLElement
+    const viewport = modal.querySelector('.me-mermaid-modal__viewport') as HTMLElement
+    const diagram = modal.querySelector('[data-testid="diagram"]') as SVGElement
+    expect(modal).toHaveAttribute('aria-modal', 'true')
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.wheel(viewport, { deltaY: -100, clientX: 50, clientY: 50 })
+    expect(diagram.style.transform).not.toContain('scale(1)')
+    fireEvent.keyDown(modal, { key: 'Escape' })
+    expect(document.body.querySelector('.me-mermaid-modal')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(expand)
+    expect(document.body.style.overflow).toBe('')
+    unmount()
   })
 
   it('allows Mermaid interaction to be disabled', async () => {

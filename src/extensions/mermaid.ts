@@ -119,6 +119,7 @@ function createMermaidInteraction(
   body: HTMLElement,
   svg: SVGElement,
   controls: HTMLElement,
+  directManipulation: boolean,
 ): () => void {
   const minimumScale = 1
   const maximumScale = 5
@@ -138,12 +139,9 @@ function createMermaidInteraction(
   const zoomIn = controls.querySelector<HTMLButtonElement>('[data-me-mermaid-action="zoom-in"]')!
   const zoomOut = controls.querySelector<HTMLButtonElement>('[data-me-mermaid-action="zoom-out"]')!
   const reset = controls.querySelector<HTMLButtonElement>('[data-me-mermaid-action="reset"]')!
+  const panButtons = [...controls.querySelectorAll<HTMLButtonElement>('[data-me-mermaid-pan]')]
 
   const applyTransform = () => {
-    if (scale === minimumScale) {
-      x = 0
-      y = 0
-    }
     svg.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
     zoomOut.disabled = scale <= minimumScale
     zoomIn.disabled = scale >= maximumScale
@@ -173,6 +171,15 @@ function createMermaidInteraction(
   const onZoomIn = () => zoomTo(scale * zoomFactor)
   const onZoomOut = () => zoomTo(scale / zoomFactor)
   const onReset = () => resetView()
+  const onPan = (event: Event) => {
+    const button = event.currentTarget as HTMLButtonElement
+    const panStep = 40
+    if (button.dataset.meMermaidPan === 'left') x += panStep
+    else if (button.dataset.meMermaidPan === 'right') x -= panStep
+    else if (button.dataset.meMermaidPan === 'up') y += panStep
+    else if (button.dataset.meMermaidPan === 'down') y -= panStep
+    applyTransform()
+  }
   const onDoubleClick = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
@@ -195,6 +202,7 @@ function createMermaidInteraction(
     return Math.hypot(second.x - first.x, second.y - first.y)
   }
   const onPointerDown = (event: PointerEvent) => {
+    if ((event.target as Element).closest('button')) return
     event.preventDefault()
     event.stopPropagation()
     body.focus()
@@ -244,10 +252,11 @@ function createMermaidInteraction(
     gesture = null
   }
   const onKeyDown = (event: KeyboardEvent) => {
+    if ((event.target as Element).closest('button')) return
     const panStep = 30
     if (event.key === '+' || event.key === '=') zoomTo(scale * zoomFactor)
     else if (event.key === '-') zoomTo(scale / zoomFactor)
-    else if (event.key === '0' || event.key === 'Escape') resetView()
+    else if (event.key === '0') resetView()
     else if (event.key === 'ArrowLeft') x += panStep
     else if (event.key === 'ArrowRight') x -= panStep
     else if (event.key === 'ArrowUp') y += panStep
@@ -261,13 +270,16 @@ function createMermaidInteraction(
   zoomIn.addEventListener('click', onZoomIn)
   zoomOut.addEventListener('click', onZoomOut)
   reset.addEventListener('click', onReset)
-  body.addEventListener('wheel', onWheel, { passive: false })
-  body.addEventListener('pointerdown', onPointerDown)
-  body.addEventListener('pointermove', onPointerMove)
-  body.addEventListener('pointerup', onPointerUp)
-  body.addEventListener('pointercancel', onPointerUp)
+  panButtons.forEach((button) => button.addEventListener('click', onPan))
+  if (directManipulation) {
+    body.addEventListener('wheel', onWheel, { passive: false })
+    body.addEventListener('pointerdown', onPointerDown)
+    body.addEventListener('pointermove', onPointerMove)
+    body.addEventListener('pointerup', onPointerUp)
+    body.addEventListener('pointercancel', onPointerUp)
+    body.addEventListener('dblclick', onDoubleClick)
+  }
   body.addEventListener('keydown', onKeyDown)
-  body.addEventListener('dblclick', onDoubleClick)
   controls.querySelectorAll('button').forEach((button) => button.removeAttribute('disabled'))
   applyTransform()
 
@@ -275,13 +287,16 @@ function createMermaidInteraction(
     zoomIn.removeEventListener('click', onZoomIn)
     zoomOut.removeEventListener('click', onZoomOut)
     reset.removeEventListener('click', onReset)
-    body.removeEventListener('wheel', onWheel)
-    body.removeEventListener('pointerdown', onPointerDown)
-    body.removeEventListener('pointermove', onPointerMove)
-    body.removeEventListener('pointerup', onPointerUp)
-    body.removeEventListener('pointercancel', onPointerUp)
+    panButtons.forEach((button) => button.removeEventListener('click', onPan))
+    if (directManipulation) {
+      body.removeEventListener('wheel', onWheel)
+      body.removeEventListener('pointerdown', onPointerDown)
+      body.removeEventListener('pointermove', onPointerMove)
+      body.removeEventListener('pointerup', onPointerUp)
+      body.removeEventListener('pointercancel', onPointerUp)
+      body.removeEventListener('dblclick', onDoubleClick)
+    }
     body.removeEventListener('keydown', onKeyDown)
-    body.removeEventListener('dblclick', onDoubleClick)
   }
 }
 
@@ -290,14 +305,19 @@ function createMermaidControls(): HTMLElement {
   controls.className = 'me-mermaid-controls'
   controls.setAttribute('aria-label', 'Diagram view controls')
   const definitions = [
-    { action: 'zoom-out', label: 'Zoom out', text: '−' },
-    { action: 'reset', label: 'Reset diagram view', text: 'Reset' },
+    { action: 'pan-up', pan: 'up', label: 'Pan up', text: '↑' },
     { action: 'zoom-in', label: 'Zoom in', text: '+' },
+    { action: 'pan-left', pan: 'left', label: 'Pan left', text: '←' },
+    { action: 'reset', label: 'Reset diagram view', text: '↻' },
+    { action: 'pan-right', pan: 'right', label: 'Pan right', text: '→' },
+    { action: 'pan-down', pan: 'down', label: 'Pan down', text: '↓' },
+    { action: 'zoom-out', label: 'Zoom out', text: '−' },
   ]
   for (const definition of definitions) {
     const button = document.createElement('button')
     button.type = 'button'
     button.dataset.meMermaidAction = definition.action
+    if (definition.pan) button.dataset.meMermaidPan = definition.pan
     button.setAttribute('aria-label', definition.label)
     button.title = definition.label
     button.textContent = definition.text
@@ -307,6 +327,104 @@ function createMermaidControls(): HTMLElement {
     controls.appendChild(button)
   }
   return controls
+}
+
+function wireMermaidModal(
+  opener: HTMLButtonElement,
+  svgMarkup: string,
+  bindFunctions?: (element: Element) => void,
+): () => void {
+  let closeActive: (() => void) | null = null
+
+  const open = () => {
+    if (closeActive) return
+    const overlay = document.createElement('div')
+    overlay.className = 'me-mermaid-modal me-renderer'
+    const openerStyle = getComputedStyle(opener)
+    for (const property of [
+      '--me-text',
+      '--me-font-family',
+      '--me-mermaid-bg',
+      '--me-mermaid-border',
+      '--me-mermaid-header-bg',
+      '--me-mermaid-muted',
+    ]) {
+      overlay.style.setProperty(property, openerStyle.getPropertyValue(property))
+    }
+    overlay.setAttribute('role', 'dialog')
+    overlay.setAttribute('aria-modal', 'true')
+    overlay.setAttribute('aria-label', 'Expanded Mermaid diagram')
+
+    const dialog = document.createElement('div')
+    dialog.className = 'me-mermaid-modal__dialog'
+    const header = document.createElement('div')
+    header.className = 'me-mermaid-modal__header'
+    const title = document.createElement('strong')
+    title.textContent = 'Mermaid diagram'
+    const closeButton = document.createElement('button')
+    closeButton.type = 'button'
+    closeButton.className = 'me-mermaid-modal__close'
+    closeButton.setAttribute('aria-label', 'Close expanded diagram')
+    closeButton.textContent = 'Close'
+    header.append(title, closeButton)
+
+    const viewport = document.createElement('div')
+    viewport.className = 'me-mermaid-modal__viewport me-mermaid-body--interactive'
+    viewport.tabIndex = 0
+    viewport.setAttribute('aria-label', 'Expanded interactive Mermaid diagram. Drag or use arrow keys to pan, use the wheel or plus and minus to zoom, and press zero to reset.')
+    viewport.innerHTML = svgMarkup
+    const controls = createMermaidControls()
+    controls.classList.add('me-mermaid-controls--overlay')
+    viewport.appendChild(controls)
+    dialog.append(header, viewport)
+    overlay.appendChild(dialog)
+
+    const svg = viewport.querySelector<SVGElement>('svg')!
+    bindFunctions?.(viewport)
+    const cleanupInteraction = createMermaidInteraction(viewport, svg, controls, true)
+    const previousOverflow = document.body.style.overflow
+
+    const close = () => {
+      if (!closeActive) return
+      closeActive = null
+      cleanupInteraction()
+      overlay.remove()
+      document.body.style.overflow = previousOverflow
+      opener.focus()
+    }
+    closeActive = close
+
+    closeButton.addEventListener('click', close)
+    overlay.addEventListener('mousedown', (event) => {
+      if (event.target === overlay) close()
+    })
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = [...overlay.querySelectorAll<HTMLElement>('button, [tabindex="0"]')]
+      if (focusable.length === 0) return
+      const current = focusable.indexOf(document.activeElement as HTMLElement)
+      const next = event.shiftKey
+        ? (current <= 0 ? focusable.length - 1 : current - 1)
+        : (current === focusable.length - 1 ? 0 : current + 1)
+      event.preventDefault()
+      focusable[next].focus()
+    })
+
+    document.body.style.overflow = 'hidden'
+    document.body.appendChild(overlay)
+    closeButton.focus()
+  }
+
+  opener.addEventListener('click', open)
+  return () => {
+    opener.removeEventListener('click', open)
+    closeActive?.()
+  }
 }
 
 function createMermaidSurface(
@@ -329,9 +447,19 @@ function createMermaidSurface(
   const headerActions = document.createElement('span')
   headerActions.className = 'me-mermaid-header-actions'
   let controls: HTMLElement | null = null
+  let expand: HTMLButtonElement | null = null
   if (config.interactive) {
     controls = createMermaidControls()
-    headerActions.appendChild(controls)
+    controls.classList.add('me-mermaid-controls--overlay')
+    expand = document.createElement('button')
+    expand.type = 'button'
+    expand.className = 'me-mermaid-expand'
+    expand.setAttribute('aria-label', 'Expand Mermaid diagram')
+    expand.textContent = 'Expand'
+    expand.disabled = true
+    expand.addEventListener('mousedown', (event) => event.preventDefault())
+    expand.addEventListener('click', (event) => event.stopPropagation())
+    headerActions.appendChild(expand)
   }
   if (editable && requestEdit) {
     const edit = document.createElement('button')
@@ -355,6 +483,7 @@ function createMermaidSurface(
   wrapper.appendChild(body)
 
   let cleanupInteraction: () => void = () => undefined
+  let cleanupModal: () => void = () => undefined
   const cancelRender = startAsyncBlockRender({
     render: (signal) => renderMermaid(source, config, signal),
     apply(result) {
@@ -363,11 +492,14 @@ function createMermaidSurface(
       body.innerHTML = result.svg
       result.bindFunctions?.(body)
       const svg = body.querySelector<SVGElement>('svg')
-      if (controls && svg) {
-        body.classList.add('me-mermaid-body--interactive')
+      if (controls && expand && svg) {
+        body.classList.add('me-mermaid-body--controlled')
         body.tabIndex = 0
-        body.setAttribute('aria-label', 'Interactive Mermaid diagram. Use arrow keys to pan, plus and minus to zoom, and zero to reset.')
-        cleanupInteraction = createMermaidInteraction(body, svg, controls)
+        body.setAttribute('aria-label', 'Mermaid diagram with controls. Use arrow keys to pan, plus and minus to zoom, zero to reset, or Expand for direct manipulation.')
+        body.appendChild(controls)
+        expand.disabled = false
+        cleanupModal = wireMermaidModal(expand, svg.outerHTML, result.bindFunctions)
+        cleanupInteraction = createMermaidInteraction(body, svg, controls, false)
       }
     },
     fail(error) {
@@ -390,6 +522,7 @@ function createMermaidSurface(
   wrapper.__meCancelMermaid = () => {
     cancelRender()
     cleanupInteraction()
+    cleanupModal()
   }
 
   return wrapper

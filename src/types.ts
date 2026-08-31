@@ -132,7 +132,7 @@ export type MermaidEngine = {
 export type MermaidConfig = {
   /** Enables Mermaid rendering. Defaults to true when a config object is supplied. */
   enabled?: boolean
-  /** Enables pan, wheel/pinch zoom, keyboard navigation, and zoom controls. Defaults to true. */
+  /** Enables inline view controls and an expanded direct-interaction modal. Defaults to true. */
   interactive?: boolean
   /** Mermaid visual theme. Security remains fixed to strict mode. */
   theme?: 'default' | 'dark' | 'neutral' | 'forest' | 'base'

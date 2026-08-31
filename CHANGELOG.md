@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.14.1 — 2026-08-31
+
+- Changed Mermaid interaction to explicit inline pan/zoom/reset controls so trackpad gestures continue scrolling the document, and added an expanded modal with drag, wheel, pinch, keyboard, and touch navigation.
+
 ## 0.14.0 — 2026-08-29
 
 - Added interactive Mermaid diagram panning and zooming across live editor, read-only, and static renderer surfaces, including wheel, pointer, pinch, keyboard, reset controls, and an `interactive: false` opt-out.
