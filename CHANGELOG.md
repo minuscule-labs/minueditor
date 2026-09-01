@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.14.3 — 2026-09-01
+
+- Fixed cursor placement around Mermaid and fenced-code block widgets by removing unmeasured vertical margins in the live editor while preserving static Mermaid renderer spacing.
+
 ## 0.14.2 — 2026-08-31
 
 - Fixed Mermaid pan and zoom controls to occupy explicit grid positions so the bottom row aligns with the directional pad.

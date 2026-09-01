@@ -708,6 +708,7 @@ describe('MarkdownEditor', () => {
       expect(container.querySelector('.me-codeblock-widget')).toBeTruthy()
     })
 
+    expect(getComputedStyle(container.querySelector('.me-codeblock-widget')!).marginTop).toBe('0px')
     fireEvent.mouseDown(container.querySelector('.me-codeblock-boundary--before')!)
     expect(view!.state.selection.main.from).toBe(blockFrom)
 

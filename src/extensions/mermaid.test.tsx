@@ -80,6 +80,7 @@ describe('Mermaid rich blocks', () => {
     expect(container.querySelector('.me-mermaid-block--loading')).toBeInTheDocument()
     await waitFor(() => expect(container.querySelector('[data-testid="diagram"]')).toBeInTheDocument())
 
+    expect(getComputedStyle(container.querySelector('.me-mermaid-block')!).marginTop).toBe('0px')
     expect(load).toHaveBeenCalledOnce()
     expect(initialize).toHaveBeenCalledWith(expect.objectContaining({
       securityLevel: 'strict',

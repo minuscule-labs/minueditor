@@ -535,6 +535,12 @@ export const minueditorTheme = EditorView.theme({
     fontSize: "0.85em",
   },
 
+  // Block widgets must not use vertical margins: CodeMirror does not
+  // include child margins in its click-position geometry.
+  ".me-mermaid-block": {
+    margin: "0",
+  },
+
   // ── Code block ───────────────────────────────────────────────────────
 
   ".me-codeblock": {
@@ -553,7 +559,7 @@ export const minueditorTheme = EditorView.theme({
     backgroundColor: "var(--me-codeblock-bg, #f6f8fa)",
     border: "1px solid var(--me-codeblock-border, #e1e4e8)",
     borderRadius: "8px",
-    margin: "0.75em 0",
+    margin: "0",
     overflow: "hidden",
     boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
   },

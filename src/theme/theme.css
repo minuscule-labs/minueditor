@@ -614,10 +614,14 @@
 
 .me-mermaid-block {
     overflow: hidden;
-    margin: 0.75em 0;
+    margin: 0;
     border: 1px solid var(--me-mermaid-border, #dbe2ea);
     border-radius: 8px;
     background: var(--me-mermaid-bg, #fff);
+}
+
+.me-renderer .me-mermaid-block {
+    margin: 0.75em 0;
 }
 
 .me-mermaid-header {
