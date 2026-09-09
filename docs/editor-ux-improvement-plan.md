@@ -308,6 +308,13 @@ Add tests for:
 - code block focus and commands
 - renderer/editor visual parity smoke tests
 
+### Tracked timing-sensitive regression
+
+- `src/MarkdownEditor.test.tsx` includes a 6,000-paragraph fixture that scrolls to a final fenced code block and waits for CodeMirror's incremental parser and decoration field to render it.
+- Full-suite runs have intermittently exceeded Testing Library's one-second default while isolated reruns pass. This indicates scheduler/suite-load sensitivity, not a deterministic source-fidelity failure.
+- The regression now waits on the observable code-block DOM state with a test-local five-second budget—no retry and no fixed sleep. Keep this test enabled and investigate parser scheduling if it exceeds that budget.
+- Release evidence must report any recurrence; an isolated rerun is not sufficient to call the baseline clean.
+
 ### Manual checklist
 Create `docs/editor-ux-manual-test.md` with scenarios:
 - Obsidian-style inline marker reveal/copy

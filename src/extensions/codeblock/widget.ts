@@ -43,6 +43,12 @@ import {
   handleWidgetBoundaryMouseDown,
 } from '../../internal/widget-navigation';
 
+const codeFocusRequests = new WeakMap<EditorView, number>();
+
+function invalidatePendingCodeFocus(view: EditorView): void {
+  codeFocusRequests.set(view, (codeFocusRequests.get(view) ?? 0) + 1);
+}
+
 function focusNestedEditor(
   mount: CodeBlockEditorMount,
   selection: EditorSelection,
@@ -152,7 +158,10 @@ function activateCodeBlock(
     selection,
   });
 
+  invalidatePendingCodeFocus(view);
+  const focusRequest = codeFocusRequests.get(view)!;
   requestAnimationFrame(() => {
+    if (codeFocusRequests.get(view) !== focusRequest) return;
     const widget = view.dom.querySelector(
       `.me-codeblock-widget[data-block-from="${block.blockFrom}"]`,
     ) as CodeBlockElement | null;
@@ -174,9 +183,16 @@ function activateCodeBlock(
       mount.pendingFocusTarget = null;
       return;
     }
+    const outerSelection = view.state.selection.main;
+    const clamp = (position: number) => Math.max(0, Math.min(mount.view.state.doc.length, position));
     focusNestedEditor(
       mount,
-      EditorSelection.create([EditorSelection.cursor(0)]),
+      EditorSelection.create([
+        EditorSelection.range(
+          clamp(outerSelection.anchor - block.contentFrom),
+          clamp(outerSelection.head - block.contentFrom),
+        ),
+      ]),
     );
     mount.pendingFocusTarget = null;
   });
@@ -188,6 +204,7 @@ function deactivateCodeBlock(
   parentView: EditorView,
   blockFrom: number,
 ): boolean {
+  invalidatePendingCodeFocus(parentView)
   const block = getFencedBlockByStart(parentView.state, blockFrom)
   const targetPos = block ? block.blockTo : blockFrom
   parentView.dispatch({
@@ -199,6 +216,7 @@ function deactivateCodeBlock(
 }
 
 function deleteCodeBlock(parentView: EditorView, blockFrom: number): boolean {
+  invalidatePendingCodeFocus(parentView);
   const block = getFencedBlockByStart(parentView.state, blockFrom);
   if (!block) return false;
 
@@ -220,6 +238,9 @@ function deactivateCodeBlockIfFocusLeft(
   requestAnimationFrame(() => {
     const active = document.activeElement as HTMLElement | null;
     if (active?.closest(".me-codeblock-widget") === wrapper) return;
+    // Escape/arrow navigation may already have deliberately moved the parent
+    // selection. Do not let this older blur callback overwrite that intent.
+    if (parentView.state.field(activeCodeBlockField, false) !== blockFrom) return;
     deactivateCodeBlock(parentView, blockFrom);
   });
 }
@@ -303,7 +324,7 @@ function createNestedEditorDom(
 
   const topFenceTicks = document.createElement("span");
   topFenceTicks.className = "me-codeblock-fence-ticks";
-  topFenceTicks.textContent = "```";
+  topFenceTicks.textContent = widget.fenceDelimiter;
   topFence.appendChild(topFenceTicks);
 
   const langInput = document.createElement("input");
@@ -325,7 +346,7 @@ function createNestedEditorDom(
     event.stopPropagation();
     if (event.key === "Escape") {
       event.preventDefault();
-      deactivateCodeBlock(view, widget.blockFrom);
+      moveSelectionAfterCodeBlock(view, widget.blockFrom);
       return;
     }
     if ((event.metaKey || event.ctrlKey) && !event.altKey) {
@@ -388,23 +409,22 @@ function createNestedEditorDom(
     if (mount.currentLang !== nextLang) {
       reconfigureNestedLanguage(mount, nextLang);
     }
-    const nextFence = `\`\`\`${nextLang}`;
-    const currentFence = view.state.doc.sliceString(
-      block.openingFenceFrom,
-      block.openingFenceTo,
-    );
-    if (currentFence === nextFence) return;
+    const currentLang = view.state.doc.sliceString(block.languageFrom, block.languageTo);
+    if (currentLang === nextLang) return;
 
+    const lengthDelta = nextLang.length - (block.languageTo - block.languageFrom);
+    const nestedSelection = mount.view.state.selection.main;
     mount.syncingFromOuter = true;
     view.dispatch({
       changes: {
-        from: block.openingFenceFrom,
-        to: block.openingFenceTo,
-        insert: nextFence,
+        from: block.languageFrom,
+        to: block.languageTo,
+        insert: nextLang,
       },
       selection: EditorSelection.create([
-        EditorSelection.cursor(
-          block.contentFrom + mount.view.state.selection.main.head,
+        EditorSelection.range(
+          block.contentFrom + lengthDelta + nestedSelection.anchor,
+          block.contentFrom + lengthDelta + nestedSelection.head,
         ),
       ]),
     });
@@ -419,7 +439,7 @@ function createNestedEditorDom(
 
   const bottomFence = document.createElement("div");
   bottomFence.className = "me-codeblock-fence me-codeblock-fence--close";
-  bottomFence.textContent = "```";
+  bottomFence.textContent = `${widget.indent}${widget.fenceDelimiter}`;
   bottomFence.tabIndex = 0;
   bottomFence.setAttribute("role", "button");
   bottomFence.setAttribute("aria-label", "End code block");
@@ -454,7 +474,7 @@ function createNestedEditorDom(
     }
     if (event.key === "Escape") {
       event.preventDefault();
-      deactivateCodeBlock(view, widget.blockFrom);
+      moveSelectionAfterCodeBlock(view, widget.blockFrom);
     }
   });
   body.appendChild(bottomFence);
@@ -538,7 +558,7 @@ function createNestedEditorDom(
           },
           {
             key: "Escape",
-            run: () => deactivateCodeBlock(view, widget.blockFrom),
+            run: () => moveSelectionAfterCodeBlock(view, widget.blockFrom),
           },
           {
             key: "Mod-Backspace",
@@ -642,6 +662,8 @@ class CodeBlockWidget extends WidgetType {
     readonly contentTo: number,
     readonly code: string,
     readonly lang: string,
+    readonly fenceDelimiter: string,
+    readonly indent: string,
     readonly highlighted: string | null,
     readonly isEditing: boolean,
     readonly options: CodeBlockOptions,
@@ -657,6 +679,8 @@ class CodeBlockWidget extends WidgetType {
       this.contentTo === other.contentTo &&
       this.code === other.code &&
       this.lang === other.lang &&
+      this.fenceDelimiter === other.fenceDelimiter &&
+      this.indent === other.indent &&
       this.highlighted === other.highlighted &&
       this.isEditing === other.isEditing
     );
@@ -768,7 +792,10 @@ export function buildCodeBlockDecorations(state: EditorState, options: CodeBlock
       if (node.name !== "FencedCode") return;
 
       const block = getFencedBlockInfo(state, node.from);
-      if (!block) return;
+      // Incomplete and container-nested fences stay editable source. Nested
+      // widgets need prefix-aware source mapping before they can safely hide
+      // list or blockquote markers.
+      if (!block?.hasClosingFence || block.containerPrefix) return;
       if (options.excludedLanguages?.some(
         (language) => language.toLowerCase() === block.lang.toLowerCase(),
       )) return;
@@ -784,6 +811,8 @@ export function buildCodeBlockDecorations(state: EditorState, options: CodeBlock
             block.contentTo,
             block.code,
             block.lang,
+            block.fenceDelimiter,
+            block.indent,
             highlighted,
             activeBlockFrom === block.blockFrom,
             options,
@@ -922,43 +951,99 @@ export const codeBlockArrowNavigation = Prec.high(
   ]),
 );
 
-export const autoCloseCodeFence = EditorView.inputHandler.of(
-  (view, from, to, text, _insert) => {
-    if (!view.state.facet(EditorView.editable)) return false;
-    if (text !== "`") return false;
+function openingFenceForCommit(
+  view: EditorView,
+  line: { from: number; text: string },
+): { blockFrom: number; indent: string; delimiter: string } | null {
+  let node = syntaxTree(view.state).resolveInner(view.state.selection.main.from, -1)
+  while (node.name !== 'FencedCode') {
+    if (!node.parent) return null
+    node = node.parent
+  }
 
-    const selection = view.state.selection.main;
-    if (!selection.empty || selection.from !== from || selection.to !== to)
-      return false;
+  const fenceOffset = node.from - line.from
+  if (fenceOffset < 0) return null
+  const containerPrefix = line.text.slice(0, fenceOffset)
+  const match = line.text.slice(fenceOffset).match(/^( {0,3})(`{3,}|~{3,})(.*)$/)
+  if (!match) return null
+  if (match[2][0] === '`' && match[3].includes('`')) return null
 
-    const line = view.state.doc.lineAt(from);
-    const before = view.state.doc.sliceString(line.from, from);
-    const after = view.state.doc.sliceString(to, line.to);
+  const continuationPrefix = containerPrefix.replace(
+    /(?:[-+*]|\d+[.)])\s+$/,
+    (marker) => ' '.repeat(marker.length),
+  )
+  return {
+    blockFrom: node.from,
+    indent: `${continuationPrefix}${match[1]}`,
+    delimiter: match[2],
+  }
+}
 
-    if (before !== "``" || after.length > 0) return false;
+export const codeFocusInvalidation = EditorView.updateListener.of((update) => {
+  if (
+    update.docChanged ||
+    update.selectionSet ||
+    update.transactions.some((transaction) => transaction.reconfigured)
+  ) {
+    invalidatePendingCodeFocus(update.view)
+  }
+})
 
-    view.dispatch({
-      changes: {
-        from: line.from,
-        to: line.to,
-        insert: "```\n\n```",
+export const commitCodeFenceOnEnter = Prec.highest(
+  keymap.of([
+    {
+      key: "Enter",
+      run(view) {
+        if (!view.state.facet(EditorView.editable)) return false
+
+        const selection = view.state.selection.main
+        if (!selection.empty) return false
+        const line = view.state.doc.lineAt(selection.from)
+        if (selection.from !== line.to) return false
+
+        const fence = openingFenceForCommit(view, line)
+        if (!fence) return false
+
+        const existing = getFencedBlockInfo(view.state, fence.blockFrom)
+        if (existing?.hasClosingFence) {
+          return activateCodeBlock(
+            view,
+            existing,
+            EditorSelection.create([EditorSelection.cursor(existing.contentFrom)]),
+            "code-start",
+          )
+        }
+
+        const contentFrom = line.to + 1 + fence.indent.length
+        view.dispatch({
+          changes: { from: line.to, insert: `\n${fence.indent}\n${fence.indent}${fence.delimiter}` },
+          selection: EditorSelection.cursor(contentFrom),
+          scrollIntoView: true,
+        })
+
+        invalidatePendingCodeFocus(view)
+        const focusRequest = codeFocusRequests.get(view)!
+        const expectedDoc = view.state.doc.toString()
+        const expectedSelection = view.state.selection
+        requestAnimationFrame(() => {
+          if (
+            codeFocusRequests.get(view) !== focusRequest ||
+            !view.dom.isConnected ||
+            view.state.doc.toString() !== expectedDoc ||
+            !view.state.selection.eq(expectedSelection)
+          ) return
+          const block = getFencedBlockByStart(view.state, fence.blockFrom)
+          if (!block?.hasClosingFence || block.containerPrefix) return
+          activateCodeBlock(
+            view,
+            block,
+            EditorSelection.create([EditorSelection.cursor(block.contentFrom)]),
+            "code-start",
+          )
+        })
+
+        return true
       },
-      effects: setActiveCodeBlock.of(line.from),
-      selection: EditorSelection.cursor(line.from + 4),
-      scrollIntoView: true,
-    });
-
-    requestAnimationFrame(() => {
-      const block = getFencedBlockByStart(view.state, line.from);
-      if (!block) return;
-      activateCodeBlock(
-        view,
-        block,
-        EditorSelection.create([EditorSelection.cursor(block.contentFrom)]),
-        "language",
-      );
-    });
-
-    return true;
-  },
+    },
+  ]),
 );

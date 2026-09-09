@@ -802,7 +802,30 @@ function OutlineDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) 
   )
 }
 
-export default function App() {
+function CursorStabilityFixture() {
+  const [value, setValue] = useState('')
+
+  return (
+    <main className="app-main" data-testid="cursor-stability-fixture">
+      <section className="surface">
+        <h1>Cursor stability browser fixture</h1>
+        <p className="surface-desc">List → code → prose acceptance journey.</p>
+        <div className="editor-frame">
+          <MarkdownEditor
+            value={value}
+            onChange={setValue}
+            autoFocus
+            minHeight={320}
+            codeLanguages={devCodeLanguages}
+          />
+        </div>
+        <pre data-testid="markdown-output">{value}</pre>
+      </section>
+    </main>
+  )
+}
+
+function PlaygroundApp() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
   const [commentValue, setCommentValue] = useState(COMMENT_INITIAL)
@@ -1046,4 +1069,9 @@ export default function App() {
       </main>
     </div>
   )
+}
+
+export default function App() {
+  const fixture = new URLSearchParams(window.location.search).get('fixture')
+  return fixture === 'cursor-stability' ? <CursorStabilityFixture /> : <PlaygroundApp />
 }
