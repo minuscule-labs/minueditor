@@ -7,6 +7,14 @@ export type FencedBlockInfo = {
   blockTo: number
   openingFenceFrom: number
   openingFenceTo: number
+  languageFrom: number
+  languageTo: number
+  closingFenceFrom: number | null
+  closingFenceTo: number | null
+  hasClosingFence: boolean
+  fenceDelimiter: string
+  indent: string
+  containerPrefix: string
   contentFrom: number
   contentTo: number
   code: string

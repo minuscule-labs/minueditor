@@ -97,6 +97,56 @@ export function deleteMarkdownListMarker(view: EditorView): boolean {
   return true;
 }
 
+type ListContinuation = {
+  indent: string;
+  marker: string;
+};
+
+function listContinuation(line: string): ListContinuation | null {
+  const taskMatch = line.match(/^(\s*)([-*+])\s+\[[ xX/]\]\s*/);
+  if (taskMatch) return { indent: taskMatch[1], marker: `${taskMatch[2]} [ ] ` };
+
+  const unorderedMatch = line.match(/^(\s*)([-*+])\s+/);
+  if (unorderedMatch) return { indent: unorderedMatch[1], marker: `${unorderedMatch[2]} ` };
+
+  const orderedMatch = line.match(/^(\s*)(\d+)\.\s*/);
+  if (orderedMatch) return { indent: orderedMatch[1], marker: `${Number(orderedMatch[2]) + 1}. ` };
+
+  return null;
+}
+
+function parentListContinuation(view: EditorView, lineNumber: number, indent: string): string | null {
+  const currentIndent = lineIndentWidth(indent);
+
+  for (let number = lineNumber - 1; number >= 1; number--) {
+    const parent = listContinuation(view.state.doc.line(number).text);
+    if (parent && lineIndentWidth(parent.indent) < currentIndent) {
+      return `${parent.indent}${parent.marker}`;
+    }
+  }
+
+  return null;
+}
+
+function exitEmptyListItem(
+  view: EditorView,
+  line: { from: number; to: number; number: number },
+  indent: string,
+): boolean {
+  // A top-level empty item exits the list. A nested item moves to its parent
+  // list level, matching the one-step outdent behavior of block editors.
+  const insert = indent.length === 0
+    ? ""
+    : parentListContinuation(view, line.number, indent) ?? "";
+
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert },
+    selection: EditorSelection.cursor(line.from + insert.length),
+    scrollIntoView: true,
+  });
+  return true;
+}
+
 export function enterInMarkdownList(view: EditorView): boolean {
   const selection = view.state.selection.main;
   if (!selection.empty) return false;
@@ -109,14 +159,7 @@ export function enterInMarkdownList(view: EditorView): boolean {
   const orderedMatch = line.text.match(/^(\s*)(\d+)\.(?:\s+(.*))?$/);
 
   if (taskMatch) {
-    if ((taskMatch[3] ?? "").length === 0) {
-      view.dispatch({
-        changes: { from: line.from, to: line.to, insert: "" },
-        selection: EditorSelection.cursor(line.from),
-        scrollIntoView: true,
-      });
-      return true;
-    }
+    if ((taskMatch[3] ?? "").length === 0) return exitEmptyListItem(view, line, taskMatch[1]);
 
     const insert = `\n${taskMatch[1]}${taskMatch[2]} [ ] `;
     view.dispatch({
@@ -128,14 +171,7 @@ export function enterInMarkdownList(view: EditorView): boolean {
   }
 
   if (unorderedMatch) {
-    if ((unorderedMatch[3] ?? "").length === 0) {
-      view.dispatch({
-        changes: { from: line.from, to: line.to, insert: "" },
-        selection: EditorSelection.cursor(line.from),
-        scrollIntoView: true,
-      });
-      return true;
-    }
+    if ((unorderedMatch[3] ?? "").length === 0) return exitEmptyListItem(view, line, unorderedMatch[1]);
 
     const insert = `\n${unorderedMatch[1]}${unorderedMatch[2]} `;
     view.dispatch({
@@ -147,14 +183,7 @@ export function enterInMarkdownList(view: EditorView): boolean {
   }
 
   if (orderedMatch) {
-    if ((orderedMatch[3] ?? "").length === 0) {
-      view.dispatch({
-        changes: { from: line.from, to: line.to, insert: "" },
-        selection: EditorSelection.cursor(line.from),
-        scrollIntoView: true,
-      });
-      return true;
-    }
+    if ((orderedMatch[3] ?? "").length === 0) return exitEmptyListItem(view, line, orderedMatch[1]);
 
     const insert = `\n${orderedMatch[1]}${Number(orderedMatch[2]) + 1}. `;
     view.dispatch({
@@ -925,39 +954,61 @@ export function setHeading(
 
 // ── Lists ─────────────────────────────────────────────────────────────────────
 
+function minimalLineChange(line: { from: number; text: string }, next: string): TextChange | null {
+  if (line.text === next) return null;
+
+  let start = 0;
+  while (start < line.text.length && start < next.length && line.text[start] === next[start]) start += 1;
+
+  let currentEnd = line.text.length;
+  let nextEnd = next.length;
+  while (
+    currentEnd > start &&
+    nextEnd > start &&
+    line.text[currentEnd - 1] === next[nextEnd - 1]
+  ) {
+    currentEnd -= 1;
+    nextEnd -= 1;
+  }
+
+  return { from: line.from + start, to: line.from + currentEnd, insert: next.slice(start, nextEnd) };
+}
+
 function toggleLinePrefix(
   view: EditorView,
   makePrefix: (line: string) => string | null,
   isActive: (line: string) => boolean,
 ): boolean {
   const { state } = view;
-  const changes = state.changeByRange((range) => {
-    const fromLine = state.doc.lineAt(range.from);
-    const toLine = state.doc.lineAt(range.to);
-    const lineChanges: { from: number; to: number; insert: string }[] = [];
+  const lineChanges: TextChange[] = [];
+  for (const number of selectedListLineNumbers(state, true)) {
+    const line = state.doc.line(number);
+    const next = isActive(line.text)
+      ? line.text.replace(/^(\s*)(?:[-*+]\s+\[[ xX/]\]\s+|[-*+]\s+|\d+\.\s+)/, "$1")
+      : (() => {
+          const prefix = makePrefix(line.text);
+          if (prefix === null) return line.text;
+          const indent = line.text.match(/^\s*/)?.[0].length ?? 0;
+          return `${line.text.slice(0, indent)}${prefix}${line.text.slice(indent)}`;
+        })();
+    const change = minimalLineChange(line, next);
+    if (change) lineChanges.push(change);
+  }
 
-    for (let ln = fromLine.number; ln <= toLine.number; ln++) {
-      const line = state.doc.line(ln);
-      if (isActive(line.text)) {
-        // Remove prefix
-        const stripped = line.text.replace(/^(\s*)([-*+]|\d+\.)\s/, "$1");
-        lineChanges.push({ from: line.from, to: line.to, insert: stripped });
-      } else {
-        const prefix = makePrefix(line.text);
-        if (prefix !== null) {
-          lineChanges.push({ from: line.from, to: line.from, insert: prefix });
-        }
-      }
-    }
-
-    return {
-      changes: lineChanges,
-      range,
-    };
-  });
-
+  if (lineChanges.length === 0) return false;
+  const changeSet = state.changes(lineChanges);
+  const selection = EditorSelection.create(
+    state.selection.ranges.map((range) => EditorSelection.range(
+      changeSet.mapPos(range.anchor, 1),
+      changeSet.mapPos(range.head, 1),
+    )),
+    state.selection.mainIndex,
+  );
   view.dispatch(
-    state.update(changes, { scrollIntoView: true, userEvent: "input" }),
+    state.update(
+      { changes: changeSet, selection },
+      { scrollIntoView: true, userEvent: "input" },
+    ),
   );
   return true;
 }
@@ -995,37 +1046,6 @@ const LIST_INDENT = "    ";
 
 type TextChange = { from: number; to?: number; insert: string };
 
-function mapPositionThroughChanges(position: number, changes: TextChange[]): number {
-  let mapped = position;
-
-  for (const change of changes) {
-    const from = change.from;
-    const to = change.to ?? change.from;
-    const deleted = to - from;
-    const inserted = change.insert.length;
-
-    if (mapped < from) continue;
-    if (mapped <= to) {
-      mapped = from + inserted;
-      continue;
-    }
-
-    mapped += inserted - deleted;
-  }
-
-  return mapped;
-}
-
-function adjustedSelection(
-  range: { anchor: number; head: number },
-  changes: TextChange[],
-) {
-  return EditorSelection.range(
-    mapPositionThroughChanges(range.anchor, changes),
-    mapPositionThroughChanges(range.head, changes),
-  );
-}
-
 function lineIndentWidth(line: string): number {
   let width = 0;
 
@@ -1038,14 +1058,18 @@ function lineIndentWidth(line: string): number {
   return width;
 }
 
-function renumberOrderedLines(lines: string[]): string[] {
+function renumberOrderedLines(lines: string[], resetAt = new Set<number>()): string[] {
   const counters = new Map<number, number>();
 
-  return lines.map((line) => {
+  return lines.map((line, index) => {
     const orderedMatch = line.match(/^(\s*)(\d+)\.\s(.*)$/);
     if (orderedMatch) {
       const indentWidth = lineIndentWidth(orderedMatch[1]);
-      const nextNumber = (counters.get(indentWidth) ?? 0) + 1;
+      // Preserve a list's authored starting number (for example 9), then
+      // renumber only its subsequent siblings after structural changes.
+      const nextNumber = resetAt.has(index + 1)
+        ? 1
+        : (counters.get(indentWidth) ?? Number(orderedMatch[2]) - 1) + 1;
 
       counters.set(indentWidth, nextNumber);
       for (const key of [...counters.keys()]) {
@@ -1064,60 +1088,71 @@ function renumberOrderedLines(lines: string[]): string[] {
   });
 }
 
+function selectedListLineNumbers(
+  state: EditorView['state'],
+  includeEndAtLineStart = false,
+): number[] {
+  const selected = new Set<number>();
+  const ranges = state.selection.ranges ?? [state.selection.main];
+
+  for (const range of ranges) {
+    const from = state.doc.lineAt(range.from);
+    // A non-empty selection ending at the next line's start owns the previous
+    // line, avoiding accidental transformation of an unselected next item.
+    const end = !includeEndAtLineStart &&
+      !range.empty &&
+      range.to > range.from &&
+      range.to === state.doc.lineAt(range.to).from
+      ? range.to - 1
+      : range.to;
+    const to = state.doc.lineAt(end);
+    for (let number = from.number; number <= to.number; number++) selected.add(number);
+  }
+
+  return [...selected].sort((a, b) => a - b);
+}
+
 function updateSelectedListLines(
   view: EditorView,
   updater: (line: string) => string | null,
 ): boolean {
   const { state } = view;
-  const docLines = Array.from(
-    { length: state.doc.lines },
-    (_, index) => state.doc.line(index + 1).text,
-  );
-  const changes = state.changeByRange((range) => {
-    const fromLine = state.doc.lineAt(range.from);
-    const toLine = state.doc.lineAt(range.to);
-    const lineChanges: { from: number; to: number; insert: string }[] = [];
-    const nextLines = [...docLines];
-    let selectionChanges: TextChange[] = [];
-
-    for (let ln = fromLine.number; ln <= toLine.number; ln++) {
-      const line = state.doc.line(ln);
-      if (!isListLine(line.text)) {
-        return { changes: [], range };
-      }
-    }
-
-    for (let ln = fromLine.number; ln <= toLine.number; ln++) {
-      const line = state.doc.line(ln);
-      const next = updater(line.text);
-      if (next !== null && next !== line.text) {
-        nextLines[ln - 1] = next;
-      }
-    }
-
-    const normalizedLines = renumberOrderedLines(nextLines);
-    for (let ln = fromLine.number; ln <= toLine.number; ln++) {
-      const line = state.doc.line(ln);
-      const normalized = normalizedLines[ln - 1];
-      if (normalized !== line.text) {
-        lineChanges.push({ from: line.from, to: line.to, insert: normalized });
-      }
-    }
-
-    selectionChanges = [...lineChanges].sort((a, b) => a.from - b.from);
-
-    return {
-      changes: lineChanges,
-      range: adjustedSelection(range, selectionChanges),
-    };
-  });
-
-  if (Array.isArray(changes.changes) && changes.changes.length === 0) {
+  const selected = selectedListLineNumbers(state);
+  if (selected.length === 0 || selected.some((number) => !isListLine(state.doc.line(number).text))) {
     return false;
   }
 
+  const nextLines = Array.from(
+    { length: state.doc.lines },
+    (_, index) => state.doc.line(index + 1).text,
+  );
+  const resetOrderedAt = new Set<number>();
+  for (const number of selected) {
+    const current = nextLines[number - 1];
+    const next = updater(current);
+    if (next !== null) {
+      if (
+        /^\s*\d+\.\s/.test(current) &&
+        lineIndentWidth(next) > lineIndentWidth(current) &&
+        !resetOrderedAt.has(number - 1)
+      ) {
+        resetOrderedAt.add(number);
+      }
+      nextLines[number - 1] = next;
+    }
+  }
+
+  const normalizedLines = renumberOrderedLines(nextLines, resetOrderedAt);
+  const changes: TextChange[] = [];
+  for (let number = 1; number <= state.doc.lines; number++) {
+    const change = minimalLineChange(state.doc.line(number), normalizedLines[number - 1]);
+    if (change) changes.push(change);
+  }
+
+  if (changes.length === 0) return false;
+  // Let CodeMirror map every range through the one authoritative ChangeSet.
   view.dispatch(
-    state.update(changes, { scrollIntoView: true, userEvent: "input" }),
+    state.update({ changes }, { scrollIntoView: true, userEvent: "input" }),
   );
   return true;
 }

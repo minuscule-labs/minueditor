@@ -17,6 +17,48 @@ export function renderCodeHtml(code: string, lang: string, highlighted: string |
   return renderStaticCodeHtml(code, lang)
 }
 
+type Fence = {
+  indent: string
+  character: '`' | '~'
+  length: number
+}
+
+function openingFence(line: string): Fence | null {
+  const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/)
+  if (!match) return null
+
+  return {
+    indent: match[1],
+    character: match[2][0] as Fence['character'],
+    length: match[2].length,
+  }
+}
+
+function isClosingFence(line: string, opening: Fence, containerPrefix: string): boolean {
+  const source = containerPrefix && line.startsWith(containerPrefix)
+    ? line.slice(containerPrefix.length)
+    : line
+  const match = source.match(/^ {0,3}(`+|~+)\s*$/)
+  return Boolean(
+    match &&
+    match[1][0] === opening.character &&
+    match[1].length >= opening.length,
+  )
+}
+
+function closingFenceLine(
+  state: EditorState,
+  openingLine: number,
+  opening: Fence,
+  containerPrefix: string,
+) {
+  for (let number = openingLine + 1; number <= state.doc.lines; number++) {
+    const line = state.doc.line(number)
+    if (isClosingFence(line.text, opening, containerPrefix)) return line
+  }
+  return null
+}
+
 export function getFencedBlockInfo(state: EditorState, pos: number): FencedBlockInfo | null {
   const doc = state.doc
   let result: FencedBlockInfo | null = null
@@ -25,32 +67,48 @@ export function getFencedBlockInfo(state: EditorState, pos: number): FencedBlock
     from: 0,
     to: doc.length,
     enter(node) {
-      if (node.name !== 'FencedCode') return
-      if (pos < node.from || pos > node.to) return
+      if (node.name !== 'FencedCode' || pos < node.from || pos > node.to) return
 
-      const blockFrom = node.from
-      const blockTo = node.to
-      const blockFromLine = doc.lineAt(blockFrom).number
-      const blockToLine = doc.lineAt(blockTo).number
-      const openingFence = doc.line(blockFromLine)
-      const contentFrom =
-        blockFromLine < blockToLine ? doc.line(blockFromLine + 1).from : blockFrom
-      const contentTo =
-        blockFromLine < blockToLine ? doc.line(blockToLine).from - 1 : blockFrom
-      const code = doc.sliceString(contentFrom, contentTo)
-      const fenceLine = doc.lineAt(blockFrom).text
-      const langMatch = fenceLine.match(/^```(\w*)/)
-      const lang = langMatch?.[1] ?? ''
+      const opening = doc.lineAt(node.from)
+      const fenceOffset = node.from - opening.from
+      const rawPrefix = opening.text.slice(0, fenceOffset)
+      const containerPrefix = /^ {0,3}$/.test(rawPrefix) ? '' : rawPrefix
+      const fenceIndent = containerPrefix ? '' : rawPrefix
+      const fence = openingFence(opening.text.slice(fenceOffset))
+      if (!fence) return
+      const closingPrefix = containerPrefix.replace(
+        /(?:[-+*]|\d+[.)])\s+$/,
+        (marker) => " ".repeat(marker.length),
+      )
+      const closing = closingFenceLine(state, opening.number, fence, closingPrefix)
+      const infoFrom = node.from + fence.indent.length + fence.length
+      const infoSource = doc.sliceString(infoFrom, opening.to)
+      const languageMatch = /\S+/.exec(infoSource)
+      const languageFrom = languageMatch ? infoFrom + languageMatch.index : infoFrom
+      const languageTo = languageMatch ? languageFrom + languageMatch[0].length : languageFrom
+      const contentFrom = opening.to < doc.length ? opening.to + 1 : doc.length
+      const contentTo = closing
+        ? Math.max(contentFrom, closing.from - 1)
+        : doc.length
+      const blockTo = closing?.to ?? doc.length
 
       result = {
-        blockFrom,
+        blockFrom: node.from,
         blockTo,
-        openingFenceFrom: openingFence.from,
-        openingFenceTo: openingFence.to,
+        openingFenceFrom: node.from,
+        openingFenceTo: opening.to,
+        languageFrom,
+        languageTo,
+        closingFenceFrom: closing?.from ?? null,
+        closingFenceTo: closing?.to ?? null,
+        hasClosingFence: Boolean(closing),
+        fenceDelimiter: fence.character.repeat(fence.length),
+        indent: `${closingPrefix}${fenceIndent}${fence.indent}`,
+        containerPrefix,
         contentFrom,
         contentTo,
-        code,
-        lang,
+        code: doc.sliceString(contentFrom, contentTo),
+        lang: languageMatch?.[0] ?? '',
       }
       return false
     },

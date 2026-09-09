@@ -1,5 +1,5 @@
-import { keymap } from '@codemirror/view'
-import type { EditorView } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
+import { syntaxTree } from '@codemirror/language'
 import { openExternalLinkEditor } from './link-widget'
 import {
   deleteMarkdownListMarker,
@@ -24,11 +24,22 @@ import {
  * Enter behavior is installed by MarkdownEditor because it composes
  * table, list, and hidden-inline-suffix commands.
  */
+function hasListItemAncestor(view: EditorView): boolean {
+  let node = syntaxTree(view.state).resolveInner(view.state.selection.main.from, -1)
+  for (;;) {
+    if (node.name === 'ListItem') return true
+    if (!node.parent) return false
+    node = node.parent
+  }
+}
+
 export const markdownKeymap = keymap.of([
   {
     key: 'Backspace',
     run(view: EditorView) {
-      return deleteMarkdownListMarker(view)
+      return view.state.facet(EditorView.editable) &&
+        hasListItemAncestor(view) &&
+        deleteMarkdownListMarker(view)
     },
   },
   {
@@ -46,39 +57,42 @@ export const markdownKeymap = keymap.of([
   {
     key: 'Tab',
     run(view: EditorView) {
+      if (!view.state.facet(EditorView.editable)) return false
       if (tabInMarkdownTable(view)) return true
-      return indentList(view)
+      return hasListItemAncestor(view) && indentList(view)
     },
   },
   {
     key: 'Shift-Tab',
     run(view: EditorView) {
+      if (!view.state.facet(EditorView.editable)) return false
       if (shiftTabInMarkdownTable(view)) return true
-      return outdentList(view)
+      return hasListItemAncestor(view) && outdentList(view)
     },
   },
   {
     key: 'Mod-b',
     run(view: EditorView) {
-      return toggleBold(view)
+      return view.state.facet(EditorView.editable) && toggleBold(view)
     },
   },
   {
     key: 'Mod-i',
     run(view: EditorView) {
-      return toggleItalic(view)
+      return view.state.facet(EditorView.editable) && toggleItalic(view)
     },
   },
   {
     key: 'Mod-`',
     run(view: EditorView) {
-      return toggleInlineCode(view)
+      return view.state.facet(EditorView.editable) && toggleInlineCode(view)
     },
   },
   {
     key: 'Mod-k',
     run(view: EditorView) {
-      return openExternalLinkEditor(view) || wrapLink(view)
+      return view.state.facet(EditorView.editable) &&
+        (openExternalLinkEditor(view) || wrapLink(view))
     },
   },
 ])

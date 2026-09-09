@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { EditorSelection, EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import {
   deleteMarkdownListMarker,
@@ -16,6 +17,7 @@ import {
   tabInMarkdownTable,
   toggleBold,
   toggleItalic,
+  toggleUnorderedList,
   wrapLink,
 } from './commands'
 
@@ -69,6 +71,18 @@ function createMockView(lines: string[], selection?: MockSelection): EditorView 
       doc,
       changeByRange,
       update,
+    },
+  } as unknown as EditorView
+}
+
+function createStatefulView(doc: string, selection: { anchor: number; head?: number }): EditorView {
+  let state = EditorState.create({ doc, selection })
+  return {
+    get state() {
+      return state
+    },
+    dispatch(spec: Parameters<EditorState['update']>[0]) {
+      state = state.update(spec).state
     },
   } as unknown as EditorView
 }
@@ -199,7 +213,7 @@ describe('list indentation commands', () => {
     })
   })
 
-  it('exits nested unordered lists to the true line beginning on Enter', () => {
+  it('outdents nested unordered lists one level on Enter', () => {
     const view = createMockView(['- one', '    - '], {
       from: 12,
       to: 12,
@@ -212,13 +226,13 @@ describe('list indentation commands', () => {
 
     expect(handled).toBe(true)
     expect(view.dispatch).toHaveBeenCalledWith({
-      changes: { from: 6, to: 12, insert: '' },
+      changes: { from: 6, to: 12, insert: '- ' },
       selection: expect.anything(),
       scrollIntoView: true,
     })
   })
 
-  it('exits nested task lists to the true line beginning on Enter', () => {
+  it('outdents nested task lists one level on Enter', () => {
     const view = createMockView(['- [ ] one', '    - [ ] '], {
       from: 20,
       to: 20,
@@ -231,13 +245,13 @@ describe('list indentation commands', () => {
 
     expect(handled).toBe(true)
     expect(view.dispatch).toHaveBeenCalledWith({
-      changes: { from: 10, to: 20, insert: '' },
+      changes: { from: 10, to: 20, insert: '- [ ] ' },
       selection: expect.anything(),
       scrollIntoView: true,
     })
   })
 
-  it('exits nested ordered lists to the true line beginning on Enter', () => {
+  it('outdents nested ordered lists with the parent sequence on Enter', () => {
     const view = createMockView(['1. one', '    1. '], {
       from: 14,
       to: 14,
@@ -250,13 +264,13 @@ describe('list indentation commands', () => {
 
     expect(handled).toBe(true)
     expect(view.dispatch).toHaveBeenCalledWith({
-      changes: { from: 7, to: 14, insert: '' },
+      changes: { from: 7, to: 14, insert: '2. ' },
       selection: expect.anything(),
       scrollIntoView: true,
     })
   })
 
-  it('exits nested unordered lists without a trailing marker space to the true line beginning', () => {
+  it('outdents nested unordered lists without a trailing marker space', () => {
     const view = createMockView(['- one', '    -'], {
       from: 11,
       to: 11,
@@ -269,7 +283,7 @@ describe('list indentation commands', () => {
 
     expect(handled).toBe(true)
     expect(view.dispatch).toHaveBeenCalledWith({
-      changes: { from: 6, to: 11, insert: '' },
+      changes: { from: 6, to: 11, insert: '- ' },
       selection: expect.anything(),
       scrollIntoView: true,
     })
@@ -286,11 +300,9 @@ describe('list indentation commands', () => {
     expect(handled).toBe(true)
     expect(view.dispatch).toHaveBeenCalledOnce()
     expect(dispatched.changes).toEqual([
-      { from: 0, to: 5, insert: '    - one' },
-      { from: 6, to: 11, insert: '    - two' },
+      { from: 0, to: 0, insert: '    ' },
+      { from: 6, to: 6, insert: '    ' },
     ])
-    expect(dispatched.range.from).toBe(15)
-    expect(dispatched.range.to).toBe(19)
   })
 
   it('outdents existing indented list lines on Shift-Tab', () => {
@@ -304,11 +316,91 @@ describe('list indentation commands', () => {
     expect(handled).toBe(true)
     expect(view.dispatch).toHaveBeenCalledOnce()
     expect(dispatched.changes).toEqual([
-      { from: 0, to: 9, insert: '- one' },
-      { from: 10, to: 19, insert: '- two' },
+      { from: 0, to: 4, insert: '' },
+      { from: 10, to: 14, insert: '' },
     ])
-    expect(dispatched.range.from).toBe(5)
-    expect(dispatched.range.to).toBe(15)
+  })
+
+  it('keeps a caret attached to the same list text after indenting', () => {
+    const view = createStatefulView('- abcdef', { anchor: 4 })
+
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('    - abcdef')
+    expect(view.state.selection.main.anchor).toBe(8)
+  })
+
+  it('preserves backward selection direction while indenting', () => {
+    const view = createStatefulView('- abcdef', { anchor: 6, head: 2 })
+
+    expect(indentList(view)).toBe(true)
+    expect(view.state.selection.main.anchor).toBe(10)
+    expect(view.state.selection.main.head).toBe(6)
+  })
+
+  it('maps a cross-line selection through all list-toggle changes', () => {
+    const view = createStatefulView('one\ntwo', { anchor: 3, head: 4 })
+
+    expect(toggleUnorderedList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- one\n- two')
+    expect(view.state.selection.main.anchor).toBe(5)
+    expect(view.state.selection.main.head).toBe(8)
+  })
+
+  it('maps the selection after adding and removing a list marker', () => {
+    const view = createStatefulView('hello', { anchor: 3 })
+
+    expect(toggleUnorderedList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- hello')
+    expect(view.state.selection.main.anchor).toBe(5)
+    expect(toggleUnorderedList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('hello')
+    expect(view.state.selection.main.anchor).toBe(3)
+  })
+
+  it('maps every cursor through all multi-cursor list changes', () => {
+    let state = EditorState.create({
+      doc: '- abc\n- def',
+      selection: EditorSelection.create([
+        EditorSelection.cursor(4),
+        EditorSelection.cursor(10),
+      ]),
+      extensions: [EditorState.allowMultipleSelections.of(true)],
+    })
+    const view = {
+      get state() {
+        return state
+      },
+      dispatch(spec: Parameters<EditorState['update']>[0]) {
+        state = state.update(spec).state
+      },
+    } as unknown as EditorView
+
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('    - abc\n    - def')
+    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([8, 18])
+  })
+
+  it('changes a shared list line only once for multiple cursors', () => {
+    let state = EditorState.create({
+      doc: '- abc',
+      selection: EditorSelection.create([
+        EditorSelection.cursor(3),
+        EditorSelection.cursor(4),
+      ]),
+      extensions: [EditorState.allowMultipleSelections.of(true)],
+    })
+    const view = {
+      get state() {
+        return state
+      },
+      dispatch(spec: Parameters<EditorState['update']>[0]) {
+        state = state.update(spec).state
+      },
+    } as unknown as EditorView
+
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('    - abc')
+    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([7, 8])
   })
 
   it('does not indent non-list lines', () => {
@@ -329,11 +421,9 @@ describe('list indentation commands', () => {
 
     expect(handled).toBe(true)
     expect(dispatched.changes).toEqual([
-      { from: 0, to: 6, insert: '    1. one' },
-      { from: 7, to: 13, insert: '    2. two' },
+      { from: 0, to: 0, insert: '    ' },
+      { from: 7, to: 7, insert: '    ' },
     ])
-    expect(dispatched.range.from).toBe(17)
-    expect(dispatched.range.to).toBe(21)
   })
 
   it('renumbers ordered list lines after indenting a later ordered item', () => {
@@ -351,11 +441,19 @@ describe('list indentation commands', () => {
     expect(view.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         changes: [
-          { from: 7, to: 13, insert: '    1. two' },
-          { from: 14, to: 22, insert: '    2. three' },
+          { from: 7, to: 8, insert: '    1' },
+          { from: 14, to: 15, insert: '    2' },
         ],
       })
     )
+  })
+
+  it('renumbers following ordered siblings while preserving a multi-digit list start', () => {
+    const view = createStatefulView('9. nine\n10. ten\n11. eleven', { anchor: 12 })
+
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('9. nine\n    1. ten\n10. eleven')
+    expect(view.state.selection.main.anchor).toBe(15)
   })
 
   it('uses spaces for nested list indentation so markdown continuation stays stable', () => {
@@ -365,8 +463,8 @@ describe('list indentation commands', () => {
     expect(view.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         changes: [
-          expect.objectContaining({ insert: '    - parent' }),
-          expect.objectContaining({ insert: '    - child' }),
+          expect.objectContaining({ insert: '    ' }),
+          expect.objectContaining({ insert: '    ' }),
         ],
       })
     )
@@ -395,8 +493,8 @@ describe('list indentation commands', () => {
     expect(view.dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         changes: [
-          { from: 7, to: 17, insert: '2. two' },
-          { from: 18, to: 30, insert: '3. three' },
+          { from: 7, to: 12, insert: '2' },
+          { from: 18, to: 23, insert: '3' },
         ],
       })
     )

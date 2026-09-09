@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed list Enter, Backspace, Tab, and Shift-Tab ownership so structural edits apply only in valid list syntax while completions and read-only editors retain keyboard ownership.
+- Preserved cursor and multi-selection positions through list indentation, outdent, toggles, and ordered-list renumbering.
+- Changed typed fenced-code creation to commit on Enter instead of the third backtick, with support for tilde/long/container fences, safe unclosed-fence fallback, exact language-token edits, and stable click/Escape focus navigation.
+- Added Playwright coverage for the list-to-code-to-prose journey across Chromium, Firefox, and WebKit, plus a manual consumer regression checklist.
+
 ## 0.14.3 — 2026-09-01
 
 - Fixed cursor placement around Mermaid and fenced-code block widgets by removing unmeasured vertical margins in the live editor while preserving static Mermaid renderer spacing.

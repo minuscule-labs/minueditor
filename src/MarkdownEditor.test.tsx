@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { createRef, useEffect, useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import type { CompletionContext } from '@codemirror/autocomplete'
+import { completionStatus, type CompletionContext } from '@codemirror/autocomplete'
 import { HighlightStyle, LanguageDescription } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import { javascript } from '@codemirror/lang-javascript'
@@ -2359,6 +2359,356 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('uses the installed Enter keymap to exit a top-level empty list item', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- one\n- '}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('- one\n')
+    expect(view!.state.selection.main.from).toBe(6)
+  })
+
+  it('uses the installed Enter keymap to outdent an empty nested list item once', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- parent\n    - '}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('- parent\n- ')
+    expect(view!.state.selection.main.from).toBe(11)
+  })
+
+  it('lets an active wikilink completion own Enter inside a list item', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- [[No'}
+        onChange={vi.fn()}
+        wikiLinks={{
+          suggest: async () => [{ id: 'note-b', target: 'Note B' }],
+        }}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    await waitFor(() => {
+      expect(completionStatus(view!.state)).toBe('active')
+      expect(container.querySelector('.cm-completionLabel')?.textContent).toContain('Note B')
+    })
+    // CodeMirror intentionally ignores accidental acceptance immediately after
+    // opening a completion popup.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('- [[Note B]]')
+  })
+
+  it('does not run list Enter on indented code that resembles a list marker', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'    -'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('    -\n    ')
+  })
+
+  it('does not run list Backspace on indented code that resembles a list item', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'    - one'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: 6 } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Backspace' })
+
+    expect(view!.state.doc.toString()).toBe('    -one')
+    expect(view!.state.selection.main.anchor).toBe(5)
+  })
+
+  it('does not run list indentation shortcuts on indented code', async () => {
+    for (const { key, shiftKey } of [
+      { key: 'Tab', shiftKey: false },
+      { key: 'Tab', shiftKey: true },
+    ]) {
+      let view: EditorView | null = null
+      const { container, unmount } = render(
+        <MarkdownEditor
+          value={'    - one'}
+          onChange={vi.fn()}
+          onViewReady={(nextView) => {
+            view = nextView
+          }}
+        />
+      )
+
+      await waitFor(() => expect(view).toBeTruthy())
+      act(() => {
+        view!.dispatch({ selection: { anchor: 7 } })
+      })
+      fireEvent.keyDown(container.querySelector('.cm-content')!, { key, shiftKey })
+
+      expect(view!.state.doc.toString()).toBe('    - one')
+      expect(view!.state.selection.main.anchor).toBe(7)
+      unmount()
+    }
+  })
+
+  it('does not mutate list-like content on Enter when read-only', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- one\n- '}
+        onChange={vi.fn()}
+        readOnly
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('- one\n- ')
+  })
+
+  it('commits an opening code fence on Enter without stealing focus after the third backtick', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'```typescript'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    expect(container.querySelector('.me-codeblock-widget')).toBeFalsy()
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('```typescript\n\n```')
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-widget--editing')).toBeTruthy()
+      expect(document.activeElement?.closest('.me-codeblock-widget')).toBeTruthy()
+    })
+  })
+
+  it('edits only the language span of an indented fence with extra info', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'  ```python extra\ncode\n  ```'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => {
+      expect(view).toBeTruthy()
+      expect(container.querySelector('.me-codeblock-widget')).toBeTruthy()
+    })
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-widget')!)
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-lang-input')).toBeTruthy()
+    })
+    const language = container.querySelector('.me-codeblock-lang-input') as HTMLInputElement
+    fireEvent.input(language, { target: { value: 'typescript' } })
+
+    expect(view!.state.doc.toString()).toBe('  ```typescript extra\ncode\n  ```')
+  })
+
+  it('preserves immediate typing after committing a code fence and cancels stale activation', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'```'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+    act(() => {
+      const position = view!.state.selection.main.from
+      view!.dispatch({ changes: { from: position, insert: 'x' }, selection: { anchor: position + 1 } })
+    })
+
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(view!.state.doc.toString()).toBe('```\nx\n```')
+    expect(view!.state.selection.main.anchor).toBe(5)
+    expect(container.querySelector('.me-codeblock-widget--editing')).toBeFalsy()
+  })
+
+  it.each([
+    ['~~~~ lang `allowed`', '~~~~'],
+    ['````typescript', '````'],
+  ])('commits %s with its original fence delimiter', async (opening, delimiter) => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={opening}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe(`${opening}\n\n${delimiter}`)
+  })
+
+  it('commits a list-contained fence while preserving its container indentation', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- ```js'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => {
+      view!.dispatch({ selection: { anchor: view!.state.doc.length } })
+    })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    expect(view!.state.doc.toString()).toBe('- ```js\n  \n  ```')
+    expect(container.querySelector('.me-codeblock-widget')).toBeFalsy()
+  })
+
+  it('moves Escape from code to an editable position after the block at EOF', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'```\ncode\n```'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    fireEvent.mouseDown(container.querySelector('.me-codeblock-widget')!)
+    await waitFor(() => {
+      expect(container.querySelector('.me-codeblock-editor-host .cm-content')).toBeTruthy()
+    })
+    const nestedContent = container.querySelector('.me-codeblock-editor-host .cm-content') as HTMLElement
+
+    fireEvent.keyDown(nestedContent, { key: 'Escape' })
+
+    expect(view!.state.doc.toString()).toBe('```\ncode\n```\n')
+    expect(view!.state.selection.main.anchor).toBe(view!.state.doc.length)
+  })
+
+  it('does not apply list Enter behavior to a fenced-code line', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'```\n- \n```'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => {
+      view!.dispatch({ selection: { anchor: 5 } })
+    })
+
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Enter' })
+
+    // The normal Enter fallback may trim the trailing marker space, but must
+    // not continue or exit the list from inside a fenced code block.
+    expect(view!.state.doc.toString()).toBe('```\n-\n\n```')
+  })
+
   it('pressing Enter at visual end of inline code inserts newline after closing marker', async () => {
     let view: EditorView | null = null
     const { container } = render(
@@ -3295,9 +3645,12 @@ describe('MarkdownEditor', () => {
       view!.dispatch({ selection: { anchor: codePosition }, scrollIntoView: true })
     })
 
+    // This assertion observes parser/decorations readiness rather than sleeping.
+    // Large concurrent suites can delay CodeMirror's idle parser beyond the
+    // testing-library default, so keep the larger budget local to this fixture.
     await waitFor(() => {
       expect(container.querySelector('.me-codeblock-body')).toHaveTextContent(finalCode)
-    })
+    }, { timeout: 5_000 })
   })
 
   it('activates codeblock on ArrowDown from any cursor position on the line above', async () => {

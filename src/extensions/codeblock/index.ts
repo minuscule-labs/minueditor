@@ -6,7 +6,8 @@ import { EditorView } from '@codemirror/view'
 import { activeCodeBlockField, setActiveCodeBlock } from './state'
 import type { CodeBlockOptions } from './model'
 import {
-  autoCloseCodeFence,
+  commitCodeFenceOnEnter,
+  codeFocusInvalidation,
   buildCodeBlockDecorations,
   codeBlockArrowNavigation,
   codeBlockClickToEdit,
@@ -49,6 +50,7 @@ export function codeBlockDecorations(
     codeBlockDecorationField(options),
     codeBlockClickToEdit,
     codeBlockArrowNavigation,
-    autoCloseCodeFence,
+    commitCodeFenceOnEnter,
+    codeFocusInvalidation,
   ]
 }

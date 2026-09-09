@@ -7,14 +7,16 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Annotation, Compartment, EditorState, Transaction, type Extension } from '@codemirror/state'
+import { Annotation, Compartment, EditorState, Prec, Transaction, type Extension } from '@codemirror/state'
 import {
   EditorView,
   placeholder as cmPlaceholder,
   keymap,
 } from '@codemirror/view'
 import { defaultKeymap, historyKeymap, history, redoDepth, undoDepth } from '@codemirror/commands'
+import { acceptCompletion, completionStatus } from '@codemirror/autocomplete'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { syntaxTree } from '@codemirror/language'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
 import { calloutDecorations } from './extensions/callouts'
@@ -90,6 +92,15 @@ export function minimalTextChange(current: string, next: string): TextChange | n
 }
 
 const externalValueUpdate = Annotation.define<boolean>()
+
+function hasSyntaxAncestor(view: EditorView, names: readonly string[]): boolean {
+  let node = syntaxTree(view.state).resolveInner(view.state.selection.main.from, -1)
+  for (;;) {
+    if (names.includes(node.name)) return true
+    if (!node.parent) return false
+    node = node.parent
+  }
+}
 
 export interface MarkdownEditorHandle {
   view: EditorView | null
@@ -707,12 +718,33 @@ export const MarkdownEditor = forwardRef<
       }),
       history(),
       markdownKeymap,
-      keymap.of([
+      // `markdown()` installs its own high-precedence Enter binding. Keep these
+      // narrow structural overrides ahead of it, while deferring unrelated
+      // contexts to completion and Markdown's normal fallback handling.
+      Prec.highest(keymap.of([
         {
           key: 'Enter',
-          run: (view) => enterInMarkdownTable(view) || enterInMarkdownList(view) || enterAfterHiddenInlineSuffix(view),
+          run: (view) => {
+            // Consume Enter in read-only mode because downstream commands can
+            // dispatch even when the content DOM itself isn't editable.
+            if (!view.state.facet(EditorView.editable)) return true
+            if (completionStatus(view.state) === 'active') {
+              // During CodeMirror's short interaction delay, acceptance can
+              // return false. Still consume Enter so list/table fallbacks do
+              // not mutate the document underneath the open completion.
+              acceptCompletion(view)
+              return true
+            }
+            if (hasSyntaxAncestor(view, ['FencedCode', 'CodeBlock'])) return false
+
+            return (
+              enterInMarkdownTable(view) ||
+              (hasSyntaxAncestor(view, ['ListItem']) && enterInMarkdownList(view)) ||
+              enterAfterHiddenInlineSuffix(view)
+            )
+          },
         },
-      ]),
+      ])),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       submitKeymap,
       markdown({

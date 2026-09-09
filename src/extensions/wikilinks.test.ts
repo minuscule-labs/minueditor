@@ -23,10 +23,6 @@ function createView(doc: string, extensions: Extension[] = []): EditorView {
   return view
 }
 
-function tick(): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, 80))
-}
-
 afterEach(() => {
   for (const view of views) {
     const parent = view.dom.parentElement
@@ -154,15 +150,16 @@ describe('wikiLinksExtension', () => {
 
     view.focus()
     view.dispatch({ selection: { anchor: 8 } })
-    await tick()
 
-    expect(suggest).toHaveBeenCalledWith('Nope', expect.objectContaining({
-      query: 'Nope',
-      from: 6,
-      to: 10,
-      part: 'target',
-      link: { from: 4, to: 18, target: 'Nope', label: 'label' },
-    }))
+    await vi.waitFor(() => {
+      expect(suggest).toHaveBeenCalledWith('Nope', expect.objectContaining({
+        query: 'Nope',
+        from: 6,
+        to: 10,
+        part: 'target',
+        link: { from: 4, to: 18, target: 'Nope', label: 'label' },
+      }))
+    })
   })
 })
 
