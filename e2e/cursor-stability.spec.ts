@@ -37,6 +37,6 @@ test('preserves source, selection ownership, and focus through list → code →
   const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
   await page.keyboard.press(`${mod}+z`)
   await expect(markdown).not.toHaveText(finalSource)
-  await page.keyboard.press(`${mod}+Shift+z`)
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+z' : 'Control+y')
   await expect(markdown).toHaveText(finalSource)
 })
