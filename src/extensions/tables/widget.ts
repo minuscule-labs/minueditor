@@ -28,6 +28,39 @@ import {
   handleWidgetBoundaryMouseDown,
 } from '../../internal/widget-navigation'
 
+const tableFocusTokens = new WeakMap<EditorView, number>()
+
+type InputSelection = {
+  start: number
+  end: number
+  direction: HTMLInputElement['selectionDirection']
+}
+
+function scheduleTableInputFocus(
+  view: EditorView,
+  blockFrom: number,
+  target: { rowIndex: number; colIndex: number },
+  selection?: InputSelection,
+): void {
+  const token = (tableFocusTokens.get(view) ?? 0) + 1
+  const document = view.state.doc
+  tableFocusTokens.set(view, token)
+
+  requestAnimationFrame(() => {
+    if (
+      tableFocusTokens.get(view) !== token ||
+      view.state.doc !== document ||
+      !view.dom.isConnected ||
+      !view.state.facet(EditorView.editable) ||
+      view.state.field(activeTableField, false) !== blockFrom
+    ) return
+    const widget = view.dom.querySelector(
+      `.me-table-widget[data-table-from="${blockFrom}"]`,
+    ) as HTMLElement | null
+    if (widget) focusTableInput(widget, target.rowIndex, target.colIndex, selection)
+  })
+}
+
 function activateTable(
   view: EditorView,
   block: TableBlock,
@@ -37,19 +70,12 @@ function activateTable(
     effects: [setActiveTable.of(block.from), view.scrollSnapshot()],
     selection: EditorSelection.cursor(block.from),
   })
-
-  requestAnimationFrame(() => {
-    const widget = view.dom.querySelector(
-      `.me-table-widget[data-table-from="${block.from}"]`,
-    ) as HTMLElement | null
-    if (!widget) return
-    focusTableInput(widget, target.rowIndex, target.colIndex)
-  })
-
+  scheduleTableInputFocus(view, block.from, target)
   return true
 }
 
 function deactivateTable(view: EditorView, blockFrom: number): boolean {
+  tableFocusTokens.set(view, (tableFocusTokens.get(view) ?? 0) + 1)
   const block = getTableBlockByStart(view.state, blockFrom)
   view.dispatch({
     effects: [setActiveTable.of(null), view.scrollSnapshot()],
@@ -59,21 +85,29 @@ function deactivateTable(view: EditorView, blockFrom: number): boolean {
   return true
 }
 
+function inputSelection(input: HTMLInputElement): InputSelection {
+  return {
+    start: input.selectionStart ?? input.value.length,
+    end: input.selectionEnd ?? input.value.length,
+    direction: input.selectionDirection,
+  }
+}
+
 function focusTableInput(
   wrapper: HTMLElement,
   rowIndex: number,
   colIndex: number,
-  cursorOffset?: number,
+  selection?: InputSelection,
 ): boolean {
   const input = wrapper.querySelector(
     `[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`,
   ) as HTMLInputElement | null
   if (!input) return false
-  const offset = cursorOffset == null
-    ? input.value.length
-    : Math.max(0, Math.min(cursorOffset, input.value.length))
+  const nextSelection = selection ?? { start: input.value.length, end: input.value.length, direction: 'none' }
+  const start = Math.max(0, Math.min(nextSelection.start, input.value.length))
+  const end = Math.max(start, Math.min(nextSelection.end, input.value.length))
   focusElementWithoutScroll(input)
-  input.setSelectionRange(offset, offset)
+  input.setSelectionRange(start, end, nextSelection.direction ?? 'none')
   return true
 }
 
@@ -437,9 +471,15 @@ class TableWidget extends WidgetType {
           // input's in-progress edge spaces so typing one space is enough.
           const isInProgressEdgeWhitespace =
             document.activeElement === input && input.value.trim() === value
-          if (!isInProgressEdgeWhitespace) {
+          if (!isInProgressEdgeWhitespace && input.dataset.composing !== 'true') {
+            const selection = document.activeElement === input ? inputSelection(input) : null
             input.value = value
             syncTableInputSizer(input)
+            if (selection) {
+              const start = Math.max(0, Math.min(selection.start, input.value.length))
+              const end = Math.max(start, Math.min(selection.end, input.value.length))
+              input.setSelectionRange(start, end, selection.direction ?? 'none')
+            }
           }
         }
       }
@@ -542,6 +582,12 @@ function createTableInput(
       wrapper.dataset.selectionAnchorCol = String(colIndex)
     }
   })
+  input.addEventListener('compositionstart', () => {
+    input.dataset.composing = 'true'
+  })
+  input.addEventListener('compositionend', () => {
+    delete input.dataset.composing
+  })
   input.addEventListener('input', () => {
     syncTableInputSizer(input)
     updateTableCell(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), input.value)
@@ -635,8 +681,8 @@ function createTableInput(
       return
     }
     if (event.key === 'ArrowDown') {
-      const cursorOffset = input.selectionStart ?? input.value.length
-      if (focusTableInput(wrapper, rowIndex + 1, colIndex, cursorOffset)) {
+      const selection = inputSelection(input)
+      if (focusTableInput(wrapper, rowIndex + 1, colIndex, selection)) {
         event.preventDefault()
         return
       }
@@ -654,8 +700,8 @@ function createTableInput(
       return
     }
     if (event.key === 'ArrowUp') {
-      const cursorOffset = input.selectionStart ?? input.value.length
-      if (focusTableInput(wrapper, rowIndex - 1, colIndex, cursorOffset)) {
+      const selection = inputSelection(input)
+      if (focusTableInput(wrapper, rowIndex - 1, colIndex, selection)) {
         event.preventDefault()
         return
       }
@@ -673,14 +719,37 @@ function createTableInput(
       return
     }
     if (event.key === 'Tab') {
-      event.preventDefault()
+      const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
+      if (!block) return
+      const selection = inputSelection(input)
+
       if (event.shiftKey) {
-        if (focusTableInput(wrapper, rowIndex, colIndex - 1)) return
-        focusTableInput(wrapper, rowIndex - 1, Number.MAX_SAFE_INTEGER)
+        if (focusTableInput(wrapper, rowIndex, colIndex - 1, selection)) {
+          event.preventDefault()
+          return
+        }
+        if (focusTableInput(wrapper, rowIndex - 1, block.rows[0].length - 1, selection)) {
+          event.preventDefault()
+          return
+        }
+        event.preventDefault()
+        clearTableSelection(wrapper)
+        exitWidgetWithArrowKey(view, { from: block.from, to: block.to }, 'before', setActiveTable.of(null))
         return
       }
-      if (focusTableInput(wrapper, rowIndex, colIndex + 1)) return
-      focusTableInput(wrapper, rowIndex + 1, 0)
+
+      if (focusTableInput(wrapper, rowIndex, colIndex + 1, selection)) {
+        event.preventDefault()
+        return
+      }
+      if (focusTableInput(wrapper, rowIndex + 1, 0, selection)) {
+        event.preventDefault()
+        return
+      }
+      event.preventDefault()
+      if (insertTableRow(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'below')) return
+      clearTableSelection(wrapper)
+      exitWidgetWithArrowKey(view, { from: block.from, to: block.to }, 'after', setActiveTable.of(null))
     }
   })
   sizer.appendChild(input)

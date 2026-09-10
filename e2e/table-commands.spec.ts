@@ -30,6 +30,24 @@ test('edits and restructures a table through the production widget command path'
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })
 
+test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const finalBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await finalBodyCell.click()
+  await finalBodyCell.press('Tab')
+
+  const addedRowCell = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
+  await expect(addedRowCell).toBeFocused()
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|  |  |')
+
+  const firstHeaderCell = page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')
+  await firstHeaderCell.click()
+  await firstHeaderCell.press('Shift+Tab')
+  await expect(page.locator('.cm-content')).toBeFocused()
+})
+
 test('keeps contextual control availability in sync after undo', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 

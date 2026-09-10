@@ -12,7 +12,7 @@ import {
   type TableAlignment,
   type TableBlock,
 } from '../extensions/tables/model'
-import { setActiveTable } from '../extensions/tables/state'
+import { activeTableField, setActiveTable } from '../extensions/tables/state'
 import { focusElementWithoutScroll } from './widget-navigation'
 
 /** A target is valid only for the exact table instance rendered to the user. */
@@ -80,8 +80,22 @@ function applyTableBlockUpdate(
   })
 }
 
+const tableCellFocusTokens = new WeakMap<EditorViewType, number>()
+
+/** Focus only the still-current widget; deferred callbacks must never steal focus. */
 export function focusTableCell(view: EditorViewType, target: Pick<TableCellTarget, 'blockFrom' | 'rowIndex' | 'colIndex'>): void {
+  const token = (tableCellFocusTokens.get(view) ?? 0) + 1
+  const document = view.state.doc
+  tableCellFocusTokens.set(view, token)
+
   requestAnimationFrame(() => {
+    if (
+      tableCellFocusTokens.get(view) !== token ||
+      view.state.doc !== document ||
+      !view.dom.isConnected ||
+      !view.state.facet(EditorView.editable) ||
+      view.state.field(activeTableField, false) !== target.blockFrom
+    ) return
     const widget = view.dom.querySelector(`.me-table-widget[data-table-from="${target.blockFrom}"]`) as HTMLElement | null
     const input = widget?.querySelector(`[data-row-index="${target.rowIndex}"][data-col-index="${target.colIndex}"]`) as HTMLInputElement | null
     if (!input) return
