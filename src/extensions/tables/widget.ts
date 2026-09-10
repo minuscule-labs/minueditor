@@ -6,16 +6,20 @@ import {
   findTableBlocks,
   getAdjacentTableBlock,
   getTableBlockByStart,
+  TABLE_LIMITS,
   type TableBlock,
 } from './model'
 import {
   clearTableCellRange,
+  deleteTable,
   insertTableColumn,
   insertTableRow,
   removeTableColumn,
   removeTableColumnRange,
   removeTableRow,
   removeTableRowRange,
+  resizeTable,
+  setTableColumnAlignment,
   updateTableCell,
 } from '../../internal/table-commands'
 import {
@@ -199,6 +203,128 @@ function createTableBoundary(
   return boundary
 }
 
+function activeTableCellTarget(wrapper: HTMLElement, block: TableBlock) {
+  const rowIndex = Number(wrapper.dataset.activeRowIndex ?? 0)
+  const colIndex = Number(wrapper.dataset.activeColIndex ?? 0)
+  return tableCellTarget(wrapper, block.from, block.to, rowIndex, colIndex)
+}
+
+function createTableControlButton(
+  label: string,
+  action: () => boolean | void,
+): HTMLButtonElement {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.className = 'me-table-controls__button'
+  button.textContent = label
+  button.setAttribute('aria-label', label)
+  button.addEventListener('mousedown', (event) => event.preventDefault())
+  button.addEventListener('click', () => { action() })
+  return button
+}
+
+function syncTableControlsAvailability(wrapper: HTMLElement, block: TableBlock): void {
+  const target = activeTableCellTarget(wrapper, block)
+  const row = block.rows[target.rowIndex]
+  const disable = (label: string, value: boolean) => {
+    const button = wrapper.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement | null
+    if (button) button.disabled = value
+  }
+  disable('Add row above', target.rowIndex === 0)
+  disable('Add row below', block.rows.length - 1 >= TABLE_LIMITS.maxBodyRows)
+  disable('Add column left', block.rows[0].length >= TABLE_LIMITS.maxColumns)
+  disable('Add column right', block.rows[0].length >= TABLE_LIMITS.maxColumns)
+  disable('Remove row', !row || target.rowIndex === 0 || block.rows.length <= 2 || row.some((cell) => cell.length > 0))
+  disable('Remove column', target.colIndex < 0 || block.rows[0].length <= 1 || block.rows.some((currentRow) => currentRow[target.colIndex]?.length > 0))
+}
+
+function createTableControls(view: EditorView, block: TableBlock, wrapper: HTMLElement) {
+  const controls = document.createElement('div')
+  controls.className = 'me-table-controls'
+  controls.setAttribute('role', 'toolbar')
+  controls.setAttribute('aria-label', 'Table controls')
+
+  const target = () => activeTableCellTarget(
+    wrapper,
+    getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? block.from)) ?? block,
+  )
+  controls.append(
+    createTableControlButton('Add row above', () => insertTableRow(view, target(), 'above')),
+    createTableControlButton('Add row below', () => insertTableRow(view, target(), 'below')),
+    createTableControlButton('Add column left', () => insertTableColumn(view, target(), 'left')),
+    createTableControlButton('Add column right', () => insertTableColumn(view, target(), 'right')),
+    createTableControlButton('Remove row', () => removeTableRow(view, target())),
+    createTableControlButton('Remove column', () => removeTableColumn(view, target())),
+  )
+
+  const alignment = document.createElement('span')
+  alignment.className = 'me-table-controls__group'
+  alignment.setAttribute('aria-label', 'Column alignment')
+  for (const [label, value] of [['Align default', null], ['Align left', 'left'], ['Align center', 'center'], ['Align right', 'right']] as const) {
+    alignment.appendChild(createTableControlButton(label, () => setTableColumnAlignment(view, target(), value)))
+  }
+  controls.appendChild(alignment)
+
+  const resize = document.createElement('details')
+  resize.className = 'me-table-controls__resize'
+  const resizeStatus = document.createElement('span')
+  resizeStatus.className = 'me-table-controls__status'
+  resizeStatus.setAttribute('aria-live', 'polite')
+  const summary = document.createElement('summary')
+  summary.textContent = 'Resize'
+  resize.appendChild(summary)
+  const resizeForm = document.createElement('div')
+  resizeForm.className = 'me-table-controls__resize-form'
+  const columns = document.createElement('input')
+  columns.type = 'number'
+  columns.min = String(block.rows[0].length)
+  columns.max = String(TABLE_LIMITS.maxColumns)
+  columns.value = String(block.rows[0].length)
+  columns.setAttribute('aria-label', 'Columns')
+  const bodyRows = document.createElement('input')
+  bodyRows.type = 'number'
+  bodyRows.min = String(block.rows.length - 1)
+  bodyRows.max = String(TABLE_LIMITS.maxBodyRows)
+  bodyRows.value = String(block.rows.length - 1)
+  bodyRows.setAttribute('aria-label', 'Body rows')
+  resizeForm.append(columns, bodyRows, createTableControlButton('Apply resize', () => {
+    const current = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? block.from))
+    const nextColumns = Number(columns.value)
+    const nextBodyRows = Number(bodyRows.value)
+    if (!current || nextColumns < current.rows[0].length || nextBodyRows < current.rows.length - 1) {
+      resizeStatus.textContent = 'Shrinking requires confirmation and is unavailable.'
+      return false
+    }
+    const resized = resizeTable(view, target(), nextColumns, nextBodyRows)
+    if (!resized) resizeStatus.textContent = 'Choose a larger table size within the supported limits.'
+    return resized
+  }))
+  resize.append(resizeForm, resizeStatus)
+  controls.appendChild(resize)
+
+  const status = document.createElement('span')
+  status.className = 'me-table-controls__status'
+  status.setAttribute('aria-live', 'polite')
+  controls.append(
+    createTableControlButton('Copy table as Markdown', () => {
+      if (!navigator.clipboard?.writeText) {
+        status.textContent = 'Clipboard access is unavailable.'
+        return
+      }
+      void navigator.clipboard.writeText(
+        getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? block.from))?.source ?? block.source,
+      ).then(
+        () => { status.textContent = 'Table copied.' },
+        () => { status.textContent = 'Could not copy table.' },
+      )
+    }),
+    createTableControlButton('View table source', () => deactivateTable(view, block.from)),
+    createTableControlButton('Delete table', () => deleteTable(view, target())),
+    status,
+  )
+  return controls
+}
+
 class TableWidget extends WidgetType {
   constructor(
     readonly block: TableBlock,
@@ -224,6 +350,8 @@ class TableWidget extends WidgetType {
     wrapper.dataset.tableFrom = String(this.block.from)
     wrapper.dataset.tableTo = String(this.block.to)
     wrapper.dataset.tableSource = this.block.source
+    wrapper.dataset.activeRowIndex = '0'
+    wrapper.dataset.activeColIndex = '0'
 
     const scroller = document.createElement('div')
     scroller.className = 'me-table-scroller'
@@ -270,6 +398,10 @@ class TableWidget extends WidgetType {
     }
 
     scroller.appendChild(table)
+    if (this.isEditing) {
+      wrapper.appendChild(createTableControls(view, this.block, wrapper))
+      syncTableControlsAvailability(wrapper, this.block)
+    }
     wrapper.appendChild(createTableBoundary(view, this.block, 'before'))
     wrapper.appendChild(scroller)
     wrapper.appendChild(createTableBoundary(view, this.block, 'after'))
@@ -294,6 +426,12 @@ class TableWidget extends WidgetType {
           `[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`,
         ) as HTMLInputElement | null
         if (!input) return false
+        const cell = input.closest('th, td') as HTMLElement | null
+        const alignment = block.alignments[colIndex]
+        if (cell) {
+          if (alignment) cell.dataset.align = alignment
+          else delete cell.dataset.align
+        }
         if (input.value !== value) {
           // Formatting a table trims cell-edge whitespace. Keep a focused
           // input's in-progress edge spaces so typing one space is enough.
@@ -367,6 +505,10 @@ function createTableInput(
   })
   input.addEventListener('click', (event) => {
     event.stopPropagation()
+    wrapper.dataset.activeRowIndex = String(rowIndex)
+    wrapper.dataset.activeColIndex = String(colIndex)
+    const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
+    if (block) syncTableControlsAvailability(wrapper, block)
     if (event.shiftKey) {
       const anchorRow = wrapper.dataset.selectionAnchorRow
       const anchorCol = wrapper.dataset.selectionAnchorCol
@@ -386,6 +528,10 @@ function createTableInput(
     updateTableSelection(wrapper, rowIndex, colIndex)
   })
   input.addEventListener('focus', () => {
+    wrapper.dataset.activeRowIndex = String(rowIndex)
+    wrapper.dataset.activeColIndex = String(colIndex)
+    const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
+    if (block) syncTableControlsAvailability(wrapper, block)
     if (wrapper.dataset.selectionAnchorRow == null || wrapper.dataset.selectionAnchorCol == null) {
       wrapper.dataset.selectionAnchorRow = String(rowIndex)
       wrapper.dataset.selectionAnchorCol = String(colIndex)
@@ -394,6 +540,8 @@ function createTableInput(
   input.addEventListener('input', () => {
     syncTableInputSizer(input)
     updateTableCell(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), input.value)
+    const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
+    if (block) syncTableControlsAvailability(wrapper, block)
   })
   input.addEventListener('keydown', (event) => {
     event.stopPropagation()

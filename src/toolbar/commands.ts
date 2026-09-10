@@ -8,6 +8,7 @@ import {
   tableCellTargetAtSelection,
 } from '../internal/table-commands';
 import { hiddenInlineSuffixTarget, inlineMarkdownSpans } from "../internal/inline-markdown";
+import { findTableBlocks } from '../extensions/tables/model';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -988,8 +989,12 @@ export function insertCodeBlock(view: EditorView): boolean {
 }
 
 export function insertTable(view: EditorView): boolean {
-  const line = view.state.doc.lineAt(view.state.selection.main.from);
-  return insertTableAt(view, { from: line.to, prefix: '\n\n', suffix: '\n\n' });
+  const selection = view.state.selection.main;
+  const activeTable = findTableBlocks(view.state).find(
+    (block) => selection.from >= block.from && selection.from <= block.to,
+  );
+  const insertionFrom = activeTable?.to ?? view.state.doc.lineAt(selection.from).to;
+  return insertTableAt(view, { from: insertionFrom, prefix: '\n\n', suffix: '\n\n' });
 }
 
 export function insertHR(view: EditorView): boolean {

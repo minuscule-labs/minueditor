@@ -29,3 +29,19 @@ test('edits and restructures a table through the production widget command path'
   await insertedCell.fill('Compiler')
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })
+
+test('creates a table through the shared toolbar picker', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.getByTitle('Insert table').click()
+  const picker = page.getByRole('dialog', { name: 'Insert table' })
+  await expect(picker).toBeVisible()
+  await picker.getByRole('spinbutton', { name: 'Columns' }).fill('3')
+  await picker.getByRole('spinbutton', { name: 'Body rows' }).fill('2')
+  await picker.getByRole('button', { name: 'Insert' }).click()
+
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n\n|  |  |  |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n',
+  )
+  await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
+})

@@ -827,13 +827,15 @@ function CursorStabilityFixture() {
 
 function TableCommandFixture() {
   const [value, setValue] = useState('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+  const [view, setView] = useState<EditorView | null>(null)
 
   return (
     <main className="app-main" data-testid="table-command-fixture">
       <section className="surface">
         <h1>Table command browser fixture</h1>
+        <EditorToolbar view={view} variant="full" />
         <div className="editor-frame">
-          <MarkdownEditor value={value} onChange={setValue} autoFocus minHeight={320} />
+          <MarkdownEditor value={value} onChange={setValue} autoFocus minHeight={320} onViewReady={setView} />
         </div>
         <pre data-testid="markdown-output">{value}</pre>
       </section>

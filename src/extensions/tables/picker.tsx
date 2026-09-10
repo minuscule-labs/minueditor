@@ -36,9 +36,13 @@ export function TablePickerHost({ view }: { view: EditorView | null }) {
   useEffect(() => {
     if (!view) return
     const listener: TablePickerListener = (nextRequest) => setRequest(nextRequest)
+    const previous = pickerListeners.get(view)
     pickerListeners.set(view, listener)
     return () => {
-      if (pickerListeners.get(view) === listener) pickerListeners.delete(view)
+      if (pickerListeners.get(view) === listener) {
+        if (previous) pickerListeners.set(view, previous)
+        else pickerListeners.delete(view)
+      }
     }
   }, [view])
 
@@ -93,7 +97,10 @@ function TablePicker({
       role="dialog"
       aria-modal="false"
       aria-label="Insert table"
-      style={{ top: Math.min(window.innerHeight - 16, anchor.bottom + 8), left: Math.max(8, anchor.left) }}
+      style={{
+        top: Math.max(8, Math.min(window.innerHeight - 340, anchor.bottom + 8)),
+        left: Math.max(8, anchor.left),
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
