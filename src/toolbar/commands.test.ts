@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { EditorSelection, EditorState } from '@codemirror/state'
+import { EditorSelection, EditorState, StateEffect } from '@codemirror/state'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import type { EditorView } from '@codemirror/view'
 import {
   deleteMarkdownListMarker,
@@ -76,11 +77,13 @@ function createMockView(lines: string[], selection?: MockSelection): EditorView 
 }
 
 function createStatefulView(doc: string, selection: { anchor: number; head?: number }): EditorView {
-  let state = EditorState.create({ doc, selection })
+  let state = EditorState.create({ doc, selection, extensions: [markdown({ base: markdownLanguage })] })
   return {
     get state() {
       return state
     },
+    dom: document.createElement('div'),
+    scrollSnapshot: () => StateEffect.define<null>().of(null),
     dispatch(spec: Parameters<EditorState['update']>[0]) {
       state = state.update(spec).state
     },
@@ -893,98 +896,31 @@ describe('inline marker commands', () => {
     expect(dispatched.selection.head).toBe(37)
   })
 
-  it('inserts a column to the right of current cell', () => {
-    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
-      from: 31,
-      to: 31,
-      anchor: 31,
-      head: 31,
-      empty: true,
-    })
+  it('routes source-mode column insertion through the shared command model', () => {
+    const view = createStatefulView('| Name | Age |\n| --- | --- |\n| Ada | 42 |', { anchor: 31 })
 
-    const handled = insertTableColumnRight(view)
-    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
-      changes: Array<{ from: number; to: number; insert: string }>
-      selection: { anchor: number; head: number }
-    }
-
-    expect(handled).toBe(true)
-    expect(dispatched.changes).toEqual([
-      { from: 0, to: 14, insert: '| Name || Age |' },
-      { from: 15, to: 28, insert: '| --- | --- | --- |' },
-      { from: 29, to: 41, insert: '| Ada || 42 |' },
-    ])
-    expect(dispatched.selection.anchor).toBe(43)
-    expect(dispatched.selection.head).toBe(43)
+    expect(insertTableColumnRight(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name |  | Age |\n| --- | --- | --- |\n| Ada |  | 42 |')
   })
 
-  it('inserts a column to the left of current cell', () => {
-    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
-      from: 37,
-      to: 37,
-      anchor: 37,
-      head: 37,
-      empty: true,
-    })
+  it('inserts a source-mode column to the left through the shared model', () => {
+    const view = createStatefulView('| Name | Age |\n| --- | --- |\n| Ada | 42 |', { anchor: 37 })
 
-    const handled = insertTableColumnLeft(view)
-    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
-      changes: Array<{ from: number; to: number; insert: string }>
-      selection: { anchor: number; head: number }
-    }
-
-    expect(handled).toBe(true)
-    expect(dispatched.changes).toEqual([
-      { from: 0, to: 14, insert: '| Name || Age |' },
-      { from: 15, to: 28, insert: '| --- | --- | --- |' },
-      { from: 29, to: 41, insert: '| Ada || 42 |' },
-    ])
-    expect(dispatched.selection.anchor).toBe(43)
-    expect(dispatched.selection.head).toBe(43)
+    expect(insertTableColumnLeft(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name |  | Age |\n| --- | --- | --- |\n| Ada |  | 42 |')
   })
 
-  it('inserts a row below current body row', () => {
-    const view = createMockView(['| Name | Age |', '| --- | --- |', '| Ada | 42 |'], {
-      from: 31,
-      to: 31,
-      anchor: 31,
-      head: 31,
-      empty: true,
-    })
+  it('routes source-mode row insertion through the shared command model', () => {
+    const view = createStatefulView('| Name | Age |\n| --- | --- |\n| Ada | 42 |', { anchor: 31 })
 
-    const handled = insertTableRowBelow(view)
-    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
-      changes: { from: number; insert: string }
-      selection: { anchor: number; head: number }
-    }
-
-    expect(handled).toBe(true)
-    expect(dispatched.changes).toEqual({ from: 41, insert: '\n|||' })
-    expect(dispatched.selection.anchor).toBe(43)
-    expect(dispatched.selection.head).toBe(43)
+    expect(insertTableRowBelow(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|  |  |')
   })
 
-  it('inserts a row above current body row', () => {
-    const view = createMockView(
-      ['| Name | Age |', '| --- | --- |', '| Ada | 42 |', '| Bob | 30 |'],
-      {
-        from: 44,
-        to: 44,
-        anchor: 44,
-        head: 44,
-        empty: true,
-      }
-    )
+  it('inserts a source-mode row above through the shared model', () => {
+    const view = createStatefulView('| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Bob | 30 |', { anchor: 44 })
 
-    const handled = insertTableRowAbove(view)
-    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
-      changes: { from: number; insert: string }
-      selection: { anchor: number; head: number }
-    }
-
-    expect(handled).toBe(true)
-    expect(dispatched.changes).toEqual({ from: 42, insert: '|||\n' })
-    expect(dispatched.selection.anchor).toBe(43)
-    expect(dispatched.selection.head).toBe(43)
+    expect(insertTableRowAbove(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|  |  |\n| Bob | 30 |')
   })
 })

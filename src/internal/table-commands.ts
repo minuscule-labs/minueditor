@@ -3,6 +3,7 @@ import { EditorView, type EditorView as EditorViewType } from '@codemirror/view'
 import {
   createEmptyTableMarkdown,
   escapeTableCell,
+  findTableBlocks,
   formatTableMarkdown,
   getTableBlockByStart,
   TABLE_LIMITS,
@@ -78,6 +79,21 @@ export function insertTableAt(
   })
   focusTableCell(view, { blockFrom, rowIndex: 0, colIndex: 0 })
   return true
+}
+
+export function tableCellTargetAtSelection(view: EditorViewType): TableCellTarget | null {
+  const selection = view.state.selection.main
+  if (!selection.empty) return null
+  const block = findTableBlocks(view.state).find((candidate) => selection.from >= candidate.from && selection.from <= candidate.to)
+  if (!block) return null
+  const line = view.state.doc.lineAt(selection.from)
+  if (line.number === block.startLine + 1) return null
+  const rowIndex = line.number === block.startLine ? 0 : line.number - block.startLine - 1
+  const ranges = block.cellRanges[rowIndex]
+  if (!ranges) return null
+  const colIndex = ranges.findIndex((range) => selection.from <= range.rawTo)
+  if (colIndex < 0) return null
+  return { blockFrom: block.from, blockTo: block.to, rowIndex, colIndex }
 }
 
 export function updateTableCell(view: EditorViewType, target: TableCellTarget, value: string): boolean {
