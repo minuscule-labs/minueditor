@@ -75,7 +75,12 @@ function applyTableBlockUpdate(
     effects: [
       setActiveTable.of(nextBlock ? block.from : null),
       setTableInteraction.of(nextBlock && sourceTarget
-        ? { blockFrom: block.from, activeCell: sourceTarget, selection: null }
+        ? {
+            blockFrom: block.from,
+            activeCell: sourceTarget,
+            selectionAnchor: sourceTarget,
+            selection: null,
+          }
         : null),
       view.scrollSnapshot(),
     ],

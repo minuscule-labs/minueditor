@@ -48,6 +48,26 @@ test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ 
   await expect(page.locator('.cm-content')).toBeFocused()
 })
 
+test('uses the active cell as the Shift-click anchor after an ordinary edit', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  const secondBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await firstBodyCell.click()
+  await firstBodyCell.fill('Ada Lovelace')
+  const widget = page.locator('.me-table-widget')
+  await expect(widget).toHaveAttribute('data-shift-anchor-row', '1')
+  await expect(widget).toHaveAttribute('data-shift-anchor-col', '0')
+
+  await secondBodyCell.click({ modifiers: ['Shift'] })
+  await expect(widget).toHaveAttribute('data-selection-anchor-row', '1')
+  await expect(widget).toHaveAttribute('data-selection-anchor-col', '0')
+  await expect(page.locator('.me-table-cell--selected')).toHaveCount(2)
+  await expect(firstBodyCell.locator('xpath=ancestor::td')).toHaveClass(/me-table-cell--selected/)
+  await expect(secondBodyCell.locator('xpath=ancestor::td')).toHaveClass(/me-table-cell--selected/)
+})
+
 test('clears mirrored cell-range state after a same-shape range deletion', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 

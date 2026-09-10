@@ -77,7 +77,12 @@ function activateTable(
   view.dispatch({
     effects: [
       setActiveTable.of(block.from),
-      setTableInteraction.of({ blockFrom: block.from, activeCell: target, selection: null }),
+      setTableInteraction.of({
+        blockFrom: block.from,
+        activeCell: target,
+        selectionAnchor: target,
+        selection: null,
+      }),
       view.scrollSnapshot(),
     ],
     selection: EditorSelection.cursor(block.from),
@@ -172,10 +177,15 @@ function persistTableInteraction(view: EditorView, wrapper: HTMLElement, blockFr
     rowIndex: Number(wrapper.dataset.activeRowIndex ?? 0),
     colIndex: Number(wrapper.dataset.activeColIndex ?? 0),
   })
+  const selectionAnchor = clampTableCell(block, {
+    rowIndex: Number(wrapper.dataset.shiftAnchorRow ?? activeCell.rowIndex),
+    colIndex: Number(wrapper.dataset.shiftAnchorCol ?? activeCell.colIndex),
+  })
   view.dispatch({
     effects: setTableInteraction.of({
       blockFrom: block.from,
       activeCell,
+      selectionAnchor,
       selection: tableSelection(wrapper),
     }),
   })
@@ -187,6 +197,9 @@ function restoreTableInteraction(view: EditorView, wrapper: HTMLElement, block: 
   const activeCell = clampTableCell(block, interaction.activeCell)
   wrapper.dataset.activeRowIndex = String(activeCell.rowIndex)
   wrapper.dataset.activeColIndex = String(activeCell.colIndex)
+  const selectionAnchor = clampTableCell(block, interaction.selectionAnchor)
+  wrapper.dataset.shiftAnchorRow = String(selectionAnchor.rowIndex)
+  wrapper.dataset.shiftAnchorCol = String(selectionAnchor.colIndex)
   clearTableSelection(wrapper)
   if (!interaction.selection) return
   const anchor = clampTableCell(block, interaction.selection.anchor)
@@ -607,12 +620,25 @@ function createTableInput(
   input.setAttribute('data-1p-ignore', 'true')
   input.addEventListener('mousedown', (event) => {
     event.stopPropagation()
+    if (event.shiftKey) {
+      wrapper.dataset.shiftSelecting = 'true'
+      wrapper.dataset.pendingShiftAnchorRow = wrapper.dataset.shiftAnchorRow ?? String(rowIndex)
+      wrapper.dataset.pendingShiftAnchorCol = wrapper.dataset.shiftAnchorCol ?? String(colIndex)
+    } else {
+      delete wrapper.dataset.shiftSelecting
+      delete wrapper.dataset.pendingShiftAnchorRow
+      delete wrapper.dataset.pendingShiftAnchorCol
+    }
     startTableSelection(wrapper, rowIndex, colIndex)
   })
   input.addEventListener('click', (event) => {
     event.stopPropagation()
-    wrapper.dataset.activeRowIndex = String(rowIndex)
-    wrapper.dataset.activeColIndex = String(colIndex)
+    if (!event.shiftKey) {
+      wrapper.dataset.activeRowIndex = String(rowIndex)
+      wrapper.dataset.activeColIndex = String(colIndex)
+      wrapper.dataset.shiftAnchorRow = String(rowIndex)
+      wrapper.dataset.shiftAnchorCol = String(colIndex)
+    }
     const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
     if (block) syncTableControlsAvailability(wrapper, block)
     if (event.shiftKey) {
@@ -621,9 +647,20 @@ function createTableInput(
       if (anchorRow != null && anchorCol != null) {
         setTableSelection(wrapper, Number(anchorRow), Number(anchorCol), rowIndex, colIndex)
       } else {
-        setTableSelection(wrapper, rowIndex, colIndex, rowIndex, colIndex)
+        // A same-shape update clears transient range attributes. This durable
+        // origin remains independent from the active cell and visible range.
+        const shiftAnchorRow = Number(
+          wrapper.dataset.pendingShiftAnchorRow ?? wrapper.dataset.shiftAnchorRow ?? rowIndex,
+        )
+        const shiftAnchorCol = Number(
+          wrapper.dataset.pendingShiftAnchorCol ?? wrapper.dataset.shiftAnchorCol ?? colIndex,
+        )
+        setTableSelection(wrapper, shiftAnchorRow, shiftAnchorCol, rowIndex, colIndex)
       }
       persistTableInteraction(view, wrapper, blockFrom)
+      delete wrapper.dataset.shiftSelecting
+      delete wrapper.dataset.pendingShiftAnchorRow
+      delete wrapper.dataset.pendingShiftAnchorCol
       return
     }
     clearTableSelection(wrapper)
@@ -637,15 +674,20 @@ function createTableInput(
     persistTableInteraction(view, wrapper, blockFrom)
   })
   input.addEventListener('focus', () => {
-    wrapper.dataset.activeRowIndex = String(rowIndex)
-    wrapper.dataset.activeColIndex = String(colIndex)
+    if (wrapper.dataset.shiftSelecting !== 'true') {
+      wrapper.dataset.activeRowIndex = String(rowIndex)
+      wrapper.dataset.activeColIndex = String(colIndex)
+    }
     const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
     if (block) syncTableControlsAvailability(wrapper, block)
-    if (wrapper.dataset.selectionAnchorRow == null || wrapper.dataset.selectionAnchorCol == null) {
+    if (
+      wrapper.dataset.shiftSelecting !== 'true' &&
+      (wrapper.dataset.selectionAnchorRow == null || wrapper.dataset.selectionAnchorCol == null)
+    ) {
       wrapper.dataset.selectionAnchorRow = String(rowIndex)
       wrapper.dataset.selectionAnchorCol = String(colIndex)
     }
-    persistTableInteraction(view, wrapper, blockFrom)
+    if (wrapper.dataset.shiftSelecting !== 'true') persistTableInteraction(view, wrapper, blockFrom)
   })
   input.addEventListener('compositionstart', () => {
     input.dataset.composing = 'true'

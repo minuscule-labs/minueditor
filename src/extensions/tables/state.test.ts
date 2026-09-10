@@ -9,6 +9,7 @@ describe('table interaction state', () => {
       effects: setTableInteraction.of({
         blockFrom: 0,
         activeCell: { rowIndex: 1, colIndex: 0 },
+        selectionAnchor: { rowIndex: 1, colIndex: 0 },
         selection: {
           anchor: { rowIndex: 1, colIndex: 0 },
           focus: { rowIndex: 1, colIndex: 0 },
@@ -20,6 +21,7 @@ describe('table interaction state', () => {
     expect(state.field(tableInteractionField)).toEqual({
       blockFrom: 8,
       activeCell: { rowIndex: 1, colIndex: 0 },
+      selectionAnchor: { rowIndex: 1, colIndex: 0 },
       selection: {
         anchor: { rowIndex: 1, colIndex: 0 },
         focus: { rowIndex: 1, colIndex: 0 },

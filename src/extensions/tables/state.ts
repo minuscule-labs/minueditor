@@ -14,6 +14,8 @@ export type TableCellSelection = {
 export type TableInteraction = {
   blockFrom: number
   activeCell: TableCellCoordinates
+  /** Shift-click origin survives when no visible range is selected. */
+  selectionAnchor: TableCellCoordinates
   selection: TableCellSelection | null
 }
 
