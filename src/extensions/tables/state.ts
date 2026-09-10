@@ -1,4 +1,8 @@
-import { StateEffect, StateField } from '@codemirror/state'
+import { Facet, StateEffect, StateField } from '@codemirror/state'
+
+export const tableSubmitHandler = Facet.define<() => void, (() => void) | null>({
+  combine: (handlers) => handlers[0] ?? null,
+})
 
 export type TableCellCoordinates = {
   rowIndex: number

@@ -51,6 +51,17 @@ test('resolves table boundaries after local and external document changes', asyn
   )
 })
 
+test('routes Mod+Enter from a table cell to the host submit callback', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const cell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await cell.click()
+  await cell.press('Meta+Enter')
+  await expect(page.getByTestId('submit-count')).toHaveText('1')
+  await expect(cell).toBeFocused()
+})
+
 test('preserves native Shift-arrow text selection in a cell', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
@@ -95,6 +106,23 @@ test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ 
   await firstHeaderCell.click()
   await firstHeaderCell.press('Shift+Tab')
   await expect(page.locator('.cm-content')).toBeFocused()
+})
+
+test('cleans Shift-pointer state when the gesture ends outside the editor', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const first = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await first.click()
+  await first.dispatchEvent('mousedown', { shiftKey: true, bubbles: true })
+  const widget = page.locator('.me-table-widget')
+  await expect(widget).toHaveAttribute('data-shift-selecting', 'true')
+  await page.getByRole('heading', { name: 'Table command browser fixture' }).dispatchEvent('mouseup', { bubbles: true })
+  await expect(widget).not.toHaveAttribute('data-shift-selecting')
+
+  await first.press('Tab')
+  await expect(page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')).toBeFocused()
+  await expect(widget).toHaveAttribute('data-active-col-index', '1')
 })
 
 test('cleans incomplete Shift-pointer state before keyboard navigation', async ({ page }) => {

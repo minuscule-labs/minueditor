@@ -6,6 +6,7 @@ import {
   setActiveTable,
   setTableInteraction,
   tableInteractionField,
+  tableSubmitHandler,
   type TableCellSelection,
 } from './state'
 import {
@@ -619,6 +620,13 @@ function createTableInput(
   input.setAttribute('data-1p-ignore', 'true')
   input.addEventListener('mousedown', (event) => {
     event.stopPropagation()
+    const finishPointerSelection = () => {
+      document.removeEventListener('mouseup', finishPointerSelection, true)
+      document.removeEventListener('pointercancel', finishPointerSelection, true)
+      stopTableSelection(wrapper)
+    }
+    document.addEventListener('mouseup', finishPointerSelection, { capture: true, once: true })
+    document.addEventListener('pointercancel', finishPointerSelection, { capture: true, once: true })
     if (event.shiftKey) {
       wrapper.dataset.shiftSelecting = 'true'
       wrapper.dataset.pendingShiftAnchorRow = wrapper.dataset.shiftAnchorRow ?? String(rowIndex)
@@ -703,6 +711,15 @@ function createTableInput(
     if (block) syncTableControlsAvailability(wrapper, block)
   })
   input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.altKey) {
+      const submit = view.state.facet(tableSubmitHandler)
+      if (submit) {
+        event.preventDefault()
+        event.stopPropagation()
+        submit()
+      }
+      return
+    }
     event.stopPropagation()
     if (event.key === 'Escape') {
       event.preventDefault()
