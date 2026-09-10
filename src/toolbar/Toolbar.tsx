@@ -61,10 +61,10 @@ const FULL_TOOLBAR_BUTTONS: ToolbarButton[] = [
   // Block
   { label: '</>', title: 'Code block', run: insertCodeBlock, group: 'block' },
   { label: '⊞', title: 'Insert table', run: openToolbarTablePicker, group: 'block' },
-  { label: '⇤ Col', title: 'Insert column left (Cmd+←)', run: insertTableColumnLeft, group: 'block' },
-  { label: 'Col ⇥', title: 'Insert column right (Cmd+→)', run: insertTableColumnRight, group: 'block' },
-  { label: '⇡ Row', title: 'Insert row above (Cmd+↑)', run: insertTableRowAbove, group: 'block' },
-  { label: 'Row ⇣', title: 'Insert row below (Cmd+↓)', run: insertTableRowBelow, group: 'block' },
+  { label: '⇤ Col', title: 'Insert column left (Cmd+Ctrl+←)', run: insertTableColumnLeft, group: 'block' },
+  { label: 'Col ⇥', title: 'Insert column right (Cmd+Ctrl+→)', run: insertTableColumnRight, group: 'block' },
+  { label: '⇡ Row', title: 'Insert row above (Cmd+Ctrl+↑)', run: insertTableRowAbove, group: 'block' },
+  { label: 'Row ⇣', title: 'Insert row below (Cmd+Ctrl+↓)', run: insertTableRowBelow, group: 'block' },
   { label: '—', title: 'Horizontal rule', run: insertHR, group: 'block' },
   { label: '🖼', title: 'Insert image', run: insertImage, group: 'block' },
 ]
