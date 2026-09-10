@@ -3420,6 +3420,8 @@ describe('MarkdownEditor', () => {
     await waitFor(() => expect(view).toBeTruthy())
     fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
     await waitFor(() => expect(container.querySelector('.me-table-controls')).toBeTruthy())
+    expect(container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]'))
+      .toHaveAttribute('aria-label', 'Body row 1, column 1')
 
     fireEvent.click(container.querySelector('[aria-label="Add column right"]')!)
     await waitFor(() => {

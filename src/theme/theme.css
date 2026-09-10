@@ -636,6 +636,11 @@
         max-height: 8.5rem;
         overflow: auto;
     }
+
+    .me-table-controls__button,
+    .me-table-controls summary {
+        min-height: 36px;
+    }
 }
 
 /* ─── Markdown Renderer ────────────────────────────────────────────────── */

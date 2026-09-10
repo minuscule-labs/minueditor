@@ -492,6 +492,10 @@ function createTableInput(
   input.value = value
   input.dataset.rowIndex = String(rowIndex)
   input.dataset.colIndex = String(colIndex)
+  input.setAttribute(
+    'aria-label',
+    `${rowIndex === 0 ? 'Header' : `Body row ${rowIndex}`}, column ${colIndex + 1}`,
+  )
   input.spellcheck = false
   input.autocomplete = 'off'
   input.autocapitalize = 'off'
