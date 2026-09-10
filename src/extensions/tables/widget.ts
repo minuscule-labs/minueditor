@@ -445,6 +445,7 @@ class TableWidget extends WidgetType {
       }
     }
 
+    syncTableControlsAvailability(dom, block)
     return true
   }
 

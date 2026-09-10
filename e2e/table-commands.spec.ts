@@ -30,6 +30,49 @@ test('edits and restructures a table through the production widget command path'
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })
 
+test('keeps contextual control availability in sync after undo', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  const widget = page.locator('.me-table-widget')
+  await widget.click()
+  const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await firstBodyCell.click()
+  await page.keyboard.press('Meta+Control+ArrowRight')
+
+  const insertedCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await insertedCell.fill('Temporary value')
+  const removeColumn = page.getByRole('button', { name: 'Remove column' })
+  await expect(removeColumn).toBeDisabled()
+
+  await insertedCell.press('Meta+z')
+  await expect(removeColumn).toBeEnabled()
+})
+
+test('returns focus to the editor after deleting a table', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  await page.getByRole('button', { name: 'Delete table' }).click()
+
+  await expect(page.getByTestId('markdown-output')).toHaveText('')
+  await expect(page.locator('.cm-content')).toBeFocused()
+})
+
+test('rejects picker insertion after the document changes', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  await page.getByTitle('Insert table').click()
+  const picker = page.getByRole('dialog', { name: 'Insert table' })
+  const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await firstBodyCell.fill('Ada Lovelace')
+
+  await picker.getByRole('button', { name: 'Insert' }).click()
+  await expect(picker.getByRole('alert')).toHaveText('The document changed. Reopen the picker to choose a new insertion location.')
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Ada Lovelace | 42 |')
+  await expect(page.locator('.me-table-input')).toHaveCount(4)
+})
+
 test('creates a table through the shared toolbar picker', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 

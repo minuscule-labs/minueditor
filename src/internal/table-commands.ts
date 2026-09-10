@@ -244,5 +244,6 @@ export function deleteTable(view: EditorViewType, target: TableCellTarget): bool
   const block = resolveTarget(view, target)
   if (!block) return false
   applyTableBlockUpdate(view, block, null)
+  view.focus()
   return true
 }

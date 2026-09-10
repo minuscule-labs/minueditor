@@ -89,13 +89,13 @@ describe('EditorToolbar', () => {
     expect(seps.length).toBeGreaterThan(0)
   })
 
-  it('renders table row and column insertion buttons', () => {
+  it('keeps structural table actions in contextual table controls', () => {
     const view = mockView()
     render(<EditorToolbar view={view} variant={'full'} />)
 
-    expect(screen.getByTitle('Insert column left (Cmd+Ctrl+←)')).toBeInTheDocument()
-    expect(screen.getByTitle('Insert column right (Cmd+Ctrl+→)')).toBeInTheDocument()
-    expect(screen.getByTitle('Insert row above (Cmd+Ctrl+↑)')).toBeInTheDocument()
-    expect(screen.getByTitle('Insert row below (Cmd+Ctrl+↓)')).toBeInTheDocument()
+    expect(screen.queryByTitle('Insert column left (Cmd+Ctrl+←)')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Insert column right (Cmd+Ctrl+→)')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Insert row above (Cmd+Ctrl+↑)')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Insert row below (Cmd+Ctrl+↓)')).not.toBeInTheDocument()
   })
 })

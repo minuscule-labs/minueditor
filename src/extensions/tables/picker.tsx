@@ -13,6 +13,8 @@ type TableInsertion = {
 
 type TablePickerRequest = {
   insertion: TableInsertion
+  /** Reject stale positions instead of inserting at a shifted offset. */
+  document: EditorView['state']['doc']
 }
 
 type TablePickerListener = (request: TablePickerRequest) => void
@@ -26,7 +28,7 @@ const pickerListeners = new Map<EditorView, TablePickerListener>()
 export function openTablePicker(view: EditorView, insertion: TableInsertion): boolean {
   const listener = pickerListeners.get(view)
   if (!listener || !view.state.facet(EditorView.editable)) return false
-  listener({ insertion })
+  listener({ insertion, document: view.state.doc })
   return true
 }
 
@@ -47,16 +49,23 @@ export function TablePickerHost({ view }: { view: EditorView | null }) {
   }, [view])
 
   if (!view || !request) return null
-  return <TablePicker view={view} insertion={request.insertion} onDismiss={() => setRequest(null)} />
+  return <TablePicker
+    view={view}
+    insertion={request.insertion}
+    initialDocument={request.document}
+    onDismiss={() => setRequest(null)}
+  />
 }
 
 function TablePicker({
   view,
   insertion,
+  initialDocument,
   onDismiss,
 }: {
   view: EditorView
   insertion: TableInsertion
+  initialDocument: EditorView['state']['doc']
   onDismiss: () => void
 }) {
   const [columns, setColumns] = useState(2)
@@ -79,6 +88,10 @@ function TablePicker({
   function insert() {
     if (!validTableDimensions(columns, bodyRows)) {
       setError(`Choose 1–${TABLE_LIMITS.maxColumns} columns and 0–${TABLE_LIMITS.maxBodyRows} body rows.`)
+      return
+    }
+    if (view.state.doc !== initialDocument) {
+      setError('The document changed. Reopen the picker to choose a new insertion location.')
       return
     }
     if (!insertTableAt(view, { ...insertion, columns, bodyRows })) {
