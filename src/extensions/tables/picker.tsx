@@ -102,7 +102,7 @@ function TablePicker({
   }
 
   const previewColumns = Math.min(5, Math.max(1, Number.isInteger(columns) ? columns : 1))
-  const previewRows = Math.min(5, Math.max(1, Number.isInteger(bodyRows) ? bodyRows : 1))
+  const previewRows = Math.min(5, Math.max(0, Number.isInteger(bodyRows) ? bodyRows : 1))
 
   return createPortal(
     <div

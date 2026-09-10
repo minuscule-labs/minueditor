@@ -21,9 +21,7 @@ import {
   insertTableColumn,
   insertTableRow,
   removeTableColumn,
-  removeTableColumnRange,
   removeTableRow,
-  removeTableRowRange,
   resizeTable,
   setTableColumnAlignment,
   updateTableCell,
@@ -259,24 +257,16 @@ function stopTableSelection(wrapper: HTMLElement): void {
   delete wrapper.dataset.selectionDragging
   delete wrapper.dataset.dragAnchorRow
   delete wrapper.dataset.dragAnchorCol
+  delete wrapper.dataset.shiftSelecting
+  delete wrapper.dataset.pendingShiftAnchorRow
+  delete wrapper.dataset.pendingShiftAnchorCol
 }
 
-function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: HTMLElement): boolean {
+function clearSelectedCells(view: EditorView, blockFrom: number, wrapper: HTMLElement): boolean {
   const currentTarget = tableBlockTarget(wrapper, blockFrom)
   const block = getTableBlockByStart(view.state, currentTarget.blockFrom)
   const bounds = tableSelectionBounds(wrapper)
   if (!block || block.source !== currentTarget.source || !bounds) return false
-
-  const rowCount = block.rows.length
-  const colCount = block.rows[0]?.length ?? 0
-
-  if (bounds.colStart === 0 && bounds.colEnd === colCount - 1) {
-    return removeTableRowRange(view, currentTarget, bounds.rowStart, bounds.rowEnd)
-  }
-
-  if (bounds.rowStart === 0 && bounds.rowEnd === rowCount - 1) {
-    return removeTableColumnRange(view, currentTarget, bounds.colStart, bounds.colEnd)
-  }
 
   return clearTableCellRange(
     view,
@@ -291,6 +281,7 @@ function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: H
 function createTableBoundary(
   view: EditorView,
   block: TableBlock,
+  wrapper: HTMLElement,
   side: 'before' | 'after',
 ): HTMLElement {
   const boundary = document.createElement('div')
@@ -298,10 +289,15 @@ function createTableBoundary(
   boundary.setAttribute('role', 'button')
   boundary.setAttribute('aria-label', side === 'before' ? 'Place cursor before table' : 'Place cursor after table')
   boundary.addEventListener('mousedown', (event) => {
+    const current = getTableBlockByStart(
+      view.state,
+      Number(wrapper.dataset.tableFrom ?? block.from),
+    )
+    if (!current) return
     handleWidgetBoundaryMouseDown(
       event,
       view,
-      { from: block.from, to: block.to },
+      { from: current.from, to: current.to },
       side,
       [setActiveTable.of(null), setTableInteraction.of(null)],
     )
@@ -424,7 +420,10 @@ function createTableControls(view: EditorView, block: TableBlock, wrapper: HTMLE
         () => { status.textContent = 'Could not copy table.' },
       )
     }),
-    createTableControlButton('Exit table editing', () => deactivateTable(view, block.from)),
+    createTableControlButton('Exit table editing', () => deactivateTable(
+      view,
+      Number(wrapper.dataset.tableFrom ?? block.from),
+    )),
     createTableControlButton('Delete table', () => deleteTable(view, target())),
     status,
   )
@@ -509,9 +508,9 @@ class TableWidget extends WidgetType {
       wrapper.appendChild(createTableControls(view, this.block, wrapper))
       syncTableControlsAvailability(wrapper, this.block)
     }
-    wrapper.appendChild(createTableBoundary(view, this.block, 'before'))
+    wrapper.appendChild(createTableBoundary(view, this.block, wrapper, 'before'))
     wrapper.appendChild(scroller)
-    wrapper.appendChild(createTableBoundary(view, this.block, 'after'))
+    wrapper.appendChild(createTableBoundary(view, this.block, wrapper, 'after'))
     return wrapper
   }
 
@@ -631,6 +630,8 @@ function createTableInput(
     }
     startTableSelection(wrapper, rowIndex, colIndex)
   })
+  input.addEventListener('mouseup', () => stopTableSelection(wrapper))
+  input.addEventListener('pointercancel', () => stopTableSelection(wrapper))
   input.addEventListener('click', (event) => {
     event.stopPropagation()
     wrapper.dataset.activeRowIndex = String(rowIndex)
@@ -705,8 +706,12 @@ function createTableInput(
     event.stopPropagation()
     if (event.key === 'Escape') {
       event.preventDefault()
-      clearTableSelection(wrapper)
-      deactivateTable(view, blockFrom)
+      if (tableSelectionBounds(wrapper)) {
+        clearTableSelection(wrapper)
+        persistTableInteraction(view, wrapper, blockFrom)
+      } else {
+        deactivateTable(view, Number(wrapper.dataset.tableFrom ?? blockFrom))
+      }
       return
     }
     if ((event.metaKey || event.ctrlKey) && !event.altKey) {
@@ -723,33 +728,12 @@ function createTableInput(
         return
       }
     }
-    if ((event.key === 'Backspace' || event.key === 'Delete') && deleteSelectedStructure(view, blockFrom, wrapper)) {
+    if ((event.key === 'Backspace' || event.key === 'Delete') && clearSelectedCells(view, blockFrom, wrapper)) {
       event.preventDefault()
       return
     }
-    if (event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      let nextRow = rowIndex
-      let nextCol = colIndex
-      if (event.key === 'ArrowRight') nextCol += 1
-      else if (event.key === 'ArrowLeft') nextCol -= 1
-      else if (event.key === 'ArrowDown') nextRow += 1
-      else if (event.key === 'ArrowUp') nextRow -= 1
-      else nextRow = Number.NaN
-
-      if (!Number.isNaN(nextRow)) {
-        const block = getTableBlockByStart(view.state, blockFrom)
-        if (!block) return
-        nextRow = Math.max(0, Math.min(nextRow, block.rows.length - 1))
-        nextCol = Math.max(0, Math.min(nextCol, block.rows[nextRow].length - 1))
-        const anchorRow = Number(wrapper.dataset.selectionAnchorRow ?? rowIndex)
-        const anchorCol = Number(wrapper.dataset.selectionAnchorCol ?? colIndex)
-        setTableSelection(wrapper, anchorRow, anchorCol, nextRow, nextCol)
-        persistTableInteraction(view, wrapper, blockFrom)
-        focusTableInput(wrapper, nextRow, nextCol)
-        event.preventDefault()
-        return
-      }
-    }
+    // Shift-arrow belongs to the native text input. Rectangular keyboard
+    // selection will require a separate, explicit cell-selection mode.
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowLeft') {
       event.preventDefault()
       insertTableColumn(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'left')
@@ -788,6 +772,24 @@ function createTableInput(
       if (focusTableInput(wrapper, rowIndex, colIndex - 1)) event.preventDefault()
       return
     }
+    if (event.key === 'Enter' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      event.preventDefault()
+      if (event.shiftKey) return
+      const block = getTableBlockByStart(
+        view.state,
+        Number(wrapper.dataset.tableFrom ?? blockFrom),
+      )
+      if (!block) return
+      if (focusTableInput(wrapper, rowIndex + 1, colIndex, inputSelection(input))) return
+      clearTableSelection(wrapper)
+      exitWidgetWithArrowKey(
+        view,
+        { from: block.from, to: block.to },
+        'after',
+        [setActiveTable.of(null), setTableInteraction.of(null)],
+      )
+      return
+    }
     if (event.key === 'ArrowDown') {
       const selection = inputSelection(input)
       if (focusTableInput(wrapper, rowIndex + 1, colIndex, selection)) {
@@ -795,7 +797,10 @@ function createTableInput(
         return
       }
 
-      const block = getTableBlockByStart(view.state, blockFrom)
+      const block = getTableBlockByStart(
+        view.state,
+        Number(wrapper.dataset.tableFrom ?? blockFrom),
+      )
       if (!block) return
       event.preventDefault()
       clearTableSelection(wrapper)
@@ -814,7 +819,10 @@ function createTableInput(
         return
       }
 
-      const block = getTableBlockByStart(view.state, blockFrom)
+      const block = getTableBlockByStart(
+        view.state,
+        Number(wrapper.dataset.tableFrom ?? blockFrom),
+      )
       if (!block) return
       event.preventDefault()
       clearTableSelection(wrapper)

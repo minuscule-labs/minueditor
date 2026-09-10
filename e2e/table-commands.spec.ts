@@ -30,6 +30,55 @@ test('edits and restructures a table through the production widget command path'
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })
 
+test('resolves table boundaries after local and external document changes', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  await page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]').fill('Ada Lovelace')
+  await page.getByRole('button', { name: 'Place cursor after table' }).click()
+  await page.keyboard.type('After local edit')
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    '| Name | Age |\n| --- | --- |\n| Ada Lovelace | 42 |\nAfter local edit',
+  )
+
+  await page.goto('/?fixture=table-interaction')
+  await page.locator('.me-table-widget').click()
+  await page.getByRole('button', { name: 'Prepend prose' }).click()
+  await page.getByRole('button', { name: 'Place cursor after table' }).click()
+  await page.keyboard.type('After external edit')
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    'Updated\n\nBefore\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\nAfter external edit',
+  )
+})
+
+test('preserves native Shift-arrow text selection in a cell', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const cell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await cell.click()
+  await cell.evaluate((input: HTMLInputElement) => input.setSelectionRange(1, 1))
+  await cell.press('Shift+ArrowRight')
+  await expect(cell).toBeFocused()
+  await expect(page.locator('.me-table-cell--selected')).toHaveCount(0)
+  await expect.poll(() => cell.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd])).toEqual([1, 2])
+})
+
+test('uses Enter to move down a column and exits after the final body row', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const header = page.locator('.me-table-input[data-row-index="0"][data-col-index="1"]')
+  const body = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await header.click()
+  await header.press('Enter')
+  await expect(body).toBeFocused()
+  await body.press('Shift+Enter')
+  await expect(body).toBeFocused()
+  await body.press('Enter')
+  await expect(page.locator('.cm-content')).toBeFocused()
+})
+
 test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
@@ -46,6 +95,22 @@ test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ 
   await firstHeaderCell.click()
   await firstHeaderCell.press('Shift+Tab')
   await expect(page.locator('.cm-content')).toBeFocused()
+})
+
+test('cleans incomplete Shift-pointer state before keyboard navigation', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const first = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await first.click()
+  await first.dispatchEvent('mousedown', { shiftKey: true, bubbles: true })
+  await first.dispatchEvent('mouseup', { shiftKey: true, bubbles: true })
+  const widget = page.locator('.me-table-widget')
+  await expect(widget).not.toHaveAttribute('data-shift-selecting')
+
+  await first.press('Tab')
+  await expect(page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')).toBeFocused()
+  await expect(widget).toHaveAttribute('data-active-col-index', '1')
 })
 
 test('uses the active cell as the Shift-click anchor after an ordinary edit', async ({ page }) => {
@@ -75,6 +140,21 @@ test('uses the active cell as the Shift-click anchor after an ordinary edit', as
   )
 })
 
+test('Escape clears a cell range before exiting table editing', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const first = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  const second = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await first.click()
+  await second.click({ modifiers: ['Shift'] })
+  await second.press('Escape')
+  await expect(second).toBeFocused()
+  await expect(page.locator('.me-table-cell--selected')).toHaveCount(0)
+  await second.press('Escape')
+  await expect(page.locator('.cm-content')).toBeFocused()
+})
+
 test('clears mirrored cell-range state after a same-shape range deletion', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
@@ -92,6 +172,24 @@ test('clears mirrored cell-range state after a same-shape range deletion', async
   await expect(widget).not.toHaveAttribute('data-selection-anchor-col')
   await expect(widget).not.toHaveAttribute('data-selection-focus-row')
   await expect(widget).not.toHaveAttribute('data-selection-focus-col')
+})
+
+test('Delete clears a selected full row without removing its structure', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const finalCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await finalCell.press('Tab')
+  const first = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
+  const second = page.locator('.me-table-input[data-row-index="2"][data-col-index="1"]')
+  await first.click()
+  await second.click({ modifiers: ['Shift'] })
+  await second.press('Delete')
+
+  await expect(page.locator('.me-table-input')).toHaveCount(6)
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|  |  |',
+  )
 })
 
 test('restores persistent active-cell state after an external document update', async ({ page }) => {
