@@ -19,6 +19,7 @@ import {
 import { insertImagePicker } from './images'
 import { setActiveCodeBlock } from './codeblock/state'
 import { insertTableAt } from '../internal/table-commands'
+import { openTablePicker } from './tables/picker'
 import { calloutLabels, type CalloutType } from './callouts'
 
 function moveCursorAfterLineMarker(view: EditorView, markerPattern: RegExp): boolean {
@@ -100,7 +101,10 @@ const calloutSlashCommands: readonly SlashCommand[] = (
 
 function insertSlashTable(view: EditorView): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
-  return insertTableAt(view, { from: line.from, to: line.to, prefix: '\n', suffix: '\n' })
+  const insertion = { from: line.from, to: line.to, prefix: '\n', suffix: '\n' }
+  // Headless consumers retain the established immediate default insertion;
+  // mounted editors open the same picker used by the full toolbar.
+  return openTablePicker(view, insertion) || insertTableAt(view, insertion)
 }
 
 function insertSlashCodeBlock(view: EditorView): boolean {

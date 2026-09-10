@@ -862,6 +862,9 @@ describe('MarkdownEditor', () => {
       applyEditorSlashCommand(view!, 'Table')
     })
 
+    await waitFor(() => expect(document.querySelector('.me-table-picker')).toBeTruthy())
+    fireEvent.click(document.querySelector('.me-table-picker__insert')!)
+
     await waitFor(() => {
       const input = container.querySelector(
         '.me-table-input[data-row-index="0"][data-col-index="0"]',

@@ -480,6 +480,87 @@
     background: var(--me-toolbar-btn-active-bg, rgba(0, 0, 0, 0.1));
 }
 
+.me-table-picker {
+    position: fixed;
+    z-index: 10000;
+    min-width: 220px;
+    padding: 12px;
+    border: 1px solid var(--me-toolbar-border, #e0e0e0);
+    border-radius: 8px;
+    background: var(--me-toolbar-bg, #fff);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+    color: var(--me-toolbar-btn-color, #333);
+}
+
+.me-table-picker__title {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.me-table-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(5, 20px);
+    gap: 3px;
+    margin-bottom: 10px;
+}
+
+.me-table-picker__cell {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid var(--me-toolbar-border, #e0e0e0);
+    border-radius: 2px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.me-table-picker__cell:hover,
+.me-table-picker__cell--selected {
+    border-color: #2563eb;
+    background: rgba(37, 99, 235, 0.16);
+}
+
+.me-table-picker__dimensions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.me-table-picker__dimensions label {
+    display: grid;
+    gap: 3px;
+    font-size: 12px;
+}
+
+.me-table-picker__dimensions input {
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.me-table-picker__error {
+    margin: 8px 0 0;
+    color: #b91c1c;
+    font-size: 12px;
+}
+
+.me-table-picker__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.me-table-picker__actions button {
+    min-height: 30px;
+}
+
+.me-table-picker__insert {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #fff;
+}
+
 /* ─── Markdown Renderer ────────────────────────────────────────────────── */
 
 .me-renderer {

@@ -1,5 +1,6 @@
 import type { EditorView } from '@codemirror/view'
 import type { EditorToolbarProps } from '../types'
+import { openTablePicker, TablePickerHost } from '../extensions/tables/picker'
 import {
   toggleBold,
   toggleItalic,
@@ -21,6 +22,11 @@ import {
 } from './commands'
 
 // ── Button definitions ────────────────────────────────────────────────────────
+
+function openToolbarTablePicker(view: EditorView): boolean {
+  const line = view.state.doc.lineAt(view.state.selection.main.from)
+  return openTablePicker(view, { from: line.to, prefix: '\n\n', suffix: '\n\n' }) || insertTable(view)
+}
 
 interface ToolbarButton {
   label: string
@@ -49,7 +55,7 @@ const FULL_TOOLBAR_BUTTONS: ToolbarButton[] = [
   { label: '☐ List', title: 'Checkbox list', run: toggleCheckboxList, group: 'list' },
   // Block
   { label: '</>', title: 'Code block', run: insertCodeBlock, group: 'block' },
-  { label: '⊞', title: 'Insert table', run: insertTable, group: 'block' },
+  { label: '⊞', title: 'Insert table', run: openToolbarTablePicker, group: 'block' },
   { label: '⇤ Col', title: 'Insert column left (Cmd+←)', run: insertTableColumnLeft, group: 'block' },
   { label: 'Col ⇥', title: 'Insert column right (Cmd+→)', run: insertTableColumnRight, group: 'block' },
   { label: '⇡ Row', title: 'Insert row above (Cmd+↑)', run: insertTableRowAbove, group: 'block' },
@@ -81,7 +87,8 @@ export function EditorToolbar({ view, variant }: EditorToolbarProps) {
   )
 
   return (
-    <div className="me-toolbar me-toolbar--full" role="toolbar" aria-label="Formatting">
+    <>
+      <div className="me-toolbar me-toolbar--full" role="toolbar" aria-label="Formatting">
       {Object.entries(groups).map(([group, buttons], i) => (
         <span key={group} className="me-toolbar-group">
           {i > 0 && <span className="me-toolbar-sep" aria-hidden="true" />}
@@ -103,6 +110,8 @@ export function EditorToolbar({ view, variant }: EditorToolbarProps) {
           ))}
         </span>
       ))}
-    </div>
+      </div>
+      <TablePickerHost view={view} />
+    </>
   )
 }
