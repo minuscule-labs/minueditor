@@ -901,6 +901,7 @@ describe('inline marker commands', () => {
 
     expect(insertTableColumnRight(view)).toBe(true)
     expect(view.state.doc.toString()).toBe('| Name |  | Age |\n| --- | --- | --- |\n| Ada |  | 42 |')
+    expect(view.state.selection.main.from).toBe(47)
   })
 
   it('inserts a source-mode column to the left through the shared model', () => {
@@ -908,6 +909,7 @@ describe('inline marker commands', () => {
 
     expect(insertTableColumnLeft(view)).toBe(true)
     expect(view.state.doc.toString()).toBe('| Name |  | Age |\n| --- | --- | --- |\n| Ada |  | 42 |')
+    expect(view.state.selection.main.from).toBe(47)
   })
 
   it('routes source-mode row insertion through the shared command model', () => {
@@ -915,6 +917,7 @@ describe('inline marker commands', () => {
 
     expect(insertTableRowBelow(view)).toBe(true)
     expect(view.state.doc.toString()).toBe('| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|  |  |')
+    expect(view.state.selection.main.from).toBe(45)
   })
 
   it('inserts a source-mode row above through the shared model', () => {
@@ -922,5 +925,6 @@ describe('inline marker commands', () => {
 
     expect(insertTableRowAbove(view)).toBe(true)
     expect(view.state.doc.toString()).toBe('| Name | Age |\n| --- | --- |\n| Ada | 42 |\n|  |  |\n| Bob | 30 |')
+    expect(view.state.selection.main.from).toBe(45)
   })
 })

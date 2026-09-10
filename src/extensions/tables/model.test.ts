@@ -37,6 +37,16 @@ describe('table model', () => {
     expect(findTableBlocks(state(doc))).toEqual([])
   })
 
+  it('keeps oversized parser-recognised tables in source mode', () => {
+    const columns = Array(TABLE_LIMITS.maxColumns + 1).fill('A')
+    const header = `| ${columns.join(' | ')} |`
+    const delimiter = `| ${columns.map(() => '---').join(' | ')} |`
+    const tooManyRows = Array(TABLE_LIMITS.maxBodyRows + 1).fill('| 1 | 2 |')
+
+    expect(findTableBlocks(state([header, delimiter, header].join('\n')))).toEqual([])
+    expect(findTableBlocks(state(['| A | B |', '| --- | --- |', ...tooManyRows].join('\n')))).toEqual([])
+  })
+
   it('validates dimensions before allocation and creates header-only tables only when requested', () => {
     expect(validTableDimensions(1, 0)).toBe(true)
     expect(validTableDimensions(TABLE_LIMITS.maxColumns + 1, 1)).toBe(false)

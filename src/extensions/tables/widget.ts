@@ -156,7 +156,7 @@ function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: H
   const currentBlockTo = Number(wrapper.dataset.tableTo)
   const block = getTableBlockByStart(view.state, currentBlockFrom)
   const bounds = tableSelectionBounds(wrapper)
-  if (!block || !bounds) return false
+  if (!block || block.source !== wrapper.dataset.tableSource || !bounds) return false
 
   const rowCount = block.rows.length
   const colCount = block.rows[0]?.length ?? 0
@@ -213,6 +213,7 @@ class TableWidget extends WidgetType {
     return (
       this.block.from === other.block.from &&
       this.block.to === other.block.to &&
+      this.block.source === other.block.source &&
       JSON.stringify(this.block.rows) === JSON.stringify(other.block.rows) &&
       JSON.stringify(this.block.alignments) === JSON.stringify(other.block.alignments) &&
       this.isEditing === other.isEditing
@@ -224,6 +225,7 @@ class TableWidget extends WidgetType {
     wrapper.className = `me-table-widget${this.isEditing ? ' me-table-widget--editing' : ''}`
     wrapper.dataset.tableFrom = String(this.block.from)
     wrapper.dataset.tableTo = String(this.block.to)
+    wrapper.dataset.tableSource = this.block.source
 
     const scroller = document.createElement('div')
     scroller.className = 'me-table-scroller'
@@ -280,10 +282,13 @@ class TableWidget extends WidgetType {
     dom.className = `me-table-widget${this.isEditing ? ' me-table-widget--editing' : ''}`
     dom.dataset.tableFrom = String(this.block.from)
     dom.dataset.tableTo = String(this.block.to)
+    dom.dataset.tableSource = this.block.source
 
     if (!this.isEditing) return false
 
     const block = getTableBlockByStart(view.state, this.block.from) ?? this.block
+    const expectedCells = block.rows.reduce((count, row) => count + row.length, 0)
+    if (dom.querySelectorAll('.me-table-input').length !== expectedCells) return false
 
     for (const [rowIndex, row] of block.rows.entries()) {
       for (const [colIndex, value] of row.entries()) {
@@ -316,6 +321,16 @@ function syncTableInputSizer(input: HTMLInputElement): void {
   const sizer = input.parentElement
   if (sizer?.classList.contains('me-table-input-sizer')) {
     sizer.dataset.value = input.value
+  }
+}
+
+function tableCellTarget(wrapper: HTMLElement, blockFrom: number, blockTo: number, rowIndex: number, colIndex: number) {
+  return {
+    blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom),
+    blockTo: Number(wrapper.dataset.tableTo ?? blockTo),
+    source: wrapper.dataset.tableSource ?? '',
+    rowIndex,
+    colIndex,
   }
 }
 
@@ -378,7 +393,7 @@ function createTableInput(
   })
   input.addEventListener('input', () => {
     syncTableInputSizer(input)
-    updateTableCell(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex }, input.value)
+    updateTableCell(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), input.value)
   })
   input.addEventListener('keydown', (event) => {
     event.stopPropagation()
@@ -430,32 +445,32 @@ function createTableInput(
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowLeft') {
       event.preventDefault()
-      insertTableColumn(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex }, 'left')
+      insertTableColumn(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'left')
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowRight') {
       event.preventDefault()
-      insertTableColumn(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex }, 'right')
+      insertTableColumn(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'right')
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowUp') {
       event.preventDefault()
-      insertTableRow(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex }, 'above')
+      insertTableRow(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'above')
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'ArrowDown') {
       event.preventDefault()
-      insertTableRow(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex }, 'below')
+      insertTableRow(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'below')
       return
     }
     if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'Backspace') {
       event.preventDefault()
-      removeTableColumn(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex })
+      removeTableColumn(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex))
       return
     }
     if (event.metaKey && event.ctrlKey && event.key === 'Backspace') {
       event.preventDefault()
-      removeTableRow(view, { blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex })
+      removeTableRow(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex))
       return
     }
     if (event.key === 'ArrowRight' && input.selectionStart === input.value.length) {

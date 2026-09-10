@@ -18,6 +18,14 @@ test('edits and restructures a table through the production widget command path'
 
   const insertedCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
   await expect(insertedCell).toBeFocused()
+  await expect(page.locator('.me-table-input')).toHaveCount(6)
+  await page.keyboard.press('Meta+Control+Shift+Backspace')
+  await expect(markdown).toHaveText('| Name | Age |\n| --- | --- |\n| Grace | 42 |')
+  await expect(page.locator('.me-table-input')).toHaveCount(4)
+
+  await firstBodyCell.click()
+  await page.keyboard.press('Meta+Control+ArrowRight')
+  await expect(insertedCell).toBeFocused()
   await insertedCell.fill('Compiler')
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })

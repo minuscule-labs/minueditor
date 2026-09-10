@@ -6,6 +6,7 @@ import {
   findTableBlocks,
   formatTableMarkdown,
   getTableBlockByStart,
+  splitTableCells,
   TABLE_LIMITS,
   validTableDimensions,
   type TableAlignment,
@@ -18,6 +19,8 @@ import { focusElementWithoutScroll } from './widget-navigation'
 export type TableCellTarget = {
   blockFrom: number
   blockTo: number
+  /** Exact rendered source, preventing equal-length replacement races. */
+  source: string
   rowIndex: number
   colIndex: number
 }
@@ -29,7 +32,7 @@ function canEdit(view: EditorViewType): boolean {
 function resolveTarget(view: EditorViewType, target: TableCellTarget): TableBlock | null {
   if (!canEdit(view) || !Number.isInteger(target.rowIndex) || !Number.isInteger(target.colIndex)) return null
   const block = getTableBlockByStart(view.state, target.blockFrom)
-  if (!block || block.to !== target.blockTo) return null
+  if (!block || block.to !== target.blockTo || block.source !== target.source) return null
   if (!block.rows[target.rowIndex] || block.rows[target.rowIndex][target.colIndex] === undefined) return null
   return block
 }
@@ -38,16 +41,33 @@ function validRange(start: number, end: number, maximum: number): boolean {
   return Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end >= start && end < maximum
 }
 
+function sourceCellSelection(
+  block: TableBlock,
+  markdown: string,
+  target: { rowIndex: number; colIndex: number },
+) {
+  const lineIndex = target.rowIndex === 0 ? 0 : target.rowIndex + 1
+  const lines = markdown.split('\n')
+  const line = lines[lineIndex]
+  if (line == null) return EditorSelection.cursor(block.from)
+  const lineFrom = block.from + lines.slice(0, lineIndex).reduce((offset, current) => offset + current.length + 1, 0)
+  const range = splitTableCells(line, lineFrom)?.ranges[target.colIndex]
+  return EditorSelection.cursor(range?.from ?? block.from)
+}
+
 function applyTableBlockUpdate(
   view: EditorViewType,
   block: TableBlock,
   nextBlock: TableBlock | null,
-  nextSelection = EditorSelection.cursor(block.from),
+  sourceTarget?: { rowIndex: number; colIndex: number },
 ): void {
+  const markdown = nextBlock ? formatTableMarkdown(nextBlock) : ''
   view.dispatch({
-    changes: { from: block.from, to: block.to, insert: nextBlock ? formatTableMarkdown(nextBlock) : '' },
+    changes: { from: block.from, to: block.to, insert: markdown },
     effects: [setActiveTable.of(nextBlock ? block.from : null), view.scrollSnapshot()],
-    selection: nextSelection,
+    selection: nextBlock && sourceTarget
+      ? sourceCellSelection(block, markdown, sourceTarget)
+      : EditorSelection.cursor(block.from),
     userEvent: 'input.table',
   })
 }
@@ -93,7 +113,7 @@ export function tableCellTargetAtSelection(view: EditorViewType): TableCellTarge
   if (!ranges) return null
   const colIndex = ranges.findIndex((range) => selection.from <= range.rawTo)
   if (colIndex < 0) return null
-  return { blockFrom: block.from, blockTo: block.to, rowIndex, colIndex }
+  return { blockFrom: block.from, blockTo: block.to, source: block.source, rowIndex, colIndex }
 }
 
 export function updateTableCell(view: EditorViewType, target: TableCellTarget, value: string): boolean {
@@ -105,7 +125,7 @@ export function updateTableCell(view: EditorViewType, target: TableCellTarget, v
   view.dispatch({
     changes: { from: range.rawFrom, to: range.rawTo, insert: ` ${escapeTableCell(value.trim())} ` },
     effects: [setActiveTable.of(block.from), view.scrollSnapshot()],
-    selection: EditorSelection.cursor(block.from),
+    selection: EditorSelection.cursor(range.from),
     userEvent: 'input.table',
   })
   return true
@@ -118,7 +138,7 @@ export function insertTableColumn(view: EditorViewType, target: TableCellTarget,
   const rows = block.rows.map((row) => { const next = [...row]; next.splice(insertIndex, 0, ''); return next })
   const alignments = [...block.alignments]
   alignments.splice(insertIndex, 0, null)
-  applyTableBlockUpdate(view, block, { ...block, rows, alignments })
+  applyTableBlockUpdate(view, block, { ...block, rows, alignments }, { rowIndex: target.rowIndex, colIndex: insertIndex })
   focusTableCell(view, { blockFrom: block.from, rowIndex: target.rowIndex, colIndex: insertIndex })
   return true
 }
@@ -131,7 +151,7 @@ export function insertTableRow(view: EditorViewType, target: TableCellTarget, si
   const insertIndex = side === 'above' ? target.rowIndex : target.rowIndex + 1
   const rows = block.rows.map((row) => [...row])
   rows.splice(insertIndex, 0, Array(block.rows[0].length).fill(''))
-  applyTableBlockUpdate(view, block, { ...block, rows })
+  applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex: insertIndex, colIndex: 0 })
   focusTableCell(view, { blockFrom: block.from, rowIndex: insertIndex, colIndex: 0 })
   return true
 }
@@ -142,8 +162,9 @@ export function removeTableColumn(view: EditorViewType, target: TableCellTarget)
   if (!block || block.rows[0].length <= 1 || block.rows.some((row) => row[target.colIndex].length > 0)) return false
   const rows = block.rows.map((row) => row.filter((_, index) => index !== target.colIndex))
   const alignments = block.alignments.filter((_, index) => index !== target.colIndex)
-  applyTableBlockUpdate(view, block, { ...block, rows, alignments })
-  focusTableCell(view, { blockFrom: block.from, rowIndex: target.rowIndex, colIndex: Math.min(target.colIndex, rows[0].length - 1) })
+  const colIndex = Math.min(target.colIndex, rows[0].length - 1)
+  applyTableBlockUpdate(view, block, { ...block, rows, alignments }, { rowIndex: target.rowIndex, colIndex })
+  focusTableCell(view, { blockFrom: block.from, rowIndex: target.rowIndex, colIndex })
   return true
 }
 
@@ -152,7 +173,7 @@ export function removeTableRow(view: EditorViewType, target: TableCellTarget): b
   if (!block || target.rowIndex === 0 || block.rows.length <= 2 || block.rows[target.rowIndex].some((cell) => cell.length > 0)) return false
   const rows = block.rows.filter((_, index) => index !== target.rowIndex)
   const rowIndex = Math.min(target.rowIndex, rows.length - 1)
-  applyTableBlockUpdate(view, block, { ...block, rows })
+  applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex, colIndex: target.colIndex })
   focusTableCell(view, { blockFrom: block.from, rowIndex, colIndex: target.colIndex })
   return true
 }
@@ -162,8 +183,9 @@ export function removeTableColumnRange(view: EditorViewType, blockFrom: number, 
   if (!canEdit(view) || !block || block.to !== blockTo || !validRange(colStart, colEnd, block.rows[0].length) || colEnd - colStart + 1 >= block.rows[0].length || block.rows.some((row) => row.slice(colStart, colEnd + 1).some((cell) => cell.length > 0))) return false
   const rows = block.rows.map((row) => row.filter((_, index) => index < colStart || index > colEnd))
   const alignments = block.alignments.filter((_, index) => index < colStart || index > colEnd)
-  applyTableBlockUpdate(view, block, { ...block, rows, alignments })
-  focusTableCell(view, { blockFrom: block.from, rowIndex: 0, colIndex: Math.min(colStart, rows[0].length - 1) })
+  const colIndex = Math.min(colStart, rows[0].length - 1)
+  applyTableBlockUpdate(view, block, { ...block, rows, alignments }, { rowIndex: 0, colIndex })
+  focusTableCell(view, { blockFrom: block.from, rowIndex: 0, colIndex })
   return true
 }
 
@@ -171,8 +193,9 @@ export function removeTableRowRange(view: EditorViewType, blockFrom: number, blo
   const block = getTableBlockByStart(view.state, blockFrom)
   if (!canEdit(view) || !block || block.to !== blockTo || !validRange(rowStart, rowEnd, block.rows.length) || rowStart === 0 || rowEnd - rowStart + 1 >= block.rows.length - 1 || block.rows.slice(rowStart, rowEnd + 1).some((row) => row.some((cell) => cell.length > 0))) return false
   const rows = block.rows.filter((_, index) => index < rowStart || index > rowEnd)
-  applyTableBlockUpdate(view, block, { ...block, rows })
-  focusTableCell(view, { blockFrom: block.from, rowIndex: Math.min(rowStart, rows.length - 1), colIndex: 0 })
+  const rowIndex = Math.min(rowStart, rows.length - 1)
+  applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex, colIndex: 0 })
+  focusTableCell(view, { blockFrom: block.from, rowIndex, colIndex: 0 })
   return true
 }
 
@@ -181,7 +204,7 @@ export function clearTableCellRange(view: EditorViewType, blockFrom: number, blo
   if (!canEdit(view) || !block || block.to !== blockTo || !validRange(rowStart, rowEnd, block.rows.length) || !validRange(colStart, colEnd, block.rows[0].length)) return false
   const rows = block.rows.map((row) => [...row])
   for (let row = rowStart; row <= rowEnd; row += 1) for (let col = colStart; col <= colEnd; col += 1) rows[row][col] = ''
-  applyTableBlockUpdate(view, block, { ...block, rows })
+  applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex: rowStart, colIndex: colStart })
   focusTableCell(view, { blockFrom: block.from, rowIndex: rowStart, colIndex: colStart })
   return true
 }
@@ -191,7 +214,7 @@ export function setTableColumnAlignment(view: EditorViewType, target: TableCellT
   if (!block) return false
   const alignments = [...block.alignments]
   alignments[target.colIndex] = alignment
-  applyTableBlockUpdate(view, block, { ...block, alignments })
+  applyTableBlockUpdate(view, block, { ...block, alignments }, { rowIndex: target.rowIndex, colIndex: target.colIndex })
   return true
 }
 
@@ -205,7 +228,7 @@ export function resizeTable(view: EditorViewType, target: TableCellTarget, colum
   const rows = block.rows.map((row) => [...row, ...Array(Math.max(0, columns - currentColumns)).fill('')])
   while (rows.length - 1 < bodyRows) rows.push(Array(columns).fill(''))
   const alignments = [...block.alignments, ...Array(Math.max(0, columns - currentColumns)).fill(null)]
-  applyTableBlockUpdate(view, block, { ...block, rows, alignments })
+  applyTableBlockUpdate(view, block, { ...block, rows, alignments }, { rowIndex: target.rowIndex, colIndex: target.colIndex })
   return true
 }
 

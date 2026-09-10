@@ -14,6 +14,8 @@ export type TableCellRange = { from: number; to: number; rawFrom: number; rawTo:
 export type TableBlock = {
   from: number
   to: number
+  /** Exact source used to reject same-position stale widget targets. */
+  source: string
   startLine: number
   endLine: number
   /** Header is row zero; all supported rows have the same column count. */
@@ -32,7 +34,7 @@ function isTableDataLine(line: string): boolean {
   return /^\s*\|(?:[^|\n]*\|)+\s*$/.test(line)
 }
 
-function splitTableCells(line: string, lineFrom = 0): { cells: string[]; ranges: TableCellRange[] } | null {
+export function splitTableCells(line: string, lineFrom = 0): { cells: string[]; ranges: TableCellRange[] } | null {
   const firstPipe = line.indexOf('|')
   const lastPipe = line.lastIndexOf('|')
   if (firstPipe < 0 || firstPipe === lastPipe || line.slice(0, firstPipe).trim() !== '' || line.slice(lastPipe + 1).trim() !== '') return null
@@ -122,7 +124,13 @@ function tableBlockAt(state: EditorState, from: number, to: number): TableBlock 
 
   const parsedHeader = splitTableCells(header.text, header.from)
   const alignments = parseAlignments(delimiter.text)
-  if (!parsedHeader || !alignments || parsedHeader.cells.length === 0 || alignments.length !== parsedHeader.cells.length) return null
+  if (
+    !parsedHeader ||
+    !alignments ||
+    parsedHeader.cells.length === 0 ||
+    parsedHeader.cells.length > TABLE_LIMITS.maxColumns ||
+    alignments.length !== parsedHeader.cells.length
+  ) return null
 
   const rows = [parsedHeader.cells]
   const cellRanges = [parsedHeader.ranges]
@@ -135,11 +143,13 @@ function tableBlockAt(state: EditorState, from: number, to: number): TableBlock 
     if (!parsed || parsed.cells.length !== parsedHeader.cells.length) return null
     rows.push(parsed.cells)
     cellRanges.push(parsed.ranges)
+    if (rows.length - 1 > TABLE_LIMITS.maxBodyRows) return null
     endLine = lineNumber
   }
 
   const indent = header.text.match(/^(\s*)/)?.[1] ?? ''
-  return { from: header.from, to: doc.line(endLine).to, startLine, endLine, rows, alignments, cellRanges, indent }
+  const end = doc.line(endLine).to
+  return { from: header.from, to: end, source: doc.sliceString(header.from, end), startLine, endLine, rows, alignments, cellRanges, indent }
 }
 
 /**

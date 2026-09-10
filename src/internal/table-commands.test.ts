@@ -7,6 +7,7 @@ import { findTableBlocks } from '../extensions/tables/model'
 import {
   deleteTable,
   insertTableAt,
+  insertTableColumn,
   insertTableRow,
   removeTableColumn,
   removeTableRow,
@@ -36,7 +37,7 @@ function createView(doc: string, readOnly = false): EditorView {
 
 function target(view: EditorView, rowIndex = 1, colIndex = 0): TableCellTarget {
   const block = findTableBlocks(view.state)[0]
-  return { blockFrom: block.from, blockTo: block.to, rowIndex, colIndex }
+  return { blockFrom: block.from, blockTo: block.to, source: block.source, rowIndex, colIndex }
 }
 
 describe('shared table commands', () => {
@@ -59,6 +60,30 @@ describe('shared table commands', () => {
 
     expect(updateTableCell(view, firstTarget, 'wrong table')).toBe(false)
     expect(view.state.doc.toString()).toBe(afterExternalEdit)
+  })
+
+  it('rejects equal-length interleaved table replacement rather than mutating the replacement', () => {
+    const view = createView('| A | B |\n| --- | --- |\n| 1 | 2 |')
+    const staleTarget = target(view)
+    const replacement = '| X | Y |\n| --- | --- |\n| 3 | 4 |'
+    expect(replacement.length).toBe(view.state.doc.length)
+
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: replacement } })
+
+    expect(updateTableCell(view, staleTarget, 'wrong table')).toBe(false)
+    expect(view.state.doc.toString()).toBe(replacement)
+  })
+
+  it('keeps source-mode selection in the newly inserted cell after structural changes', () => {
+    const view = createView('| A | B |\n| --- | --- |\n| 1 | 2 |')
+
+    expect(insertTableColumn(view, target(view), 'right')).toBe(true)
+    let block = findTableBlocks(view.state)[0]
+    expect(view.state.selection.main.from).toBe(block.cellRanges[1][1].from)
+
+    expect(insertTableRow(view, target(view, 1, 1), 'below')).toBe(true)
+    block = findTableBlocks(view.state)[0]
+    expect(view.state.selection.main.from).toBe(block.cellRanges[2][0].from)
   })
 
   it('enforces edit capability and leaves durable source unchanged on rejected operations', () => {
