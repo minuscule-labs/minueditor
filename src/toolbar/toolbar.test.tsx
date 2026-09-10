@@ -93,9 +93,9 @@ describe('EditorToolbar', () => {
     const view = mockView()
     render(<EditorToolbar view={view} variant={'full'} />)
 
-    expect(screen.getByTitle('Insert column left (Cmd+←)')).toBeInTheDocument()
-    expect(screen.getByTitle('Insert column right (Cmd+→)')).toBeInTheDocument()
-    expect(screen.getByTitle('Insert row above (Cmd+↑)')).toBeInTheDocument()
-    expect(screen.getByTitle('Insert row below (Cmd+↓)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert column left (Cmd+Ctrl+←)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert column right (Cmd+Ctrl+→)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert row above (Cmd+Ctrl+↑)')).toBeInTheDocument()
+    expect(screen.getByTitle('Insert row below (Cmd+Ctrl+↓)')).toBeInTheDocument()
   })
 })
