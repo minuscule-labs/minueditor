@@ -825,6 +825,22 @@ function CursorStabilityFixture() {
   )
 }
 
+function TableCommandFixture() {
+  const [value, setValue] = useState('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+
+  return (
+    <main className="app-main" data-testid="table-command-fixture">
+      <section className="surface">
+        <h1>Table command browser fixture</h1>
+        <div className="editor-frame">
+          <MarkdownEditor value={value} onChange={setValue} autoFocus minHeight={320} />
+        </div>
+        <pre data-testid="markdown-output">{value}</pre>
+      </section>
+    </main>
+  )
+}
+
 function PlaygroundApp() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
@@ -1073,5 +1089,7 @@ function PlaygroundApp() {
 
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
-  return fixture === 'cursor-stability' ? <CursorStabilityFixture /> : <PlaygroundApp />
+  if (fixture === 'cursor-stability') return <CursorStabilityFixture />
+  if (fixture === 'table-commands') return <TableCommandFixture />
+  return <PlaygroundApp />
 }
