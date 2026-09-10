@@ -106,6 +106,9 @@ function TablePicker({
           event.preventDefault()
           onDismiss()
           view.focus()
+        } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
+          event.preventDefault()
+          insert()
         }
       }}
     >

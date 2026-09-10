@@ -37,8 +37,9 @@ test('creates a table through the shared toolbar picker', async ({ page }) => {
   const picker = page.getByRole('dialog', { name: 'Insert table' })
   await expect(picker).toBeVisible()
   await picker.getByRole('spinbutton', { name: 'Columns' }).fill('3')
-  await picker.getByRole('spinbutton', { name: 'Body rows' }).fill('2')
-  await picker.getByRole('button', { name: 'Insert' }).click()
+  const bodyRows = picker.getByRole('spinbutton', { name: 'Body rows' })
+  await bodyRows.fill('2')
+  await bodyRows.press('Enter')
 
   await expect(page.getByTestId('markdown-output')).toHaveText(
     '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n\n|  |  |  |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n',

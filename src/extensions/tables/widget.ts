@@ -318,7 +318,7 @@ function createTableControls(view: EditorView, block: TableBlock, wrapper: HTMLE
         () => { status.textContent = 'Could not copy table.' },
       )
     }),
-    createTableControlButton('View table source', () => deactivateTable(view, block.from)),
+    createTableControlButton('Exit table editing', () => deactivateTable(view, block.from)),
     createTableControlButton('Delete table', () => deleteTable(view, target())),
     status,
   )
