@@ -633,9 +633,9 @@ function createTableInput(
   })
   input.addEventListener('click', (event) => {
     event.stopPropagation()
+    wrapper.dataset.activeRowIndex = String(rowIndex)
+    wrapper.dataset.activeColIndex = String(colIndex)
     if (!event.shiftKey) {
-      wrapper.dataset.activeRowIndex = String(rowIndex)
-      wrapper.dataset.activeColIndex = String(colIndex)
       wrapper.dataset.shiftAnchorRow = String(rowIndex)
       wrapper.dataset.shiftAnchorCol = String(colIndex)
     }

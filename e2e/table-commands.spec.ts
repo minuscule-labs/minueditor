@@ -63,9 +63,16 @@ test('uses the active cell as the Shift-click anchor after an ordinary edit', as
   await secondBodyCell.click({ modifiers: ['Shift'] })
   await expect(widget).toHaveAttribute('data-selection-anchor-row', '1')
   await expect(widget).toHaveAttribute('data-selection-anchor-col', '0')
+  await expect(widget).toHaveAttribute('data-active-row-index', '1')
+  await expect(widget).toHaveAttribute('data-active-col-index', '1')
   await expect(page.locator('.me-table-cell--selected')).toHaveCount(2)
   await expect(firstBodyCell.locator('xpath=ancestor::td')).toHaveClass(/me-table-cell--selected/)
   await expect(secondBodyCell.locator('xpath=ancestor::td')).toHaveClass(/me-table-cell--selected/)
+
+  await page.getByRole('button', { name: 'Add column right' }).click()
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    '| Name | Age |  |\n| --- | --- | --- |\n| Ada Lovelace | 42 |  |',
+  )
 })
 
 test('clears mirrored cell-range state after a same-shape range deletion', async ({ page }) => {
