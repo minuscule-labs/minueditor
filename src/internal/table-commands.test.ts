@@ -7,6 +7,9 @@ import { findTableBlocks } from '../extensions/tables/model'
 import {
   deleteTable,
   insertTableAt,
+  insertTableRow,
+  removeTableColumn,
+  removeTableRow,
   resizeTable,
   setTableColumnAlignment,
   updateTableCell,
@@ -80,6 +83,26 @@ describe('shared table commands', () => {
     const beforeRejectedShrink = view.state.doc.toString()
     expect(resizeTable(view, target(view), 2, 1)).toBe(false)
     expect(view.state.doc.toString()).toBe(beforeRejectedShrink)
+  })
+
+  it('refuses destructive structural removal but permits removal of an empty body row', () => {
+    const populated = createView('| A | B |\n| --- | --- |\n| 1 | 2 |\n|  |  |')
+    const populatedBefore = populated.state.doc.toString()
+    expect(removeTableColumn(populated, target(populated))).toBe(false)
+    expect(removeTableRow(populated, target(populated))).toBe(false)
+    expect(populated.state.doc.toString()).toBe(populatedBefore)
+
+    expect(removeTableRow(populated, target(populated, 2))).toBe(true)
+    expect(populated.state.doc.toString()).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |')
+  })
+
+  it('deletes only its resolved table and declines header reclassification', () => {
+    const view = createView('Before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter')
+    const header = target(view, 0)
+
+    expect(insertTableRow(view, header, 'above')).toBe(false)
+    expect(deleteTable(view, target(view))).toBe(true)
+    expect(view.state.doc.toString()).toBe('Before\n\n\n\nAfter')
   })
 
   it('centralises validated insertion and declines invalid dimensions without a partial document change', () => {

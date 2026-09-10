@@ -125,7 +125,9 @@ export function insertTableColumn(view: EditorViewType, target: TableCellTarget,
 
 export function insertTableRow(view: EditorViewType, target: TableCellTarget, side: 'above' | 'below'): boolean {
   const block = resolveTarget(view, target)
-  if (!block || block.rows.length - 1 >= TABLE_LIMITS.maxBodyRows) return false
+  // A table has one header. Inserting above it would silently reclassify the
+  // previous header as a body row, so leave that decision to a later contract.
+  if (!block || (target.rowIndex === 0 && side === 'above') || block.rows.length - 1 >= TABLE_LIMITS.maxBodyRows) return false
   const insertIndex = side === 'above' ? target.rowIndex : target.rowIndex + 1
   const rows = block.rows.map((row) => [...row])
   rows.splice(insertIndex, 0, Array(block.rows[0].length).fill(''))
@@ -137,7 +139,7 @@ export function insertTableRow(view: EditorViewType, target: TableCellTarget, si
 /** Destructive header/last-column removal awaits its explicit Phase 2 contract. */
 export function removeTableColumn(view: EditorViewType, target: TableCellTarget): boolean {
   const block = resolveTarget(view, target)
-  if (!block || block.rows[0].length <= 1) return false
+  if (!block || block.rows[0].length <= 1 || block.rows.some((row) => row[target.colIndex].length > 0)) return false
   const rows = block.rows.map((row) => row.filter((_, index) => index !== target.colIndex))
   const alignments = block.alignments.filter((_, index) => index !== target.colIndex)
   applyTableBlockUpdate(view, block, { ...block, rows, alignments })
@@ -147,7 +149,7 @@ export function removeTableColumn(view: EditorViewType, target: TableCellTarget)
 
 export function removeTableRow(view: EditorViewType, target: TableCellTarget): boolean {
   const block = resolveTarget(view, target)
-  if (!block || target.rowIndex === 0 || block.rows.length <= 2) return false
+  if (!block || target.rowIndex === 0 || block.rows.length <= 2 || block.rows[target.rowIndex].some((cell) => cell.length > 0)) return false
   const rows = block.rows.filter((_, index) => index !== target.rowIndex)
   const rowIndex = Math.min(target.rowIndex, rows.length - 1)
   applyTableBlockUpdate(view, block, { ...block, rows })
@@ -157,7 +159,7 @@ export function removeTableRow(view: EditorViewType, target: TableCellTarget): b
 
 export function removeTableColumnRange(view: EditorViewType, blockFrom: number, blockTo: number, colStart: number, colEnd: number): boolean {
   const block = getTableBlockByStart(view.state, blockFrom)
-  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(colStart, colEnd, block.rows[0].length) || colEnd - colStart + 1 >= block.rows[0].length) return false
+  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(colStart, colEnd, block.rows[0].length) || colEnd - colStart + 1 >= block.rows[0].length || block.rows.some((row) => row.slice(colStart, colEnd + 1).some((cell) => cell.length > 0))) return false
   const rows = block.rows.map((row) => row.filter((_, index) => index < colStart || index > colEnd))
   const alignments = block.alignments.filter((_, index) => index < colStart || index > colEnd)
   applyTableBlockUpdate(view, block, { ...block, rows, alignments })
@@ -167,7 +169,7 @@ export function removeTableColumnRange(view: EditorViewType, blockFrom: number, 
 
 export function removeTableRowRange(view: EditorViewType, blockFrom: number, blockTo: number, rowStart: number, rowEnd: number): boolean {
   const block = getTableBlockByStart(view.state, blockFrom)
-  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(rowStart, rowEnd, block.rows.length) || rowStart === 0 || rowEnd - rowStart + 1 >= block.rows.length - 1) return false
+  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(rowStart, rowEnd, block.rows.length) || rowStart === 0 || rowEnd - rowStart + 1 >= block.rows.length - 1 || block.rows.slice(rowStart, rowEnd + 1).some((row) => row.some((cell) => cell.length > 0))) return false
   const rows = block.rows.filter((_, index) => index < rowStart || index > rowEnd)
   applyTableBlockUpdate(view, block, { ...block, rows })
   focusTableCell(view, { blockFrom: block.from, rowIndex: Math.min(rowStart, rows.length - 1), colIndex: 0 })
