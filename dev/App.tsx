@@ -843,6 +843,20 @@ function TableCommandFixture() {
   )
 }
 
+function TableInteractionFixture() {
+  const [value, setValue] = useState('Before\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+
+  return (
+    <main className="app-main" data-testid="table-interaction-fixture">
+      <button type="button" onClick={() => setValue(`Updated\n\n${value}`)}>Prepend prose</button>
+      <div className="editor-frame">
+        <MarkdownEditor value={value} onChange={setValue} autoFocus minHeight={320} />
+      </div>
+      <pre data-testid="markdown-output">{value}</pre>
+    </main>
+  )
+}
+
 function PlaygroundApp() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
@@ -1093,5 +1107,6 @@ export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
   if (fixture === 'table-commands') return <TableCommandFixture />
+  if (fixture === 'table-interaction') return <TableInteractionFixture />
   return <PlaygroundApp />
 }

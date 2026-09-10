@@ -12,7 +12,7 @@ import {
   type TableAlignment,
   type TableBlock,
 } from '../extensions/tables/model'
-import { activeTableField, setActiveTable } from '../extensions/tables/state'
+import { activeTableField, setActiveTable, setTableInteraction } from '../extensions/tables/state'
 import { focusElementWithoutScroll } from './widget-navigation'
 
 /** A target is valid only for the exact table instance rendered to the user. */
@@ -72,7 +72,13 @@ function applyTableBlockUpdate(
   const markdown = nextBlock ? formatTableMarkdown(nextBlock) : ''
   view.dispatch({
     changes: { from: block.from, to: block.to, insert: markdown },
-    effects: [setActiveTable.of(nextBlock ? block.from : null), view.scrollSnapshot()],
+    effects: [
+      setActiveTable.of(nextBlock ? block.from : null),
+      setTableInteraction.of(nextBlock && sourceTarget
+        ? { blockFrom: block.from, activeCell: sourceTarget, selection: null }
+        : null),
+      view.scrollSnapshot(),
+    ],
     selection: nextBlock && sourceTarget
       ? sourceCellSelection(block, markdown, sourceTarget)
       : EditorSelection.cursor(block.from),

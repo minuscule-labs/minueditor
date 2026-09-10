@@ -1,7 +1,13 @@
 import { EditorSelection, EditorState, Prec } from '@codemirror/state'
 import { redo, undo } from '@codemirror/commands'
 import { Decoration, type DecorationSet, EditorView, WidgetType, keymap } from '@codemirror/view'
-import { activeTableField, setActiveTable } from './state'
+import {
+  activeTableField,
+  setActiveTable,
+  setTableInteraction,
+  tableInteractionField,
+  type TableCellSelection,
+} from './state'
 import {
   findTableBlocks,
   getAdjacentTableBlock,
@@ -36,6 +42,8 @@ type InputSelection = {
   direction: HTMLInputElement['selectionDirection']
 }
 
+type TableCell = { rowIndex: number; colIndex: number }
+
 function scheduleTableInputFocus(
   view: EditorView,
   blockFrom: number,
@@ -67,7 +75,11 @@ function activateTable(
   target: { rowIndex: number; colIndex: number } = { rowIndex: 0, colIndex: 0 },
 ): boolean {
   view.dispatch({
-    effects: [setActiveTable.of(block.from), view.scrollSnapshot()],
+    effects: [
+      setActiveTable.of(block.from),
+      setTableInteraction.of({ blockFrom: block.from, activeCell: target, selection: null }),
+      view.scrollSnapshot(),
+    ],
     selection: EditorSelection.cursor(block.from),
   })
   scheduleTableInputFocus(view, block.from, target)
@@ -78,7 +90,7 @@ function deactivateTable(view: EditorView, blockFrom: number): boolean {
   tableFocusTokens.set(view, (tableFocusTokens.get(view) ?? 0) + 1)
   const block = getTableBlockByStart(view.state, blockFrom)
   view.dispatch({
-    effects: [setActiveTable.of(null), view.scrollSnapshot()],
+    effects: [setActiveTable.of(null), setTableInteraction.of(null), view.scrollSnapshot()],
     selection: EditorSelection.cursor(block?.to ?? blockFrom),
   })
   view.focus()
@@ -133,6 +145,52 @@ function tableSelectionBounds(wrapper: HTMLElement) {
   const colStart = Math.min(Number(anchorCol), Number(focusCol))
   const colEnd = Math.max(Number(anchorCol), Number(focusCol))
   return { rowStart, rowEnd, colStart, colEnd }
+}
+
+function tableSelection(wrapper: HTMLElement): TableCellSelection | null {
+  const anchorRow = Number(wrapper.dataset.selectionAnchorRow)
+  const anchorCol = Number(wrapper.dataset.selectionAnchorCol)
+  const focusRow = Number(wrapper.dataset.selectionFocusRow)
+  const focusCol = Number(wrapper.dataset.selectionFocusCol)
+  if (![anchorRow, anchorCol, focusRow, focusCol].every(Number.isInteger)) return null
+  return {
+    anchor: { rowIndex: anchorRow, colIndex: anchorCol },
+    focus: { rowIndex: focusRow, colIndex: focusCol },
+  }
+}
+
+function clampTableCell(block: TableBlock, cell: TableCell): TableCell {
+  const rowIndex = Math.max(0, Math.min(cell.rowIndex, block.rows.length - 1))
+  const colIndex = Math.max(0, Math.min(cell.colIndex, block.rows[rowIndex].length - 1))
+  return { rowIndex, colIndex }
+}
+
+function persistTableInteraction(view: EditorView, wrapper: HTMLElement, blockFrom: number): void {
+  const block = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? blockFrom))
+  if (!block) return
+  const activeCell = clampTableCell(block, {
+    rowIndex: Number(wrapper.dataset.activeRowIndex ?? 0),
+    colIndex: Number(wrapper.dataset.activeColIndex ?? 0),
+  })
+  view.dispatch({
+    effects: setTableInteraction.of({
+      blockFrom: block.from,
+      activeCell,
+      selection: tableSelection(wrapper),
+    }),
+  })
+}
+
+function restoreTableInteraction(view: EditorView, wrapper: HTMLElement, block: TableBlock): void {
+  const interaction = view.state.field(tableInteractionField, false)
+  if (!interaction || interaction.blockFrom !== block.from) return
+  const activeCell = clampTableCell(block, interaction.activeCell)
+  wrapper.dataset.activeRowIndex = String(activeCell.rowIndex)
+  wrapper.dataset.activeColIndex = String(activeCell.colIndex)
+  if (!interaction.selection) return
+  const anchor = clampTableCell(block, interaction.selection.anchor)
+  const focus = clampTableCell(block, interaction.selection.focus)
+  setTableSelection(wrapper, anchor.rowIndex, anchor.colIndex, focus.rowIndex, focus.colIndex)
 }
 
 function applyTableSelectionStyles(wrapper: HTMLElement): void {
@@ -231,7 +289,7 @@ function createTableBoundary(
       view,
       { from: block.from, to: block.to },
       side,
-      setActiveTable.of(null),
+      [setActiveTable.of(null), setTableInteraction.of(null)],
     )
   })
   return boundary
@@ -433,6 +491,7 @@ class TableWidget extends WidgetType {
 
     scroller.appendChild(table)
     if (this.isEditing) {
+      restoreTableInteraction(view, wrapper, this.block)
       wrapper.appendChild(createTableControls(view, this.block, wrapper))
       syncTableControlsAvailability(wrapper, this.block)
     }
@@ -485,6 +544,7 @@ class TableWidget extends WidgetType {
       }
     }
 
+    restoreTableInteraction(view, dom, block)
     syncTableControlsAvailability(dom, block)
     return true
   }
@@ -562,15 +622,18 @@ function createTableInput(
       } else {
         setTableSelection(wrapper, rowIndex, colIndex, rowIndex, colIndex)
       }
+      persistTableInteraction(view, wrapper, blockFrom)
       return
     }
     clearTableSelection(wrapper)
     wrapper.dataset.selectionAnchorRow = String(rowIndex)
     wrapper.dataset.selectionAnchorCol = String(colIndex)
+    persistTableInteraction(view, wrapper, blockFrom)
   })
   input.addEventListener('mouseenter', () => {
     if (wrapper.dataset.selectionDragging !== 'true') return
     updateTableSelection(wrapper, rowIndex, colIndex)
+    persistTableInteraction(view, wrapper, blockFrom)
   })
   input.addEventListener('focus', () => {
     wrapper.dataset.activeRowIndex = String(rowIndex)
@@ -581,6 +644,7 @@ function createTableInput(
       wrapper.dataset.selectionAnchorRow = String(rowIndex)
       wrapper.dataset.selectionAnchorCol = String(colIndex)
     }
+    persistTableInteraction(view, wrapper, blockFrom)
   })
   input.addEventListener('compositionstart', () => {
     input.dataset.composing = 'true'
@@ -637,6 +701,7 @@ function createTableInput(
         const anchorRow = Number(wrapper.dataset.selectionAnchorRow ?? rowIndex)
         const anchorCol = Number(wrapper.dataset.selectionAnchorCol ?? colIndex)
         setTableSelection(wrapper, anchorRow, anchorCol, nextRow, nextCol)
+        persistTableInteraction(view, wrapper, blockFrom)
         focusTableInput(wrapper, nextRow, nextCol)
         event.preventDefault()
         return
@@ -695,7 +760,7 @@ function createTableInput(
         view,
         { from: block.from, to: block.to },
         'after',
-        setActiveTable.of(null),
+        [setActiveTable.of(null), setTableInteraction.of(null)],
       )
       return
     }
@@ -714,7 +779,7 @@ function createTableInput(
         view,
         { from: block.from, to: block.to },
         'before',
-        setActiveTable.of(null),
+        [setActiveTable.of(null), setTableInteraction.of(null)],
       )
       return
     }
@@ -734,7 +799,12 @@ function createTableInput(
         }
         event.preventDefault()
         clearTableSelection(wrapper)
-        exitWidgetWithArrowKey(view, { from: block.from, to: block.to }, 'before', setActiveTable.of(null))
+        exitWidgetWithArrowKey(
+          view,
+          { from: block.from, to: block.to },
+          'before',
+          [setActiveTable.of(null), setTableInteraction.of(null)],
+        )
         return
       }
 
@@ -749,7 +819,12 @@ function createTableInput(
       event.preventDefault()
       if (insertTableRow(view, tableCellTarget(wrapper, blockFrom, blockTo, rowIndex, colIndex), 'below')) return
       clearTableSelection(wrapper)
-      exitWidgetWithArrowKey(view, { from: block.from, to: block.to }, 'after', setActiveTable.of(null))
+      exitWidgetWithArrowKey(
+        view,
+        { from: block.from, to: block.to },
+        'after',
+        [setActiveTable.of(null), setTableInteraction.of(null)],
+      )
     }
   })
   sizer.appendChild(input)

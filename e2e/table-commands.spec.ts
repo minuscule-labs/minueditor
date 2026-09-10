@@ -48,6 +48,19 @@ test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ 
   await expect(page.locator('.cm-content')).toBeFocused()
 })
 
+test('restores persistent active-cell state after an external document update', async ({ page }) => {
+  await page.goto('/?fixture=table-interaction')
+
+  await page.locator('.me-table-widget').click()
+  await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').click()
+  await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-row-index', '1')
+  await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-col-index', '1')
+
+  await page.getByRole('button', { name: 'Prepend prose' }).click()
+  await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-row-index', '1')
+  await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-col-index', '1')
+})
+
 test('keeps contextual control availability in sync after undo', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
