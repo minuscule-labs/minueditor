@@ -187,6 +187,7 @@ function restoreTableInteraction(view: EditorView, wrapper: HTMLElement, block: 
   const activeCell = clampTableCell(block, interaction.activeCell)
   wrapper.dataset.activeRowIndex = String(activeCell.rowIndex)
   wrapper.dataset.activeColIndex = String(activeCell.colIndex)
+  clearTableSelection(wrapper)
   if (!interaction.selection) return
   const anchor = clampTableCell(block, interaction.selection.anchor)
   const focus = clampTableCell(block, interaction.selection.focus)

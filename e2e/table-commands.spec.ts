@@ -48,6 +48,25 @@ test('uses terminal Tab to add a row and Shift+Tab to exit the table', async ({ 
   await expect(page.locator('.cm-content')).toBeFocused()
 })
 
+test('clears mirrored cell-range state after a same-shape range deletion', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await firstBodyCell.click()
+  await firstBodyCell.click({ modifiers: ['Shift'] })
+  await expect(page.locator('.me-table-cell--selected')).toHaveCount(1)
+
+  await firstBodyCell.press('Delete')
+  const widget = page.locator('.me-table-widget')
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n|  | 42 |')
+  await expect(page.locator('.me-table-cell--selected')).toHaveCount(0)
+  await expect(widget).not.toHaveAttribute('data-selection-anchor-row')
+  await expect(widget).not.toHaveAttribute('data-selection-anchor-col')
+  await expect(widget).not.toHaveAttribute('data-selection-focus-row')
+  await expect(widget).not.toHaveAttribute('data-selection-focus-col')
+})
+
 test('restores persistent active-cell state after an external document update', async ({ page }) => {
   await page.goto('/?fixture=table-interaction')
 
