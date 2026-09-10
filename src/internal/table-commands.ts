@@ -16,11 +16,14 @@ import { setActiveTable } from '../extensions/tables/state'
 import { focusElementWithoutScroll } from './widget-navigation'
 
 /** A target is valid only for the exact table instance rendered to the user. */
-export type TableCellTarget = {
+export type TableBlockTarget = {
   blockFrom: number
   blockTo: number
   /** Exact rendered source, preventing equal-length replacement races. */
   source: string
+}
+
+export type TableCellTarget = TableBlockTarget & {
   rowIndex: number
   colIndex: number
 }
@@ -29,11 +32,16 @@ function canEdit(view: EditorViewType): boolean {
   return view.state.facet(EditorView.editable)
 }
 
-function resolveTarget(view: EditorViewType, target: TableCellTarget): TableBlock | null {
-  if (!canEdit(view) || !Number.isInteger(target.rowIndex) || !Number.isInteger(target.colIndex)) return null
+function resolveBlockTarget(view: EditorViewType, target: TableBlockTarget): TableBlock | null {
+  if (!canEdit(view)) return null
   const block = getTableBlockByStart(view.state, target.blockFrom)
-  if (!block || block.to !== target.blockTo || block.source !== target.source) return null
-  if (!block.rows[target.rowIndex] || block.rows[target.rowIndex][target.colIndex] === undefined) return null
+  return block && block.to === target.blockTo && block.source === target.source ? block : null
+}
+
+function resolveTarget(view: EditorViewType, target: TableCellTarget): TableBlock | null {
+  if (!Number.isInteger(target.rowIndex) || !Number.isInteger(target.colIndex)) return null
+  const block = resolveBlockTarget(view, target)
+  if (!block || !block.rows[target.rowIndex] || block.rows[target.rowIndex][target.colIndex] === undefined) return null
   return block
 }
 
@@ -178,9 +186,9 @@ export function removeTableRow(view: EditorViewType, target: TableCellTarget): b
   return true
 }
 
-export function removeTableColumnRange(view: EditorViewType, blockFrom: number, blockTo: number, colStart: number, colEnd: number): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(colStart, colEnd, block.rows[0].length) || colEnd - colStart + 1 >= block.rows[0].length || block.rows.some((row) => row.slice(colStart, colEnd + 1).some((cell) => cell.length > 0))) return false
+export function removeTableColumnRange(view: EditorViewType, target: TableBlockTarget, colStart: number, colEnd: number): boolean {
+  const block = resolveBlockTarget(view, target)
+  if (!block || !validRange(colStart, colEnd, block.rows[0].length) || colEnd - colStart + 1 >= block.rows[0].length || block.rows.some((row) => row.slice(colStart, colEnd + 1).some((cell) => cell.length > 0))) return false
   const rows = block.rows.map((row) => row.filter((_, index) => index < colStart || index > colEnd))
   const alignments = block.alignments.filter((_, index) => index < colStart || index > colEnd)
   const colIndex = Math.min(colStart, rows[0].length - 1)
@@ -189,9 +197,9 @@ export function removeTableColumnRange(view: EditorViewType, blockFrom: number, 
   return true
 }
 
-export function removeTableRowRange(view: EditorViewType, blockFrom: number, blockTo: number, rowStart: number, rowEnd: number): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(rowStart, rowEnd, block.rows.length) || rowStart === 0 || rowEnd - rowStart + 1 >= block.rows.length - 1 || block.rows.slice(rowStart, rowEnd + 1).some((row) => row.some((cell) => cell.length > 0))) return false
+export function removeTableRowRange(view: EditorViewType, target: TableBlockTarget, rowStart: number, rowEnd: number): boolean {
+  const block = resolveBlockTarget(view, target)
+  if (!block || !validRange(rowStart, rowEnd, block.rows.length) || rowStart === 0 || rowEnd - rowStart + 1 >= block.rows.length - 1 || block.rows.slice(rowStart, rowEnd + 1).some((row) => row.some((cell) => cell.length > 0))) return false
   const rows = block.rows.filter((_, index) => index < rowStart || index > rowEnd)
   const rowIndex = Math.min(rowStart, rows.length - 1)
   applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex, colIndex: 0 })
@@ -199,9 +207,9 @@ export function removeTableRowRange(view: EditorViewType, blockFrom: number, blo
   return true
 }
 
-export function clearTableCellRange(view: EditorViewType, blockFrom: number, blockTo: number, rowStart: number, rowEnd: number, colStart: number, colEnd: number): boolean {
-  const block = getTableBlockByStart(view.state, blockFrom)
-  if (!canEdit(view) || !block || block.to !== blockTo || !validRange(rowStart, rowEnd, block.rows.length) || !validRange(colStart, colEnd, block.rows[0].length)) return false
+export function clearTableCellRange(view: EditorViewType, target: TableBlockTarget, rowStart: number, rowEnd: number, colStart: number, colEnd: number): boolean {
+  const block = resolveBlockTarget(view, target)
+  if (!block || !validRange(rowStart, rowEnd, block.rows.length) || !validRange(colStart, colEnd, block.rows[0].length)) return false
   const rows = block.rows.map((row) => [...row])
   for (let row = rowStart; row <= rowEnd; row += 1) for (let col = colStart; col <= colEnd; col += 1) rows[row][col] = ''
   applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex: rowStart, colIndex: colStart })

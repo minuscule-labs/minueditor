@@ -152,27 +152,25 @@ function stopTableSelection(wrapper: HTMLElement): void {
 }
 
 function deleteSelectedStructure(view: EditorView, blockFrom: number, wrapper: HTMLElement): boolean {
-  const currentBlockFrom = Number(wrapper.dataset.tableFrom ?? blockFrom)
-  const currentBlockTo = Number(wrapper.dataset.tableTo)
-  const block = getTableBlockByStart(view.state, currentBlockFrom)
+  const currentTarget = tableBlockTarget(wrapper, blockFrom)
+  const block = getTableBlockByStart(view.state, currentTarget.blockFrom)
   const bounds = tableSelectionBounds(wrapper)
-  if (!block || block.source !== wrapper.dataset.tableSource || !bounds) return false
+  if (!block || block.source !== currentTarget.source || !bounds) return false
 
   const rowCount = block.rows.length
   const colCount = block.rows[0]?.length ?? 0
 
   if (bounds.colStart === 0 && bounds.colEnd === colCount - 1) {
-    return removeTableRowRange(view, currentBlockFrom, currentBlockTo, bounds.rowStart, bounds.rowEnd)
+    return removeTableRowRange(view, currentTarget, bounds.rowStart, bounds.rowEnd)
   }
 
   if (bounds.rowStart === 0 && bounds.rowEnd === rowCount - 1) {
-    return removeTableColumnRange(view, currentBlockFrom, currentBlockTo, bounds.colStart, bounds.colEnd)
+    return removeTableColumnRange(view, currentTarget, bounds.colStart, bounds.colEnd)
   }
 
   return clearTableCellRange(
     view,
-    currentBlockFrom,
-    currentBlockTo,
+    currentTarget,
     bounds.rowStart,
     bounds.rowEnd,
     bounds.colStart,
@@ -324,14 +322,16 @@ function syncTableInputSizer(input: HTMLInputElement): void {
   }
 }
 
-function tableCellTarget(wrapper: HTMLElement, blockFrom: number, blockTo: number, rowIndex: number, colIndex: number) {
+function tableBlockTarget(wrapper: HTMLElement, blockFrom: number) {
   return {
     blockFrom: Number(wrapper.dataset.tableFrom ?? blockFrom),
-    blockTo: Number(wrapper.dataset.tableTo ?? blockTo),
+    blockTo: Number(wrapper.dataset.tableTo),
     source: wrapper.dataset.tableSource ?? '',
-    rowIndex,
-    colIndex,
   }
+}
+
+function tableCellTarget(wrapper: HTMLElement, blockFrom: number, blockTo: number, rowIndex: number, colIndex: number) {
+  return { ...tableBlockTarget(wrapper, blockFrom), blockTo: Number(wrapper.dataset.tableTo ?? blockTo), rowIndex, colIndex }
 }
 
 function createTableInput(

@@ -5,15 +5,19 @@ import { EditorView } from '@codemirror/view'
 import { afterEach, describe, expect, it } from 'vitest'
 import { findTableBlocks } from '../extensions/tables/model'
 import {
+  clearTableCellRange,
   deleteTable,
   insertTableAt,
   insertTableColumn,
   insertTableRow,
   removeTableColumn,
+  removeTableColumnRange,
   removeTableRow,
+  removeTableRowRange,
   resizeTable,
   setTableColumnAlignment,
   updateTableCell,
+  type TableBlockTarget,
   type TableCellTarget,
 } from './table-commands'
 
@@ -84,6 +88,37 @@ describe('shared table commands', () => {
     expect(insertTableRow(view, target(view, 1, 1), 'below')).toBe(true)
     block = findTableBlocks(view.state)[0]
     expect(view.state.selection.main.from).toBe(block.cellRanges[2][0].from)
+  })
+
+  it('rejects stale range mutations after equal-length replacement', () => {
+    const cases = [
+      {
+        doc: '|  | B |\n| --- | --- |\n|  | 2 |',
+        mutate: (view: EditorView, blockTarget: TableBlockTarget) =>
+          removeTableColumnRange(view, blockTarget, 0, 0),
+      },
+      {
+        doc: '| A | B |\n| --- | --- |\n|  |  |\n| 1 | 2 |',
+        mutate: (view: EditorView, blockTarget: TableBlockTarget) =>
+          removeTableRowRange(view, blockTarget, 1, 1),
+      },
+      {
+        doc: '| A | B |\n| --- | --- |\n| 1 | 2 |',
+        mutate: (view: EditorView, blockTarget: TableBlockTarget) =>
+          clearTableCellRange(view, blockTarget, 1, 1, 0, 0),
+      },
+    ]
+
+    for (const { doc, mutate } of cases) {
+      const view = createView(doc)
+      const staleTarget = target(view)
+      const replacement = doc.replace('B', 'X')
+      expect(replacement.length).toBe(doc.length)
+      view.dispatch({ changes: { from: 0, to: doc.length, insert: replacement } })
+
+      expect(mutate(view, staleTarget)).toBe(false)
+      expect(view.state.doc.toString()).toBe(replacement)
+    }
   })
 
   it('enforces edit capability and leaves durable source unchanged on rejected operations', () => {
