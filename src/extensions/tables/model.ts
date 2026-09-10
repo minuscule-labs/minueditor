@@ -1,14 +1,27 @@
 import type { EditorState } from '@codemirror/state'
+import { syntaxTree } from '@codemirror/language'
 
 export type TableAlignment = 'left' | 'center' | 'right' | null
+
+export const TABLE_LIMITS = {
+  maxColumns: 50,
+  maxBodyRows: 200,
+  maxClipboardBytes: 1_048_576,
+} as const
+
+export type TableCellRange = { from: number; to: number; rawFrom: number; rawTo: number }
 
 export type TableBlock = {
   from: number
   to: number
   startLine: number
   endLine: number
+  /** Header is row zero; all supported rows have the same column count. */
   rows: string[][]
   alignments: TableAlignment[]
+  /** Source ranges exclude cell-edge whitespace and Markdown pipes. */
+  cellRanges: TableCellRange[][]
+  indent: string
 }
 
 function isTableDelimiterLine(line: string): boolean {
@@ -19,41 +32,46 @@ function isTableDataLine(line: string): boolean {
   return /^\s*\|(?:[^|\n]*\|)+\s*$/.test(line)
 }
 
-function parseTableCells(line: string): string[] {
-  const content = line.trim().slice(1, -1)
-  const cells: string[] = []
-  let cell = ''
+function splitTableCells(line: string, lineFrom = 0): { cells: string[]; ranges: TableCellRange[] } | null {
+  const firstPipe = line.indexOf('|')
+  const lastPipe = line.lastIndexOf('|')
+  if (firstPipe < 0 || firstPipe === lastPipe || line.slice(0, firstPipe).trim() !== '' || line.slice(lastPipe + 1).trim() !== '') return null
 
-  for (let index = 0; index < content.length; index += 1) {
-    const character = content[index]
-    if (character !== '|') {
-      cell += character
+  const cells: string[] = []
+  const ranges: TableCellRange[] = []
+  let cellStart = firstPipe + 1
+  let escaped = false
+  for (let index = firstPipe + 1; index <= lastPipe; index += 1) {
+    const character = line[index]
+    if (index !== lastPipe && (character !== '|' || escaped)) {
+      escaped = character === '\\' ? !escaped : false
       continue
     }
 
-    let precedingBackslashes = 0
-    for (let cursor = cell.length - 1; cursor >= 0 && cell[cursor] === '\\'; cursor -= 1) {
-      precedingBackslashes += 1
-    }
-
-    if (precedingBackslashes % 2 === 1) {
-      // The final backslash is markdown syntax, not part of the visible value.
-      cell = `${cell.slice(0, -1)}|`
-    } else {
-      cells.push(cell.trim())
-      cell = ''
-    }
+    const raw = line.slice(cellStart, index)
+    const leading = raw.match(/^\s*/)?.[0].length ?? 0
+    const trailing = raw.match(/\s*$/)?.[0].length ?? 0
+    const contentEnd = Math.max(cellStart + leading, index - trailing)
+    cells.push(raw.trim().replace(/\\\|/g, '|'))
+    ranges.push({
+      from: lineFrom + cellStart + leading,
+      to: lineFrom + contentEnd,
+      rawFrom: lineFrom + cellStart,
+      rawTo: lineFrom + index,
+    })
+    cellStart = index + 1
+    escaped = false
   }
 
-  cells.push(cell.trim())
-  return cells
+  return { cells, ranges }
 }
 
-function parseAlignments(line: string): TableAlignment[] {
-  return parseTableCells(line).map((cell) => {
-    const trimmed = cell.trim()
-    const left = trimmed.startsWith(':')
-    const right = trimmed.endsWith(':')
+function parseAlignments(line: string): TableAlignment[] | null {
+  const parsed = splitTableCells(line)
+  if (!parsed) return null
+  return parsed.cells.map((cell) => {
+    const left = cell.startsWith(':')
+    const right = cell.endsWith(':')
     if (left && right) return 'center'
     if (right) return 'right'
     if (left) return 'left'
@@ -61,124 +79,118 @@ function parseAlignments(line: string): TableAlignment[] {
   })
 }
 
-function escapeTableCell(cell: string): string {
+export function escapeTableCell(cell: string): string {
   let escaped = ''
-
   for (const character of cell) {
     if (character === '|') {
-      let precedingBackslashes = 0
-      for (let cursor = escaped.length - 1; cursor >= 0 && escaped[cursor] === '\\'; cursor -= 1) {
-        precedingBackslashes += 1
-      }
-      if (precedingBackslashes % 2 === 0) escaped += '\\'
+      let backslashes = 0
+      for (let index = escaped.length - 1; index >= 0 && escaped[index] === '\\'; index -= 1) backslashes += 1
+      if (backslashes % 2 === 0) escaped += '\\'
     }
     escaped += character
   }
-
   return escaped
 }
 
-function formatContentLine(cells: string[]): string {
-  return `|${cells.map((cell) => ` ${escapeTableCell(cell)} `).join('|')}|`
+function formatContentLine(cells: string[], indent = ''): string {
+  return `${indent}|${cells.map((cell) => ` ${escapeTableCell(cell)} `).join('|')}|`
 }
 
-function formatDelimiterLine(alignments: TableAlignment[]): string {
+function formatDelimiterLine(alignments: TableAlignment[], indent = ''): string {
   const cells = alignments.map((alignment) => {
     if (alignment === 'center') return ':---:'
     if (alignment === 'right') return '---:'
     if (alignment === 'left') return ':---'
     return '---'
   })
-  return `| ${cells.join(' | ')} |`
+  return `${indent}| ${cells.join(' | ')} |`
 }
 
-export function findTableBlocks(state: EditorState): TableBlock[] {
-  const doc = state.doc
-  const blocks: TableBlock[] = []
-  let lineNumber = 1
+function isRootTable(node: { parent: { name: string } | null }): boolean {
+  return node.parent?.name === 'Document'
+}
 
-  while (lineNumber <= doc.lines - 1) {
-    const headerLine = doc.line(lineNumber)
-    const delimiterLine = doc.line(lineNumber + 1)
+function tableBlockAt(state: EditorState, from: number, to: number): TableBlock | null {
+  const { doc } = state
+  const startLine = doc.lineAt(from).number
+  const syntaxEndLine = doc.lineAt(to).number
+  if (syntaxEndLine <= startLine) return null
 
-    if (!isTableDataLine(headerLine.text) || !isTableDelimiterLine(delimiterLine.text)) {
-      lineNumber += 1
-      continue
-    }
+  const header = doc.line(startLine)
+  const delimiter = doc.line(startLine + 1)
+  if (!isTableDataLine(header.text) || !isTableDelimiterLine(delimiter.text)) return null
 
-    const rows = [parseTableCells(headerLine.text)]
-    const alignments = parseAlignments(delimiterLine.text)
-    let endLine = lineNumber + 1
+  const parsedHeader = splitTableCells(header.text, header.from)
+  const alignments = parseAlignments(delimiter.text)
+  if (!parsedHeader || !alignments || parsedHeader.cells.length === 0 || alignments.length !== parsedHeader.cells.length) return null
 
-    while (endLine < doc.lines && isTableDataLine(doc.line(endLine + 1).text)) {
-      endLine += 1
-      rows.push(parseTableCells(doc.line(endLine).text))
-    }
-
-    blocks.push({
-      from: headerLine.from,
-      to: doc.line(endLine).to,
-      startLine: lineNumber,
-      endLine,
-      rows,
-      alignments,
-    })
-
-    lineNumber = endLine + 1
+  const rows = [parsedHeader.cells]
+  const cellRanges = [parsedHeader.ranges]
+  let endLine = startLine + 1
+  for (let lineNumber = startLine + 2; lineNumber <= syntaxEndLine; lineNumber += 1) {
+    const line = doc.line(lineNumber)
+    if (!isTableDataLine(line.text)) break
+    const parsed = splitTableCells(line.text, line.from)
+    // A ragged row is a safe source fallback, rather than a partial widget.
+    if (!parsed || parsed.cells.length !== parsedHeader.cells.length) return null
+    rows.push(parsed.cells)
+    cellRanges.push(parsed.ranges)
+    endLine = lineNumber
   }
 
+  const indent = header.text.match(/^(\s*)/)?.[1] ?? ''
+  return { from: header.from, to: doc.line(endLine).to, startLine, endLine, rows, alignments, cellRanges, indent }
+}
+
+/**
+ * Finds only parser-recognised, top-level GFM tables. Table-like text in code
+ * fences, block quotes, lists, incomplete tables, and ragged rows stays source
+ * text so widget commands can never rewrite it incorrectly.
+ */
+export function findTableBlocks(state: EditorState): TableBlock[] {
+  const blocks: TableBlock[] = []
+  syntaxTree(state).iterate({
+    enter(node) {
+      if (node.name !== 'Table' || !isRootTable(node.node)) return
+      const block = tableBlockAt(state, node.from, node.to)
+      if (block) blocks.push(block)
+    },
+  })
   return blocks
 }
 
 export function getTableBlockByStart(state: EditorState, from: number): TableBlock | null {
-  for (const block of findTableBlocks(state)) {
-    if (block.from === from) return block
-  }
-  return null
+  return findTableBlocks(state).find((block) => block.from === from) ?? null
 }
 
-export function getAdjacentTableBlock(
-  state: EditorState,
-  pos: number,
-  direction: 'up' | 'down',
-): TableBlock | null {
-  const doc = state.doc
-  const line = doc.lineAt(pos)
-
+export function getAdjacentTableBlock(state: EditorState, pos: number, direction: 'up' | 'down'): TableBlock | null {
+  const line = state.doc.lineAt(pos)
   if (direction === 'down') {
-    if (line.number >= doc.lines) return null
-    const nextLine = doc.line(line.number + 1)
-    return getTableBlockByStart(state, nextLine.from)
+    if (line.number >= state.doc.lines) return null
+    return getTableBlockByStart(state, state.doc.line(line.number + 1).from)
   }
-
   if (line.number <= 1) return null
-  const previousLine = doc.line(line.number - 1)
-  for (const block of findTableBlocks(state)) {
-    if (block.endLine === previousLine.number) return block
-  }
-  return null
+  const previousLine = state.doc.line(line.number - 1)
+  return findTableBlocks(state).find((block) => block.endLine === previousLine.number) ?? null
+}
+
+export function validTableDimensions(columns: number, bodyRows: number): boolean {
+  return Number.isInteger(columns) && Number.isInteger(bodyRows) && columns >= 1 && bodyRows >= 0 && columns <= TABLE_LIMITS.maxColumns && bodyRows <= TABLE_LIMITS.maxBodyRows
 }
 
 export function createEmptyTableMarkdown(columns = 2, bodyRows = 1): string {
-  const columnCount = Math.max(1, columns)
-  const rowCount = Math.max(0, bodyRows)
+  if (!validTableDimensions(columns, bodyRows)) {
+    throw new RangeError(`Table dimensions must be 1-${TABLE_LIMITS.maxColumns} columns and 0-${TABLE_LIMITS.maxBodyRows} body rows`)
+  }
   return formatTableMarkdown({
-    from: 0,
-    to: 0,
-    startLine: 0,
-    endLine: 0,
-    rows: [
-      Array(columnCount).fill(''),
-      ...Array.from({ length: rowCount }, () => Array(columnCount).fill('')),
-    ],
-    alignments: Array(columnCount).fill(null),
+    rows: [Array(columns).fill(''), ...Array.from({ length: bodyRows }, () => Array(columns).fill(''))],
+    alignments: Array(columns).fill(null),
+    indent: '',
   })
 }
 
-export function formatTableMarkdown(block: TableBlock): string {
-  const lines = [formatContentLine(block.rows[0]), formatDelimiterLine(block.alignments)]
-  for (const row of block.rows.slice(1)) {
-    lines.push(formatContentLine(row))
-  }
+export function formatTableMarkdown(block: Pick<TableBlock, 'rows' | 'alignments' | 'indent'>): string {
+  const lines = [formatContentLine(block.rows[0], block.indent), formatDelimiterLine(block.alignments, block.indent)]
+  for (const row of block.rows.slice(1)) lines.push(formatContentLine(row, block.indent))
   return lines.join('\n')
 }

@@ -1,8 +1,7 @@
 import type { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
 import { setActiveCodeBlock } from "../extensions/codeblock/state";
-import { createEmptyTableMarkdown } from "../extensions/tables/model";
-import { setActiveTable } from "../extensions/tables/state";
+import { insertTableAt } from '../internal/table-commands';
 import { hiddenInlineSuffixTarget, inlineMarkdownSpans } from "../internal/inline-markdown";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1198,29 +1197,8 @@ export function insertCodeBlock(view: EditorView): boolean {
 }
 
 export function insertTable(view: EditorView): boolean {
-  const { state } = view;
-  const line = state.doc.lineAt(state.selection.main.from);
-
-  const table = createEmptyTableMarkdown(2, 1);
-  const insertAt = line.to;
-  const blockFrom = insertAt + 2;
-
-  view.dispatch({
-    changes: { from: insertAt, insert: `\n\n${table}\n\n` },
-    effects: setActiveTable.of(blockFrom),
-    selection: { anchor: blockFrom },
-    scrollIntoView: true,
-  });
-
-  requestAnimationFrame(() => {
-    const input = view.dom.querySelector(
-      `.me-table-widget[data-table-from="${blockFrom}"] .me-table-input[data-row-index="0"][data-col-index="0"]`,
-    ) as HTMLInputElement | null;
-    input?.focus();
-    input?.select();
-  });
-
-  return true;
+  const line = view.state.doc.lineAt(view.state.selection.main.from);
+  return insertTableAt(view, { from: line.to, prefix: '\n\n', suffix: '\n\n' });
 }
 
 export function insertHR(view: EditorView): boolean {
