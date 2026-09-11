@@ -27,6 +27,8 @@ import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { externalLinkWidgets, openExternalLinkEditor } from './extensions/link-widget'
 import { tableDecorations } from './extensions/tables'
+import { TablePickerHost } from './extensions/tables/picker'
+import { tableSubmitHandler } from './extensions/tables/state'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
@@ -747,6 +749,7 @@ export const MarkdownEditor = forwardRef<
       ])),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       submitKeymap,
+      ...(onSubmit ? [tableSubmitHandler.of(() => onSubmitRef.current?.())] : []),
       markdown({
         base: markdownLanguage,
         codeLanguages: codeLanguages ? [...codeLanguages] : [],
@@ -958,6 +961,7 @@ export const MarkdownEditor = forwardRef<
   return (
     <div className={`minueditor-wrap${comments && comments.showPanel !== false ? ' minueditor-wrap--comments' : ''}${className ? ` ${className}` : ''}`}>
       <div ref={containerRef} className="minueditor" data-minueditor />
+      <TablePickerHost view={cmView} />
       {(floatingToolbar || comments?.onCreate || comments?.onRequest) && (
         <FloatingToolbar
           view={cmView}

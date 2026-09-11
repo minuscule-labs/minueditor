@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest'
+import { parseTableClipboard } from './clipboard'
+
+describe('table clipboard parsing', () => {
+  it('parses rectangular TSV including quoted tabs and escaped quotes', () => {
+    expect(parseTableClipboard('Name\tNotes\nAda\t"one\ttwo"\nGrace\t"say ""hi"""')).toEqual({
+      status: 'valid',
+      cells: [
+        ['Name', 'Notes'],
+        ['Ada', 'one\ttwo'],
+        ['Grace', 'say "hi"'],
+      ],
+    })
+  })
+
+  it('preserves empty and trailing TSV cells', () => {
+    expect(parseTableClipboard('A\tB\t\n1\t\t')).toEqual({
+      status: 'valid',
+      cells: [['A', 'B', ''], ['1', '', '']],
+    })
+  })
+
+  it('reads a safe text-only rectangle from an HTML table when plain text is not TSV', () => {
+    expect(parseTableClipboard('Name Age', `
+      <table><tr><th>Name</th><th>Age</th></tr><tr><td>Ada</td><td>42</td></tr></table>
+    `)).toEqual({
+      status: 'valid',
+      cells: [['Name', 'Age'], ['Ada', '42']],
+    })
+  })
+
+  it('rejects multiline HTML cells and discards unsafe descendant content', () => {
+    expect(parseTableClipboard('', '<table><tr><td>one<br>two</td><td>x</td></tr></table>')).toEqual({ status: 'multiline-cell' })
+    expect(parseTableClipboard('', '<table><tr><td>one<div>two</div></td><td>x</td></tr></table>')).toEqual({ status: 'multiline-cell' })
+    expect(parseTableClipboard('', '<table><tr><td>x<script>bad()</script></td><td>y<style>bad</style></td></tr></table>')).toEqual({
+      status: 'valid',
+      cells: [['x', 'y']],
+    })
+  })
+
+  it('rejects malformed, ragged, and multiline tabular input without flattening cells', () => {
+    expect(parseTableClipboard('A\t"unterminated')).toEqual({ status: 'invalid' })
+    expect(parseTableClipboard('A\tB\n1')).toEqual({ status: 'invalid' })
+    expect(parseTableClipboard('A\t"line one\nline two"')).toEqual({ status: 'multiline-cell' })
+  })
+
+  it('rejects clipboard input over byte and dimension limits before creating a full grid', () => {
+    expect(parseTableClipboard(`${'x'.repeat(1_048_576)}\tvalue`)).toEqual({ status: 'oversize' })
+    expect(parseTableClipboard(Array.from({ length: 202 }, () => 'a\tb').join('\n'))).toEqual({ status: 'oversize' })
+    expect(parseTableClipboard(`a\t${Array(51).fill('b').join('\t')}`)).toEqual({ status: 'oversize' })
+    expect(parseTableClipboard('', `<table>${Array.from({ length: 202 }, () => '<tr><td>a</td><td>b</td></tr>').join('')}</table>`)).toEqual({ status: 'oversize' })
+    expect(parseTableClipboard('', `<table><tr>${Array(51).fill('<td>a</td>').join('')}</tr></table>`)).toEqual({ status: 'oversize' })
+  })
+
+  it('leaves ordinary input to the native cell editor', () => {
+    expect(parseTableClipboard('ordinary text')).toEqual({ status: 'not-tabular' })
+    expect(parseTableClipboard('')).toEqual({ status: 'empty' })
+  })
+})

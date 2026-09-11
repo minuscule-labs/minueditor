@@ -825,6 +825,47 @@ function CursorStabilityFixture() {
   )
 }
 
+function TableCommandFixture() {
+  const [value, setValue] = useState('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+  const [view, setView] = useState<EditorView | null>(null)
+  const [submitCount, setSubmitCount] = useState(0)
+
+  return (
+    <main className="app-main" data-testid="table-command-fixture">
+      <section className="surface">
+        <h1>Table command browser fixture</h1>
+        <EditorToolbar view={view} variant="full" />
+        <div className="editor-frame">
+          <MarkdownEditor
+            value={value}
+            onChange={setValue}
+            onSubmit={() => setSubmitCount((count) => count + 1)}
+            autoFocus
+            minHeight={320}
+            onViewReady={setView}
+          />
+        </div>
+        <pre data-testid="markdown-output">{value}</pre>
+        <output data-testid="submit-count">{submitCount}</output>
+      </section>
+    </main>
+  )
+}
+
+function TableInteractionFixture() {
+  const [value, setValue] = useState('Before\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+
+  return (
+    <main className="app-main" data-testid="table-interaction-fixture">
+      <button type="button" onClick={() => setValue(`Updated\n\n${value}`)}>Prepend prose</button>
+      <div className="editor-frame">
+        <MarkdownEditor value={value} onChange={setValue} autoFocus minHeight={320} />
+      </div>
+      <pre data-testid="markdown-output">{value}</pre>
+    </main>
+  )
+}
+
 function PlaygroundApp() {
   const [docValue, setDocValue] = useState(DOCUMENT_INITIAL)
   const [descValue, setDescValue] = useState(DESCRIPTION_INITIAL)
@@ -1073,5 +1114,8 @@ function PlaygroundApp() {
 
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
-  return fixture === 'cursor-stability' ? <CursorStabilityFixture /> : <PlaygroundApp />
+  if (fixture === 'cursor-stability') return <CursorStabilityFixture />
+  if (fixture === 'table-commands') return <TableCommandFixture />
+  if (fixture === 'table-interaction') return <TableInteractionFixture />
+  return <PlaygroundApp />
 }

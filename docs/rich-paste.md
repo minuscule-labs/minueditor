@@ -34,6 +34,10 @@ It discards scripts, styles, templates, iframes, objects, unsafe links, and HTML
 
 Tab-delimited text with at least two columns is converted into a Markdown table. The first row becomes the header, uneven rows are padded, and pipe characters are escaped.
 
+## Active-table behavior
+
+Inside an active table widget, TSV and HTML-table clipboard data fills cells from the selected range origin rather than inserting a second document table. The editor preserves quoted/empty TSV cells, rejects malformed or multiline cells, applies accepted paste as one undo step, and expands only within table limits. Replacing populated cells requires an in-widget confirmation. Copy/cut of a selected range uses TSV; **Copy table as Markdown** remains the whole-table portable-source action.
+
 ## Fixtures
 
 [`dev/fixtures/rich-paste.ts`](../dev/fixtures/rich-paste.ts) includes browser article, Google Docs, Notion, spreadsheet, and existing-Markdown examples. The same fixtures drive focused conversion tests and the development **Rich paste lab**.

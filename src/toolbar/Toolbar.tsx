@@ -1,5 +1,7 @@
 import type { EditorView } from '@codemirror/view'
 import type { EditorToolbarProps } from '../types'
+import { openTablePicker } from '../extensions/tables/picker'
+import { findTableBlocks } from '../extensions/tables/model'
 import {
   toggleBold,
   toggleItalic,
@@ -11,16 +13,21 @@ import {
   toggleOrderedList,
   toggleCheckboxList,
   insertCodeBlock,
-  insertTableColumnLeft,
-  insertTableColumnRight,
-  insertTableRowAbove,
-  insertTableRowBelow,
   insertTable,
   insertHR,
   insertImage,
 } from './commands'
 
 // ── Button definitions ────────────────────────────────────────────────────────
+
+function openToolbarTablePicker(view: EditorView): boolean {
+  const selection = view.state.selection.main
+  const table = findTableBlocks(view.state).find(
+    (block) => selection.from >= block.from && selection.from <= block.to,
+  )
+  const from = table?.to ?? view.state.doc.lineAt(selection.from).to
+  return openTablePicker(view, { from, prefix: '\n\n', suffix: '\n\n' }) || insertTable(view)
+}
 
 interface ToolbarButton {
   label: string
@@ -49,11 +56,7 @@ const FULL_TOOLBAR_BUTTONS: ToolbarButton[] = [
   { label: '☐ List', title: 'Checkbox list', run: toggleCheckboxList, group: 'list' },
   // Block
   { label: '</>', title: 'Code block', run: insertCodeBlock, group: 'block' },
-  { label: '⊞', title: 'Insert table', run: insertTable, group: 'block' },
-  { label: '⇤ Col', title: 'Insert column left (Cmd+←)', run: insertTableColumnLeft, group: 'block' },
-  { label: 'Col ⇥', title: 'Insert column right (Cmd+→)', run: insertTableColumnRight, group: 'block' },
-  { label: '⇡ Row', title: 'Insert row above (Cmd+↑)', run: insertTableRowAbove, group: 'block' },
-  { label: 'Row ⇣', title: 'Insert row below (Cmd+↓)', run: insertTableRowBelow, group: 'block' },
+  { label: '⊞', title: 'Insert table', run: openToolbarTablePicker, group: 'block' },
   { label: '—', title: 'Horizontal rule', run: insertHR, group: 'block' },
   { label: '🖼', title: 'Insert image', run: insertImage, group: 'block' },
 ]
@@ -81,7 +84,8 @@ export function EditorToolbar({ view, variant }: EditorToolbarProps) {
   )
 
   return (
-    <div className="me-toolbar me-toolbar--full" role="toolbar" aria-label="Formatting">
+    <>
+      <div className="me-toolbar me-toolbar--full" role="toolbar" aria-label="Formatting">
       {Object.entries(groups).map(([group, buttons], i) => (
         <span key={group} className="me-toolbar-group">
           {i > 0 && <span className="me-toolbar-sep" aria-hidden="true" />}
@@ -103,6 +107,7 @@ export function EditorToolbar({ view, variant }: EditorToolbarProps) {
           ))}
         </span>
       ))}
-    </div>
+      </div>
+    </>
   )
 }

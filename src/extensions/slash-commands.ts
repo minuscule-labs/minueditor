@@ -18,8 +18,8 @@ import {
 } from '../toolbar/commands'
 import { insertImagePicker } from './images'
 import { setActiveCodeBlock } from './codeblock/state'
-import { createEmptyTableMarkdown } from './tables/model'
-import { setActiveTable } from './tables/state'
+import { insertTableAt } from '../internal/table-commands'
+import { openTablePicker } from './tables/picker'
 import { calloutLabels, type CalloutType } from './callouts'
 
 function moveCursorAfterLineMarker(view: EditorView, markerPattern: RegExp): boolean {
@@ -101,25 +101,10 @@ const calloutSlashCommands: readonly SlashCommand[] = (
 
 function insertSlashTable(view: EditorView): boolean {
   const line = view.state.doc.lineAt(view.state.selection.main.from)
-  const table = createEmptyTableMarkdown(2, 1)
-  const blockFrom = line.from + 1
-
-  view.dispatch({
-    changes: { from: line.from, to: line.to, insert: `\n${table}\n` },
-    effects: setActiveTable.of(blockFrom),
-    selection: { anchor: blockFrom },
-    scrollIntoView: true,
-  })
-
-  requestAnimationFrame(() => {
-    const input = view.dom.querySelector(
-      `.me-table-widget[data-table-from="${blockFrom}"] .me-table-input[data-row-index="0"][data-col-index="0"]`,
-    ) as HTMLInputElement | null
-    input?.focus()
-    input?.select()
-  })
-
-  return true
+  const insertion = { from: line.from, to: line.to, prefix: '\n', suffix: '\n' }
+  // Headless consumers retain the established immediate default insertion;
+  // mounted editors open the same picker used by the full toolbar.
+  return openTablePicker(view, insertion) || insertTableAt(view, insertion)
 }
 
 function insertSlashCodeBlock(view: EditorView): boolean {

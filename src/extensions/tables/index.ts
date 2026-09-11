@@ -2,7 +2,7 @@ import { StateField, type EditorState } from '@codemirror/state'
 import type { DecorationSet } from '@codemirror/view'
 import { EditorView } from '@codemirror/view'
 import { buildTableDecorations, tableArrowNavigation, tableClickHandlers } from './widget'
-import { activeTableField, setActiveTable } from './state'
+import { activeTableField, setActiveTable, tableInteractionField } from './state'
 
 const tableDecorationField = StateField.define<DecorationSet>({
   create(state: EditorState) {
@@ -19,6 +19,7 @@ const tableDecorationField = StateField.define<DecorationSet>({
 
 export const tableDecorations = [
   activeTableField,
+  tableInteractionField,
   tableDecorationField,
   tableClickHandlers,
   tableArrowNavigation,

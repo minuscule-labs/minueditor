@@ -291,6 +291,10 @@ When editing markdown tables, the editor supports:
 
 `Mod` is `Cmd` on macOS/iOS and `Ctrl` on Windows/Linux.
 
+### Table clipboard
+
+Pasting TSV or an HTML table into an active cell fills a rectangular cell range and grows empty table space within the configured limits. Replacing populated cells shows a confirmation; range copy/cut uses TSV, while **Copy table as Markdown** preserves portable source. Unsupported multiline cell content is rejected with a source-edit fallback rather than flattened.
+
 ## Fenced code languages
 
 By default, the editor does not bundle CodeMirror language packages for fenced-code editing. Code blocks still work as plain editable Markdown/code blocks.

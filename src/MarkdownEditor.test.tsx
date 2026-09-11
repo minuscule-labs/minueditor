@@ -862,6 +862,12 @@ describe('MarkdownEditor', () => {
       applyEditorSlashCommand(view!, 'Table')
     })
 
+    await waitFor(() => expect(document.querySelector('.me-table-picker')).toBeTruthy())
+    const [columns, bodyRows] = document.querySelectorAll('.me-table-picker input')
+    fireEvent.change(columns, { target: { value: '3' } })
+    fireEvent.change(bodyRows, { target: { value: '2' } })
+    fireEvent.click(document.querySelector('.me-table-picker__insert')!)
+
     await waitFor(() => {
       const input = container.querySelector(
         '.me-table-input[data-row-index="0"][data-col-index="0"]',
@@ -870,7 +876,7 @@ describe('MarkdownEditor', () => {
       expect(document.activeElement).toBe(input)
     })
 
-    expect(view!.state.doc.toString()).toBe('\n|  |  |\n| --- | --- |\n|  |  |\n')
+    expect(view!.state.doc.toString()).toBe('\n|  |  |  |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n')
   })
 
   it('inserts and focuses a live code block from the editor slash code command', async () => {
@@ -2835,6 +2841,40 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('pastes a non-destructive TSV rectangle into an active table instead of the document', async () => {
+    let view: EditorView | null = null
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n|  |  |'}
+        onChange={onChange}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />,
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
+    const input = await waitFor(() => container.querySelector(
+      '.me-table-input[data-row-index="1"][data-col-index="0"]',
+    ) as HTMLInputElement)
+
+    fireEvent.paste(input, {
+      clipboardData: {
+        items: [],
+        getData: (type: string) => type === 'text/plain' ? 'Ada\t42\nGrace\t37' : '',
+      },
+    })
+
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toBe(
+        '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Grace | 37 |',
+      )
+      expect(onChange).toHaveBeenCalledWith(view!.state.doc.toString())
+    })
+  })
+
   it('pressing Tab in a table cell moves to the next cell', async () => {
     let view: EditorView | null = null
     const { container } = render(
@@ -3401,6 +3441,43 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('keeps active-cell context while table controls restructure and align a table', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n| Ada | 42 |'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => { view = nextView }}
+      />
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
+    await waitFor(() => expect(container.querySelector('.me-table-controls')).toBeTruthy())
+    expect(container.querySelector('.me-table-input[data-row-index="1"][data-col-index="0"]'))
+      .toHaveAttribute('aria-label', 'Body row 1, column 1')
+
+    fireEvent.click(container.querySelector('[aria-label="Add column right"]')!)
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toBe('| Name |  | Age |\n| --- | --- | --- |\n| Ada |  | 42 |')
+    })
+
+    await waitFor(() => expect(document.activeElement).toBe(
+      container.querySelector('.me-table-input[data-row-index="0"][data-col-index="1"]'),
+    ))
+    fireEvent.click(container.querySelector('[aria-label="Align center"]')!)
+    await waitFor(() => expect(view!.state.doc.toString()).toContain('| --- | :---: | --- |'))
+
+    fireEvent.click(container.querySelector('.me-table-controls__resize summary')!)
+    const [columns, bodyRows] = container.querySelectorAll('.me-table-controls__resize-form input')
+    fireEvent.change(columns, { target: { value: '4' } })
+    fireEvent.change(bodyRows, { target: { value: '2' } })
+    fireEvent.click(container.querySelector('[aria-label="Apply resize"]')!)
+    await waitFor(() => expect(view!.state.doc.toString()).toBe(
+      '| Name |  | Age |  |\n| --- | :---: | --- | --- |\n| Ada |  | 42 |  |\n|  |  |  |  |',
+    ))
+  })
+
   it('keeps escaped pipes inside a single table cell', async () => {
     const value = [
       '| name | venue\\_id |',
@@ -3472,6 +3549,7 @@ describe('MarkdownEditor', () => {
     fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
     expect(container.querySelector('.me-table-widget--editing')).toBeNull()
     expect(container.querySelector('.me-table-input')).toBeNull()
+    expect(container.querySelector('.me-table-controls')).toBeNull()
 
     act(() => {
       view!.dispatch({ selection: { anchor: 4 } })
