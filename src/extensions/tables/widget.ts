@@ -16,11 +16,14 @@ import {
   TABLE_LIMITS,
   type TableBlock,
 } from './model'
+import { parseTableClipboard } from './clipboard'
 import {
   clearTableCellRange,
   deleteTable,
   insertTableColumn,
   insertTableRow,
+  pasteTableCellRange,
+  previewTableCellPaste,
   removeTableColumn,
   removeTableRow,
   resizeTable,
@@ -125,6 +128,11 @@ function focusTableInput(
   focusElementWithoutScroll(input)
   input.setSelectionRange(start, end, nextSelection.direction ?? 'none')
   return true
+}
+
+function announceTableStatus(wrapper: HTMLElement, message: string): void {
+  const status = wrapper.querySelector('[data-table-status]')
+  if (status) status.textContent = message
 }
 
 function clearTableSelection(wrapper: HTMLElement): void {
@@ -407,6 +415,7 @@ function createTableControls(view: EditorView, block: TableBlock, wrapper: HTMLE
 
   const status = document.createElement('span')
   status.className = 'me-table-controls__status'
+  status.dataset.tableStatus = 'true'
   status.setAttribute('aria-live', 'polite')
   controls.append(
     createTableControlButton('Copy table as Markdown', () => {
@@ -703,6 +712,49 @@ function createTableInput(
   })
   input.addEventListener('compositionend', () => {
     delete input.dataset.composing
+  })
+  input.addEventListener('paste', (event) => {
+    // An input is a cell editor, never a document-paste target. Stop the
+    // parent rich-paste extension from turning spreadsheet data into a new
+    // Markdown table elsewhere in the document.
+    event.stopPropagation()
+    const parsed = parseTableClipboard(event.clipboardData?.getData('text/plain') ?? '')
+    if (parsed.status === 'not-tabular' || parsed.status === 'empty') return
+    event.preventDefault()
+    if (parsed.status !== 'valid') {
+      const messages = {
+        invalid: 'Clipboard table is not valid TSV.',
+        'multiline-cell': 'Clipboard table contains unsupported multiline cells.',
+        oversize: 'Clipboard table exceeds the 1 MiB limit.',
+      }
+      announceTableStatus(wrapper, messages[parsed.status])
+      return
+    }
+
+    const bounds = tableSelectionBounds(wrapper)
+    const target = tableCellTarget(
+      wrapper,
+      blockFrom,
+      blockTo,
+      bounds?.rowStart ?? rowIndex,
+      bounds?.colStart ?? colIndex,
+    )
+    const preview = previewTableCellPaste(view, target, parsed.cells)
+    if (!preview.canApply) {
+      announceTableStatus(wrapper, preview.reason === 'out-of-bounds'
+        ? 'Clipboard table exceeds the supported table limits.'
+        : 'Clipboard table cannot be pasted here.')
+      return
+    }
+    if (preview.requiresOverwriteConfirmation) {
+      announceTableStatus(wrapper, 'Paste would replace populated cells and requires confirmation.')
+      return
+    }
+    if (!pasteTableCellRange(view, target, parsed.cells)) {
+      announceTableStatus(wrapper, 'Clipboard table could not be pasted.')
+      return
+    }
+    clearTableSelection(wrapper)
   })
   input.addEventListener('input', () => {
     syncTableInputSizer(input)

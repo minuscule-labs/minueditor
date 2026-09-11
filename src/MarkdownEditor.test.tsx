@@ -2841,6 +2841,40 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('pastes a non-destructive TSV rectangle into an active table instead of the document', async () => {
+    let view: EditorView | null = null
+    const onChange = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        value={'| Name | Age |\n| --- | --- |\n|  |  |'}
+        onChange={onChange}
+        onViewReady={(nextView) => {
+          view = nextView
+        }}
+      />,
+    )
+
+    await waitFor(() => expect(view).toBeTruthy())
+    fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
+    const input = await waitFor(() => container.querySelector(
+      '.me-table-input[data-row-index="1"][data-col-index="0"]',
+    ) as HTMLInputElement)
+
+    fireEvent.paste(input, {
+      clipboardData: {
+        items: [],
+        getData: (type: string) => type === 'text/plain' ? 'Ada\t42\nGrace\t37' : '',
+      },
+    })
+
+    await waitFor(() => {
+      expect(view!.state.doc.toString()).toBe(
+        '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Grace | 37 |',
+      )
+      expect(onChange).toHaveBeenCalledWith(view!.state.doc.toString())
+    })
+  })
+
   it('pressing Tab in a table cell moves to the next cell', async () => {
     let view: EditorView | null = null
     const { container } = render(

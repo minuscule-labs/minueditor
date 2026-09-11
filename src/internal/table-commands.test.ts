@@ -10,6 +10,8 @@ import {
   insertTableAt,
   insertTableColumn,
   insertTableRow,
+  pasteTableCellRange,
+  previewTableCellPaste,
   removeTableColumn,
   removeTableColumnRange,
   removeTableRow,
@@ -143,6 +145,54 @@ describe('shared table commands', () => {
     const beforeRejectedShrink = view.state.doc.toString()
     expect(resizeTable(view, target(view), 2, 1)).toBe(false)
     expect(view.state.doc.toString()).toBe(beforeRejectedShrink)
+  })
+
+  it('preflights and applies a non-destructive clipboard rectangle atomically', () => {
+    const view = createView('| A | B |\n| --- | --- |\n|  |  |')
+    const initialTarget = target(view)
+
+    expect(previewTableCellPaste(view, initialTarget, [['3', '4'], ['5', '6']])).toEqual({
+      canApply: true,
+      requiresOverwriteConfirmation: false,
+      reason: null,
+    })
+    expect(pasteTableCellRange(view, initialTarget, [['3', '4'], ['5', '6']])).toBe(true)
+    expect(view.state.doc.toString()).toBe('| A | B |\n| --- | --- |\n| 3 | 4 |\n| 5 | 6 |')
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('| A | B |\n| --- | --- |\n|  |  |')
+  })
+
+  it('grows a table for a clipboard rectangle but requires explicit overwrite consent', () => {
+    const view = createView('| A | B |\n| --- | --- |\n| 1 | 2 |')
+    const initialTarget = target(view, 1, 1)
+    const cells = [['9', '3'], ['4', '5']]
+
+    expect(previewTableCellPaste(view, initialTarget, cells)).toEqual({
+      canApply: true,
+      requiresOverwriteConfirmation: true,
+      reason: null,
+    })
+    expect(pasteTableCellRange(view, initialTarget, cells)).toBe(false)
+    expect(pasteTableCellRange(view, initialTarget, cells, { allowOverwrite: true })).toBe(true)
+    expect(view.state.doc.toString()).toBe('| A | B |  |\n| --- | --- | --- |\n| 1 | 9 | 3 |\n|  | 4 | 5 |')
+  })
+
+  it('rejects invalid clipboard grids and table-limit overflows without mutation', () => {
+    const view = createView('| A | B |\n| --- | --- |\n| 1 | 2 |')
+    const initialTarget = target(view)
+    const before = view.state.doc.toString()
+
+    expect(previewTableCellPaste(view, initialTarget, [['1'], ['2', '3']])).toEqual({
+      canApply: false,
+      requiresOverwriteConfirmation: false,
+      reason: 'invalid-grid',
+    })
+    expect(previewTableCellPaste(view, { ...initialTarget, colIndex: 1 }, [Array(50).fill('')])).toEqual({
+      canApply: false,
+      requiresOverwriteConfirmation: false,
+      reason: 'out-of-bounds',
+    })
+    expect(view.state.doc.toString()).toBe(before)
   })
 
   it('refuses destructive structural removal but permits removal of an empty body row', () => {

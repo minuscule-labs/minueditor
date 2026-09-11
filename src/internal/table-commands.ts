@@ -28,6 +28,12 @@ export type TableCellTarget = TableBlockTarget & {
   colIndex: number
 }
 
+export type TableCellPastePreview = {
+  canApply: boolean
+  requiresOverwriteConfirmation: boolean
+  reason: 'invalid-grid' | 'out-of-bounds' | null
+}
+
 function canEdit(view: EditorViewType): boolean {
   return view.state.facet(EditorView.editable)
 }
@@ -239,6 +245,58 @@ export function clearTableCellRange(view: EditorViewType, target: TableBlockTarg
   for (let row = rowStart; row <= rowEnd; row += 1) for (let col = colStart; col <= colEnd; col += 1) rows[row][col] = ''
   applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex: rowStart, colIndex: colStart })
   focusTableCell(view, { blockFrom: block.from, rowIndex: rowStart, colIndex: colStart })
+  return true
+}
+
+/** Preflights a rectangular clipboard paste without mutating the document. */
+export function previewTableCellPaste(
+  view: EditorViewType,
+  target: TableCellTarget,
+  cells: readonly (readonly string[])[],
+): TableCellPastePreview {
+  const block = resolveTarget(view, target)
+  const width = cells[0]?.length ?? 0
+  if (!block || width === 0 || cells.length === 0 || cells.some((row) => row.length !== width)) {
+    return { canApply: false, requiresOverwriteConfirmation: false, reason: 'invalid-grid' }
+  }
+  const requiredRows = Math.max(block.rows.length, target.rowIndex + cells.length)
+  const requiredColumns = Math.max(block.rows[0].length, target.colIndex + width)
+  if (requiredRows - 1 > TABLE_LIMITS.maxBodyRows || requiredColumns > TABLE_LIMITS.maxColumns) {
+    return { canApply: false, requiresOverwriteConfirmation: false, reason: 'out-of-bounds' }
+  }
+  const requiresOverwriteConfirmation = cells.some((row, rowOffset) => row.some((value, colOffset) => {
+    const existing = block.rows[target.rowIndex + rowOffset]?.[target.colIndex + colOffset]
+    return existing != null && existing.length > 0 && existing !== value
+  }))
+  return { canApply: true, requiresOverwriteConfirmation, reason: null }
+}
+
+/**
+ * Applies a preflighted rectangle as one CodeMirror transaction. Callers must
+ * explicitly opt into replacing populated cells; expansion into new cells is
+ * otherwise non-destructive.
+ */
+export function pasteTableCellRange(
+  view: EditorViewType,
+  target: TableCellTarget,
+  cells: readonly (readonly string[])[],
+  { allowOverwrite = false }: { allowOverwrite?: boolean } = {},
+): boolean {
+  const block = resolveTarget(view, target)
+  const preview = previewTableCellPaste(view, target, cells)
+  if (!block || !preview.canApply || (preview.requiresOverwriteConfirmation && !allowOverwrite)) return false
+
+  const width = cells[0].length
+  const requiredRows = Math.max(block.rows.length, target.rowIndex + cells.length)
+  const requiredColumns = Math.max(block.rows[0].length, target.colIndex + width)
+  const rows = block.rows.map((row) => [...row, ...Array(requiredColumns - row.length).fill('')])
+  while (rows.length < requiredRows) rows.push(Array(requiredColumns).fill(''))
+  for (const [rowOffset, row] of cells.entries()) {
+    for (const [colOffset, value] of row.entries()) rows[target.rowIndex + rowOffset][target.colIndex + colOffset] = value
+  }
+  const alignments = [...block.alignments, ...Array(requiredColumns - block.alignments.length).fill(null)]
+  applyTableBlockUpdate(view, block, { ...block, rows, alignments }, target)
+  focusTableCell(view, { blockFrom: block.from, rowIndex: target.rowIndex, colIndex: target.colIndex })
   return true
 }
 

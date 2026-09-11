@@ -30,6 +30,28 @@ test('edits and restructures a table through the production widget command path'
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })
 
+test('pastes a TSV rectangle into empty table cells without creating a second document table', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+  await page.locator('.me-table-widget').click()
+  await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').press('Tab')
+
+  const firstNewCell = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
+  await firstNewCell.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'Grace\t37')
+    // Firefox ignores ClipboardEventInit.clipboardData for synthetic events.
+    // A configurable own property exercises the same production event path in
+    // every supported browser.
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+  })
+
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Grace | 37 |',
+  )
+})
+
 test('resolves table boundaries after local and external document changes', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
