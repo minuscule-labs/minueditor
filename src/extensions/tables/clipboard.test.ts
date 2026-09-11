@@ -13,6 +13,22 @@ describe('table clipboard parsing', () => {
     })
   })
 
+  it('preserves empty and trailing TSV cells', () => {
+    expect(parseTableClipboard('A\tB\t\n1\t\t')).toEqual({
+      status: 'valid',
+      cells: [['A', 'B', ''], ['1', '', '']],
+    })
+  })
+
+  it('reads a safe text-only rectangle from an HTML table when plain text is not TSV', () => {
+    expect(parseTableClipboard('Name Age', `
+      <table><tr><th>Name</th><th>Age</th></tr><tr><td>Ada</td><td>42</td></tr></table>
+    `)).toEqual({
+      status: 'valid',
+      cells: [['Name', 'Age'], ['Ada', '42']],
+    })
+  })
+
   it('rejects malformed, ragged, and multiline tabular input without flattening cells', () => {
     expect(parseTableClipboard('A\t"unterminated')).toEqual({ status: 'invalid' })
     expect(parseTableClipboard('A\tB\n1')).toEqual({ status: 'invalid' })

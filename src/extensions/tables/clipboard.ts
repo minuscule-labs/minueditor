@@ -12,10 +12,31 @@ function byteLength(value: string): number {
  * Parses spreadsheet TSV without flattening quoted values. Markdown table
  * cells cannot represent embedded newlines, so those are rejected explicitly.
  */
-export function parseTableClipboard(text: string): TableClipboardParseResult {
-  if (!text) return { status: 'empty' }
-  if (byteLength(text) > TABLE_LIMITS.maxClipboardBytes) return { status: 'oversize' }
-  if (!text.includes('\t')) return { status: 'not-tabular' }
+export function tableCellsToTsv(cells: readonly (readonly string[])[]): string {
+  return cells.map((row) => row.map((cell) => {
+    const value = cell.replace(/\r\n?/g, '\n')
+    return /["\t\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
+  }).join('\t')).join('\n')
+}
+
+function parseHtmlTableClipboard(html: string): TableClipboardParseResult {
+  if (!html.trim() || typeof document === 'undefined') return { status: 'not-tabular' }
+  const template = document.createElement('template')
+  template.innerHTML = html
+  const table = template.content.querySelector('table')
+  if (!table) return { status: 'not-tabular' }
+  const rows = Array.from((table as HTMLTableElement).rows).map((row) =>
+    Array.from(row.cells).map((cell) => (cell.textContent ?? '').replace(/\s+/g, ' ').trim()),
+  ).filter((row) => row.length > 0)
+  const width = rows[0]?.length ?? 0
+  if (width < 2 || rows.some((row) => row.length !== width)) return { status: 'invalid' }
+  return { status: 'valid', cells: rows }
+}
+
+export function parseTableClipboard(text: string, html = ''): TableClipboardParseResult {
+  if (byteLength(text) + byteLength(html) > TABLE_LIMITS.maxClipboardBytes) return { status: 'oversize' }
+  if (!text && !html) return { status: 'empty' }
+  if (!text.includes('\t')) return parseHtmlTableClipboard(html)
 
   const rows: string[][] = []
   let row: string[] = []

@@ -16,7 +16,7 @@ import {
   TABLE_LIMITS,
   type TableBlock,
 } from './model'
-import { parseTableClipboard } from './clipboard'
+import { parseTableClipboard, tableCellsToTsv } from './clipboard'
 import {
   clearTableCellRange,
   deleteTable,
@@ -269,6 +269,54 @@ function stopTableSelection(wrapper: HTMLElement): void {
   delete wrapper.dataset.shiftSelecting
   delete wrapper.dataset.pendingShiftAnchorRow
   delete wrapper.dataset.pendingShiftAnchorCol
+}
+
+function selectedTableCells(wrapper: HTMLElement, block: TableBlock): string[][] | null {
+  const bounds = tableSelectionBounds(wrapper)
+  if (!bounds) return null
+  return block.rows.slice(bounds.rowStart, bounds.rowEnd + 1).map((row) =>
+    row.slice(bounds.colStart, bounds.colEnd + 1),
+  )
+}
+
+function copySelectedTableCells(event: ClipboardEvent, view: EditorView, blockFrom: number, wrapper: HTMLElement): boolean {
+  const target = tableBlockTarget(wrapper, blockFrom)
+  const block = getTableBlockByStart(view.state, target.blockFrom)
+  if (!block || block.source !== target.source) return false
+  const cells = selectedTableCells(wrapper, block)
+  if (!cells || !event.clipboardData) return false
+  event.clipboardData.setData('text/plain', tableCellsToTsv(cells))
+  return true
+}
+
+function showTablePasteConfirmation(
+  view: EditorView,
+  wrapper: HTMLElement,
+  target: ReturnType<typeof tableCellTarget>,
+  cells: string[][],
+  overwriteCount: number,
+): void {
+  wrapper.querySelector('[data-table-paste-confirmation]')?.remove()
+  const dialog = document.createElement('div')
+  dialog.className = 'me-table-paste-confirmation'
+  dialog.dataset.tablePasteConfirmation = 'true'
+  dialog.setAttribute('role', 'alertdialog')
+  dialog.setAttribute('aria-label', 'Confirm table paste')
+  const message = document.createElement('p')
+  message.textContent = `Paste ${cells.length} by ${cells[0].length} cells and replace ${overwriteCount} populated ${overwriteCount === 1 ? 'cell' : 'cells'}?`
+  const cancel = createTableControlButton('Cancel table paste', () => dialog.remove())
+  const confirm = createTableControlButton('Confirm table paste', () => {
+    if (pasteTableCellRange(view, target, cells, { allowOverwrite: true })) {
+      clearTableSelection(wrapper)
+      announceTableStatus(wrapper, 'Table pasted.')
+    } else {
+      announceTableStatus(wrapper, 'Table changed; paste was cancelled.')
+    }
+    dialog.remove()
+  })
+  dialog.append(message, cancel, confirm)
+  wrapper.appendChild(dialog)
+  confirm.focus()
 }
 
 function clearSelectedCells(view: EditorView, blockFrom: number, wrapper: HTMLElement): boolean {
@@ -713,13 +761,38 @@ function createTableInput(
   input.addEventListener('compositionend', () => {
     delete input.dataset.composing
   })
+  input.addEventListener('copy', (event) => {
+    if (!copySelectedTableCells(event, view, blockFrom, wrapper)) return
+    event.preventDefault()
+    event.stopPropagation()
+    announceTableStatus(wrapper, 'Selected cells copied.')
+  })
+  input.addEventListener('cut', (event) => {
+    if (!copySelectedTableCells(event, view, blockFrom, wrapper)) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (clearSelectedCells(view, blockFrom, wrapper)) {
+      clearTableSelection(wrapper)
+      announceTableStatus(wrapper, 'Selected cells cut.')
+    }
+  })
   input.addEventListener('paste', (event) => {
     // An input is a cell editor, never a document-paste target. Stop the
     // parent rich-paste extension from turning spreadsheet data into a new
     // Markdown table elsewhere in the document.
     event.stopPropagation()
-    const parsed = parseTableClipboard(event.clipboardData?.getData('text/plain') ?? '')
-    if (parsed.status === 'not-tabular' || parsed.status === 'empty') return
+    const plainText = event.clipboardData?.getData('text/plain') ?? ''
+    const parsed = parseTableClipboard(
+      plainText,
+      event.clipboardData?.getData('text/html') ?? '',
+    )
+    if (parsed.status === 'not-tabular' || parsed.status === 'empty') {
+      if (/\r|\n/.test(plainText)) {
+        event.preventDefault()
+        announceTableStatus(wrapper, 'Multiline text is unsupported in table cells; edit source to preserve it.')
+      }
+      return
+    }
     event.preventDefault()
     if (parsed.status !== 'valid') {
       const messages = {
@@ -747,7 +820,7 @@ function createTableInput(
       return
     }
     if (preview.requiresOverwriteConfirmation) {
-      announceTableStatus(wrapper, 'Paste would replace populated cells and requires confirmation.')
+      showTablePasteConfirmation(view, wrapper, target, parsed.cells, preview.overwriteCount)
       return
     }
     if (!pasteTableCellRange(view, target, parsed.cells)) {

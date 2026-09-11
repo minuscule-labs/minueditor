@@ -31,6 +31,7 @@ export type TableCellTarget = TableBlockTarget & {
 export type TableCellPastePreview = {
   canApply: boolean
   requiresOverwriteConfirmation: boolean
+  overwriteCount: number
   reason: 'invalid-grid' | 'out-of-bounds' | null
 }
 
@@ -257,18 +258,21 @@ export function previewTableCellPaste(
   const block = resolveTarget(view, target)
   const width = cells[0]?.length ?? 0
   if (!block || width === 0 || cells.length === 0 || cells.some((row) => row.length !== width)) {
-    return { canApply: false, requiresOverwriteConfirmation: false, reason: 'invalid-grid' }
+    return { canApply: false, requiresOverwriteConfirmation: false, overwriteCount: 0, reason: 'invalid-grid' }
   }
   const requiredRows = Math.max(block.rows.length, target.rowIndex + cells.length)
   const requiredColumns = Math.max(block.rows[0].length, target.colIndex + width)
   if (requiredRows - 1 > TABLE_LIMITS.maxBodyRows || requiredColumns > TABLE_LIMITS.maxColumns) {
-    return { canApply: false, requiresOverwriteConfirmation: false, reason: 'out-of-bounds' }
+    return { canApply: false, requiresOverwriteConfirmation: false, overwriteCount: 0, reason: 'out-of-bounds' }
   }
-  const requiresOverwriteConfirmation = cells.some((row, rowOffset) => row.some((value, colOffset) => {
-    const existing = block.rows[target.rowIndex + rowOffset]?.[target.colIndex + colOffset]
-    return existing != null && existing.length > 0 && existing !== value
-  }))
-  return { canApply: true, requiresOverwriteConfirmation, reason: null }
+  let overwriteCount = 0
+  for (const [rowOffset, row] of cells.entries()) {
+    for (const [colOffset, value] of row.entries()) {
+      const existing = block.rows[target.rowIndex + rowOffset]?.[target.colIndex + colOffset]
+      if (existing != null && existing.length > 0 && existing !== value) overwriteCount += 1
+    }
+  }
+  return { canApply: true, requiresOverwriteConfirmation: overwriteCount > 0, overwriteCount, reason: null }
 }
 
 /**

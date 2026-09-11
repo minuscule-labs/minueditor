@@ -154,6 +154,7 @@ describe('shared table commands', () => {
     expect(previewTableCellPaste(view, initialTarget, [['3', '4'], ['5', '6']])).toEqual({
       canApply: true,
       requiresOverwriteConfirmation: false,
+      overwriteCount: 0,
       reason: null,
     })
     expect(pasteTableCellRange(view, initialTarget, [['3', '4'], ['5', '6']])).toBe(true)
@@ -170,6 +171,7 @@ describe('shared table commands', () => {
     expect(previewTableCellPaste(view, initialTarget, cells)).toEqual({
       canApply: true,
       requiresOverwriteConfirmation: true,
+      overwriteCount: 1,
       reason: null,
     })
     expect(pasteTableCellRange(view, initialTarget, cells)).toBe(false)
@@ -185,11 +187,13 @@ describe('shared table commands', () => {
     expect(previewTableCellPaste(view, initialTarget, [['1'], ['2', '3']])).toEqual({
       canApply: false,
       requiresOverwriteConfirmation: false,
+      overwriteCount: 0,
       reason: 'invalid-grid',
     })
     expect(previewTableCellPaste(view, { ...initialTarget, colIndex: 1 }, [Array(50).fill('')])).toEqual({
       canApply: false,
       requiresOverwriteConfirmation: false,
+      overwriteCount: 0,
       reason: 'out-of-bounds',
     })
     expect(view.state.doc.toString()).toBe(before)

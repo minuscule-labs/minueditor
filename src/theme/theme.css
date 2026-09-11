@@ -631,6 +631,25 @@
     font-size: 12px;
 }
 
+.me-table-paste-confirmation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    max-width: min(100%, 32rem);
+    margin: 0 0 6px;
+    padding: 8px;
+    border: 1px solid #b45309;
+    border-radius: 5px;
+    background: #fffbeb;
+}
+
+.me-table-paste-confirmation p {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 12px;
+}
+
 @media (max-width: 720px) {
     .me-table-controls {
         max-height: 8.5rem;

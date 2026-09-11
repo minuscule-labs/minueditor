@@ -52,6 +52,68 @@ test('pastes a TSV rectangle into empty table cells without creating a second do
   )
 })
 
+test('pastes an HTML table as a safe text-only cell rectangle', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+  await page.locator('.me-table-widget').click()
+  await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').press('Tab')
+  const firstNewCell = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
+  await firstNewCell.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'Grace 37')
+    clipboard.setData('text/html', '<table><tr><td>Grace</td><td>37</td></tr></table>')
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+  })
+  await expect(page.getByTestId('markdown-output')).toHaveText(
+    '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n| Grace | 37 |',
+  )
+})
+
+test('copies and cuts a selected table range as TSV', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+  await page.locator('.me-table-widget').click()
+  const first = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  const second = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
+  await first.click()
+  await second.click({ modifiers: ['Shift'] })
+
+  const copied = await second.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    const event = new Event('copy', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+    return clipboard.getData('text/plain')
+  })
+  expect(copied).toBe('Ada\t42')
+
+  await second.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    const event = new Event('cut', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+  })
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n|  |  |')
+})
+
+test('requires confirmation before TSV paste replaces populated cells', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+  await page.locator('.me-table-widget').click()
+  const cell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await cell.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'Grace\t37')
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+  })
+
+  await expect(page.getByRole('alertdialog', { name: 'Confirm table paste' })).toBeVisible()
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+  await page.getByRole('button', { name: 'Confirm table paste' }).click()
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Grace | 37 |')
+})
+
 test('resolves table boundaries after local and external document changes', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
