@@ -19,15 +19,30 @@ export function tableCellsToTsv(cells: readonly (readonly string[])[]): string {
   }).join('\t')).join('\n')
 }
 
+const MAX_CLIPBOARD_ROWS = TABLE_LIMITS.maxBodyRows + 1
+const MULTILINE_HTML_SELECTOR = 'br, p, div, section, article, header, footer, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, pre, table, hr'
+const UNSAFE_HTML_SELECTOR = 'script, style, template, embed, iframe, object, noscript'
+
 function parseHtmlTableClipboard(html: string): TableClipboardParseResult {
   if (!html.trim() || typeof document === 'undefined') return { status: 'not-tabular' }
   const template = document.createElement('template')
   template.innerHTML = html
-  const table = template.content.querySelector('table')
+  template.content.querySelectorAll(UNSAFE_HTML_SELECTOR).forEach((element) => element.remove())
+  const table = template.content.querySelector('table') as HTMLTableElement | null
   if (!table) return { status: 'not-tabular' }
-  const rows = Array.from((table as HTMLTableElement).rows).map((row) =>
-    Array.from(row.cells).map((cell) => (cell.textContent ?? '').replace(/\s+/g, ' ').trim()),
-  ).filter((row) => row.length > 0)
+
+  const rows: string[][] = []
+  for (const row of Array.from(table.rows)) {
+    if (rows.length >= MAX_CLIPBOARD_ROWS || row.cells.length > TABLE_LIMITS.maxColumns) {
+      return { status: 'oversize' }
+    }
+    const cells: string[] = []
+    for (const cell of Array.from(row.cells)) {
+      if (cell.querySelector(MULTILINE_HTML_SELECTOR)) return { status: 'multiline-cell' }
+      cells.push((cell.textContent ?? '').replace(/\s+/g, ' ').trim())
+    }
+    if (cells.length > 0) rows.push(cells)
+  }
   const width = rows[0]?.length ?? 0
   if (width < 2 || rows.some((row) => row.length !== width)) return { status: 'invalid' }
   return { status: 'valid', cells: rows }
@@ -44,15 +59,18 @@ export function parseTableClipboard(text: string, html = ''): TableClipboardPars
   let quoted = false
   let closedQuote = false
 
-  const finishCell = () => {
+  const finishCell = (): boolean => {
+    if (row.length >= TABLE_LIMITS.maxColumns) return false
     row.push(cell)
     cell = ''
     closedQuote = false
+    return true
   }
-  const finishRow = () => {
-    finishCell()
+  const finishRow = (): boolean => {
+    if (rows.length >= MAX_CLIPBOARD_ROWS || !finishCell()) return false
     rows.push(row)
     row = []
+    return true
   }
 
   for (let index = 0; index < text.length; index += 1) {
@@ -78,10 +96,10 @@ export function parseTableClipboard(text: string, html = ''): TableClipboardPars
       return { status: 'invalid' }
     }
     if (character === '\t') {
-      finishCell()
+      if (!finishCell()) return { status: 'oversize' }
     } else if (character === '\n' || character === '\r') {
       if (character === '\r' && text[index + 1] === '\n') index += 1
-      finishRow()
+      if (!finishRow()) return { status: 'oversize' }
     } else if (character === '"' && cell === '') {
       quoted = true
     } else {
@@ -90,7 +108,7 @@ export function parseTableClipboard(text: string, html = ''): TableClipboardPars
   }
 
   if (quoted) return { status: 'invalid' }
-  if (cell || row.length > 0) finishRow()
+  if ((cell || row.length > 0) && !finishRow()) return { status: 'oversize' }
   if (rows.length === 0) return { status: 'empty' }
   const width = rows[0].length
   if (width < 2 || rows.some((current) => current.length !== width)) return { status: 'invalid' }

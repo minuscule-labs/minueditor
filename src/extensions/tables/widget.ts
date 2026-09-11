@@ -135,6 +135,24 @@ function announceTableStatus(wrapper: HTMLElement, message: string): void {
   if (status) status.textContent = message
 }
 
+function restoreTablePasteFocus(
+  view: EditorView,
+  origin: HTMLInputElement,
+  target: ReturnType<typeof tableCellTarget>,
+  selection: InputSelection,
+): void {
+  if (origin.isConnected) {
+    focusElementWithoutScroll(origin)
+    origin.setSelectionRange(selection.start, selection.end, selection.direction ?? 'none')
+    return
+  }
+  const widget = view.dom.querySelector(
+    `.me-table-widget[data-table-from="${target.blockFrom}"]`,
+  ) as HTMLElement | null
+  if (widget && focusTableInput(widget, target.rowIndex, target.colIndex, selection)) return
+  view.focus()
+}
+
 function clearTableSelection(wrapper: HTMLElement): void {
   delete wrapper.dataset.selectionAnchorRow
   delete wrapper.dataset.selectionAnchorCol
@@ -292,6 +310,7 @@ function copySelectedTableCells(event: ClipboardEvent, view: EditorView, blockFr
 function showTablePasteConfirmation(
   view: EditorView,
   wrapper: HTMLElement,
+  origin: HTMLInputElement,
   target: ReturnType<typeof tableCellTarget>,
   cells: string[][],
   overwriteCount: number,
@@ -304,15 +323,27 @@ function showTablePasteConfirmation(
   dialog.setAttribute('aria-label', 'Confirm table paste')
   const message = document.createElement('p')
   message.textContent = `Paste ${cells.length} by ${cells[0].length} cells and replace ${overwriteCount} populated ${overwriteCount === 1 ? 'cell' : 'cells'}?`
-  const cancel = createTableControlButton('Cancel table paste', () => dialog.remove())
+  const selection = inputSelection(origin)
+  const dismiss = () => {
+    dialog.remove()
+    restoreTablePasteFocus(view, origin, target, selection)
+  }
+  const cancel = createTableControlButton('Cancel table paste', dismiss)
   const confirm = createTableControlButton('Confirm table paste', () => {
     if (pasteTableCellRange(view, target, cells, { allowOverwrite: true })) {
       clearTableSelection(wrapper)
       announceTableStatus(wrapper, 'Table pasted.')
+      dialog.remove()
     } else {
       announceTableStatus(wrapper, 'Table changed; paste was cancelled.')
+      dismiss()
     }
-    dialog.remove()
+  })
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return
+    event.preventDefault()
+    event.stopPropagation()
+    dismiss()
   })
   dialog.append(message, cancel, confirm)
   wrapper.appendChild(dialog)
@@ -798,7 +829,7 @@ function createTableInput(
       const messages = {
         invalid: 'Clipboard table is not valid TSV.',
         'multiline-cell': 'Clipboard table contains unsupported multiline cells.',
-        oversize: 'Clipboard table exceeds the 1 MiB limit.',
+        oversize: 'Clipboard table exceeds the supported limits.',
       }
       announceTableStatus(wrapper, messages[parsed.status])
       return
@@ -820,7 +851,7 @@ function createTableInput(
       return
     }
     if (preview.requiresOverwriteConfirmation) {
-      showTablePasteConfirmation(view, wrapper, target, parsed.cells, preview.overwriteCount)
+      showTablePasteConfirmation(view, wrapper, input, target, parsed.cells, preview.overwriteCount)
       return
     }
     if (!pasteTableCellRange(view, target, parsed.cells)) {

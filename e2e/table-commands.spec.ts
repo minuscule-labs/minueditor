@@ -108,8 +108,32 @@ test('requires confirmation before TSV paste replaces populated cells', async ({
     input.dispatchEvent(event)
   })
 
-  await expect(page.getByRole('alertdialog', { name: 'Confirm table paste' })).toBeVisible()
+  const dialog = page.getByRole('alertdialog', { name: 'Confirm table paste' })
+  await expect(dialog).toBeVisible()
   await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+  await page.getByRole('button', { name: 'Cancel table paste' }).click()
+  await expect(cell).toBeFocused()
+  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+
+  await cell.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'Grace\t37')
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+  })
+  await expect(dialog).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm table paste' }).press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(cell).toBeFocused()
+
+  await cell.evaluate((input: HTMLInputElement) => {
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'Grace\t37')
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: clipboard })
+    input.dispatchEvent(event)
+  })
   await page.getByRole('button', { name: 'Confirm table paste' }).click()
   await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Grace | 37 |')
 })
