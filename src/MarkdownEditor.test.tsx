@@ -9,6 +9,7 @@ import type { EditorView } from '@codemirror/view'
 import { MarkdownEditor, minimalTextChange, type MarkdownEditorHandle } from './MarkdownEditor'
 import type { EditorComment } from './types'
 import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
+import { openTablePicker } from './extensions/tables/picker'
 import { toggleBold, toggleItalic } from './toolbar/commands'
 
 function applyEditorSlashCommand(view: EditorView, label: string) {
@@ -3439,6 +3440,144 @@ describe('MarkdownEditor', () => {
       expect(container.querySelectorAll('.me-table-render th').length).toBe(2)
       expect(container.querySelectorAll('.me-table-render td').length).toBe(2)
     })
+  })
+
+  it('maps active table interaction through controlled changes before the table without feedback', async () => {
+    const onChange = vi.fn()
+    const initial = 'before\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |\n\nafter'
+    const { container, rerender } = render(
+      <MarkdownEditor value={initial} onChange={onChange} />
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget')!))
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+    const activeCell = container.querySelector(
+      '.me-table-input[data-row-index="1"][data-col-index="0"]',
+    ) as HTMLInputElement
+    fireEvent.click(activeCell)
+    activeCell.focus()
+    activeCell.setSelectionRange(1, 2)
+
+    rerender(<MarkdownEditor value={`new\n${initial}`} onChange={onChange} />)
+
+    await waitFor(() => {
+      const mappedCell = container.querySelector(
+        '.me-table-input[data-row-index="1"][data-col-index="0"]',
+      ) as HTMLInputElement
+      expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+      expect(mappedCell).toHaveValue('Ada')
+      expect(document.activeElement).toBe(mappedCell)
+      expect([mappedCell.selectionStart, mappedCell.selectionEnd]).toEqual([1, 2])
+    })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('restores active-cell focus when controlled prose is prepended at a table boundary', async () => {
+    const onChange = vi.fn()
+    const initial = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container, rerender } = render(
+      <MarkdownEditor value={initial} onChange={onChange} />
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget')!))
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+    const activeCell = container.querySelector(
+      '.me-table-input[data-row-index="1"][data-col-index="0"]',
+    ) as HTMLInputElement
+    activeCell.focus()
+    activeCell.setSelectionRange(1, 2)
+
+    rerender(<MarkdownEditor value={`Prose\n${initial}`} onChange={onChange} />)
+
+    await waitFor(() => {
+      const mappedCell = container.querySelector(
+        '.me-table-input[data-row-index="1"][data-col-index="0"]',
+      ) as HTMLInputElement
+      expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+      expect(document.activeElement).toBe(mappedCell)
+      expect([mappedCell.selectionStart, mappedCell.selectionEnd]).toEqual([1, 2])
+    })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('deactivates table interaction when a controlled update touches or replaces the table', async () => {
+    const onChange = vi.fn()
+    const initial = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container, rerender } = render(
+      <MarkdownEditor value={initial} onChange={onChange} />
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget')!))
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+
+    const changed = initial.replace('Ada', 'Grace')
+    rerender(<MarkdownEditor value={changed} onChange={onChange} />)
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget--editing')).toBeNull()
+      expect(container.querySelector('.me-table-input')).toBeNull()
+      expect(container.querySelector('.me-table-render')).toHaveTextContent('Grace')
+    })
+
+    const replacement = '| New | Table |\n| --- | --- |\n| X | Y |'
+    rerender(<MarkdownEditor value={replacement} onChange={onChange} />)
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget--editing')).toBeNull()
+      expect(container.querySelector('.me-table-render')).toHaveTextContent('New')
+    })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('clears table interaction across source-mode and read-only transitions', async () => {
+    const value = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const onChange = vi.fn()
+    const { container, rerender } = render(
+      <MarkdownEditor value={value} onChange={onChange} mode="live" />
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget')!))
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+
+    rerender(<MarkdownEditor value={value} onChange={onChange} mode="source" />)
+    await waitFor(() => expect(container.querySelector('.me-table-widget')).toBeNull())
+    rerender(<MarkdownEditor value={value} onChange={onChange} mode="live" />)
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget')).toBeTruthy()
+      expect(container.querySelector('.me-table-widget--editing')).toBeNull()
+    })
+
+    fireEvent.mouseDown(container.querySelector('.me-table-widget')!)
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+    rerender(<MarkdownEditor value={value} onChange={onChange} mode="live" readOnly />)
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget--editing')).toBeNull()
+      expect(container.querySelector('.me-table-input')).toBeNull()
+    })
+    rerender(<MarkdownEditor value={value} onChange={onChange} mode="live" />)
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeNull())
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the table picker on read-only and source-mode transitions', async () => {
+    let view: EditorView | null = null
+    const { rerender } = render(
+      <MarkdownEditor
+        value="Hello"
+        onChange={vi.fn()}
+        onViewReady={(nextView) => { view = nextView }}
+      />
+    )
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => { expect(openTablePicker(view!, { from: 0 })).toBe(true) })
+    await waitFor(() => expect(document.querySelector('.me-table-picker')).toBeTruthy())
+    rerender(<MarkdownEditor value="Hello" onChange={vi.fn()} readOnly />)
+    await waitFor(() => expect(document.querySelector('.me-table-picker')).toBeNull())
+
+    rerender(<MarkdownEditor value="Hello" onChange={vi.fn()} />)
+    act(() => { expect(openTablePicker(view!, { from: 0 })).toBe(true) })
+    await waitFor(() => expect(document.querySelector('.me-table-picker')).toBeTruthy())
+    rerender(<MarkdownEditor value="Hello" onChange={vi.fn()} mode="source" />)
+    await waitFor(() => expect(document.querySelector('.me-table-picker')).toBeNull())
   })
 
   it('keeps active-cell context while table controls restructure and align a table', async () => {

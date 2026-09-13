@@ -30,6 +30,34 @@ test('edits and restructures a table through the production widget command path'
   await expect(markdown).toHaveText('| Name |  | Age |\n| --- | --- | --- |\n| Grace | Compiler | 42 |')
 })
 
+test('reorders body rows and aligned columns through accessible table controls', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+  const markdown = page.getByTestId('markdown-output')
+  await page.locator('.me-table-widget').click()
+
+  const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await expect(page.getByRole('button', { name: 'Move row up' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Move column left' })).toBeDisabled()
+
+  await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').press('Tab')
+  const secondBodyName = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
+  await secondBodyName.fill('Grace')
+  await page.locator('.me-table-input[data-row-index="2"][data-col-index="1"]').fill('37')
+
+  await firstBodyCell.click()
+  await page.getByRole('button', { name: 'Move row down' }).click()
+  await expect(markdown).toHaveText('| Name | Age |\n| --- | --- |\n| Grace | 37 |\n| Ada | 42 |')
+  await expect(page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Move row down' })).toBeDisabled()
+
+  const activeAge = page.locator('.me-table-input[data-row-index="2"][data-col-index="1"]')
+  await activeAge.click()
+  await page.getByRole('button', { name: 'Move column left' }).click()
+  await expect(markdown).toHaveText('| Age | Name |\n| --- | --- |\n| 37 | Grace |\n| 42 | Ada |')
+  await expect(page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Move column left' })).toBeDisabled()
+})
+
 test('pastes a TSV rectangle into empty table cells without creating a second document table', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
   await page.locator('.me-table-widget').click()
@@ -339,6 +367,52 @@ test('restores persistent active-cell state after an external document update', 
   await page.getByRole('button', { name: 'Prepend prose' }).click()
   await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-row-index', '1')
   await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-col-index', '1')
+  await expect(page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')).toBeFocused()
+
+  await page.getByRole('button', { name: 'Append prose' }).click()
+  await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-row-index', '1')
+  await expect(page.locator('.me-table-widget')).toHaveAttribute('data-active-col-index', '1')
+  await expect(page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')).toBeFocused()
+})
+
+test('clears stale table editing on external, source-mode, and read-only transitions', async ({ page }) => {
+  await page.goto('/?fixture=table-interaction')
+
+  const widget = page.locator('.me-table-widget')
+  await widget.click()
+  await expect(widget).toHaveClass(/me-table-widget--editing/)
+
+  await page.getByRole('button', { name: 'Replace table cell externally' }).click()
+  await expect(page.locator('.me-table-input')).toHaveCount(0)
+  await expect(widget).not.toHaveClass(/me-table-widget--editing/)
+  await expect(page.getByTestId('markdown-output')).toContainText('| Grace | 42 |')
+
+  await widget.click()
+  await page.getByRole('button', { name: 'Mode: live' }).click()
+  await expect(widget).toHaveCount(0)
+  await page.getByRole('button', { name: 'Mode: source' }).click()
+  await expect(widget).toHaveCount(1)
+  await expect(widget).not.toHaveClass(/me-table-widget--editing/)
+
+  await widget.click()
+  await page.getByRole('button', { name: 'Read-only: off' }).click()
+  await expect(page.locator('.me-table-input')).toHaveCount(0)
+  await expect(widget).not.toHaveClass(/me-table-widget--editing/)
+  await widget.click()
+  await expect(widget).not.toHaveClass(/me-table-widget--editing/)
+
+  await page.getByRole('button', { name: 'Read-only: on' }).click()
+  await widget.click()
+  await page.getByRole('button', { name: 'Replace table externally', exact: true }).click()
+  await expect(widget).toHaveCount(1)
+  await expect(page.locator('.me-table-input')).toHaveCount(0)
+  await expect(widget).not.toHaveClass(/me-table-widget--editing/)
+  await expect(page.getByTestId('markdown-output')).toContainText('| New | Table |')
+
+  await widget.click()
+  await page.getByRole('button', { name: 'Delete table externally' }).click()
+  await expect(widget).toHaveCount(0)
+  await expect(page.getByTestId('markdown-output')).toHaveText('Before')
 })
 
 test('keeps contextual control availability in sync after undo', async ({ page }) => {

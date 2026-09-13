@@ -1,4 +1,5 @@
-import { Facet, StateEffect, StateField } from '@codemirror/state'
+import { Facet, StateEffect, StateField, type EditorState } from '@codemirror/state'
+import { getTableBlockByStart } from './model'
 
 export const tableSubmitHandler = Facet.define<() => void, (() => void) | null>({
   combine: (handlers) => handlers[0] ?? null,
@@ -25,6 +26,39 @@ export type TableInteraction = {
 
 export const setActiveTable = StateEffect.define<number | null>()
 export const setTableInteraction = StateEffect.define<TableInteraction | null>()
+
+export const clearTableInteractionEffects = () => [
+  setActiveTable.of(null),
+  setTableInteraction.of(null),
+]
+
+/**
+ * Controlled updates may map a table start, but coordinates are only safe when
+ * the update is strictly separated from the table source. Any overlap or
+ * line-concatenating boundary edit deactivates the widget instead of allowing
+ * an old target to edit externally replaced data.
+ */
+export function externalChangeInvalidatesTableInteraction(
+  state: EditorState,
+  change: { from: number; to: number; insert: string },
+): boolean {
+  const activeFrom = state.field(activeTableField, false)
+  const interaction = state.field(tableInteractionField, false)
+  if (activeFrom == null && interaction == null) return false
+  if (activeFrom == null || interaction == null || activeFrom !== interaction.blockFrom) return true
+
+  const block = getTableBlockByStart(state, activeFrom)
+  if (!block) return true
+
+  if (change.from === change.to) {
+    if (change.from === block.from) return !change.insert.endsWith('\n')
+    if (change.from === block.to) return !change.insert.startsWith('\n')
+    return change.from > block.from && change.from < block.to
+  }
+  // Boundary replacements can concatenate inserted text with the first or
+  // last table line, so only wholly separated ranges are considered safe.
+  return change.from <= block.to && change.to >= block.from
+}
 
 export const activeTableField = StateField.define<number | null>({
   create() {
