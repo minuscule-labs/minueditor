@@ -196,6 +196,43 @@ export function insertTableRow(view: EditorViewType, target: TableCellTarget, si
   return true
 }
 
+/** Moves a body row without ever reclassifying the immutable table header. */
+export function moveTableRow(view: EditorViewType, target: TableCellTarget, direction: 'up' | 'down'): boolean {
+  const block = resolveTarget(view, target)
+  if (!block || target.rowIndex === 0) return false
+  const destination = direction === 'up' ? target.rowIndex - 1 : target.rowIndex + 1
+  if (destination === 0 || destination >= block.rows.length) return false
+  const rows = block.rows.map((row) => [...row])
+  const movedRow = rows[target.rowIndex]
+  rows[target.rowIndex] = rows[destination]
+  rows[destination] = movedRow
+  applyTableBlockUpdate(view, block, { ...block, rows }, { rowIndex: destination, colIndex: target.colIndex })
+  focusTableCell(view, { blockFrom: block.from, rowIndex: destination, colIndex: target.colIndex })
+  return true
+}
+
+/** Moves a column and its alignment together, preserving every row's values. */
+export function moveTableColumn(view: EditorViewType, target: TableCellTarget, direction: 'left' | 'right'): boolean {
+  const block = resolveTarget(view, target)
+  if (!block) return false
+  const destination = direction === 'left' ? target.colIndex - 1 : target.colIndex + 1
+  if (destination < 0 || destination >= block.rows[0].length) return false
+  const rows = block.rows.map((row) => {
+    const next = [...row]
+    const movedCell = next[target.colIndex]
+    next[target.colIndex] = next[destination]
+    next[destination] = movedCell
+    return next
+  })
+  const alignments = [...block.alignments]
+  const movedAlignment = alignments[target.colIndex]
+  alignments[target.colIndex] = alignments[destination]
+  alignments[destination] = movedAlignment
+  applyTableBlockUpdate(view, block, { ...block, rows, alignments }, { rowIndex: target.rowIndex, colIndex: destination })
+  focusTableCell(view, { blockFrom: block.from, rowIndex: target.rowIndex, colIndex: destination })
+  return true
+}
+
 /** Destructive header/last-column removal awaits its explicit Phase 2 contract. */
 export function removeTableColumn(view: EditorViewType, target: TableCellTarget): boolean {
   const block = resolveTarget(view, target)

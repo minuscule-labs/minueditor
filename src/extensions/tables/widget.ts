@@ -22,6 +22,8 @@ import {
   deleteTable,
   insertTableColumn,
   insertTableRow,
+  moveTableColumn,
+  moveTableRow,
   pasteTableCellRange,
   previewTableCellPaste,
   removeTableColumn,
@@ -445,6 +447,10 @@ function syncTableControlsAvailability(wrapper: HTMLElement, block: TableBlock):
   disable('Add row below', block.rows.length - 1 >= TABLE_LIMITS.maxBodyRows)
   disable('Add column left', block.rows[0].length >= TABLE_LIMITS.maxColumns)
   disable('Add column right', block.rows[0].length >= TABLE_LIMITS.maxColumns)
+  disable('Move row up', target.rowIndex <= 1)
+  disable('Move row down', target.rowIndex === 0 || target.rowIndex >= block.rows.length - 1)
+  disable('Move column left', target.colIndex <= 0)
+  disable('Move column right', target.colIndex >= block.rows[0].length - 1)
   disable('Remove row', !row || target.rowIndex === 0 || block.rows.length <= 2 || row.some((cell) => cell.length > 0))
   disable('Remove column', target.colIndex < 0 || block.rows[0].length <= 1 || block.rows.some((currentRow) => currentRow[target.colIndex]?.length > 0))
 }
@@ -464,6 +470,10 @@ function createTableControls(view: EditorView, block: TableBlock, wrapper: HTMLE
     createTableControlButton('Add row below', () => insertTableRow(view, target(), 'below')),
     createTableControlButton('Add column left', () => insertTableColumn(view, target(), 'left')),
     createTableControlButton('Add column right', () => insertTableColumn(view, target(), 'right')),
+    createTableControlButton('Move row up', () => moveTableRow(view, target(), 'up')),
+    createTableControlButton('Move row down', () => moveTableRow(view, target(), 'down')),
+    createTableControlButton('Move column left', () => moveTableColumn(view, target(), 'left')),
+    createTableControlButton('Move column right', () => moveTableColumn(view, target(), 'right')),
     createTableControlButton('Remove row', () => removeTableRow(view, target())),
     createTableControlButton('Remove column', () => removeTableColumn(view, target())),
   )

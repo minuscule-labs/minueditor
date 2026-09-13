@@ -10,6 +10,8 @@ import {
   insertTableAt,
   insertTableColumn,
   insertTableRow,
+  moveTableColumn,
+  moveTableRow,
   pasteTableCellRange,
   previewTableCellPaste,
   removeTableColumn,
@@ -196,6 +198,34 @@ describe('shared table commands', () => {
       overwriteCount: 0,
       reason: 'out-of-bounds',
     })
+    expect(view.state.doc.toString()).toBe(before)
+  })
+
+  it('moves body rows and columns atomically while preserving the header and alignment', () => {
+    const view = createView('| Name | Score | Notes |\n| :--- | ---: | :---: |\n| Ada | 10 | first |\n| Grace | 20 | second |\n| Linus | 30 | third |')
+
+    expect(moveTableRow(view, target(view, 2, 1), 'up')).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name | Score | Notes |\n| :--- | ---: | :---: |\n| Grace | 20 | second |\n| Ada | 10 | first |\n| Linus | 30 | third |')
+    let block = findTableBlocks(view.state)[0]
+    expect(view.state.selection.main.from).toBe(block.cellRanges[1][1].from)
+
+    expect(moveTableColumn(view, target(view, 1, 2), 'left')).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name | Notes | Score |\n| :--- | :---: | ---: |\n| Grace | second | 20 |\n| Ada | first | 10 |\n| Linus | third | 30 |')
+    block = findTableBlocks(view.state)[0]
+    expect(view.state.selection.main.from).toBe(block.cellRanges[1][1].from)
+    expect(undo(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('| Name | Score | Notes |\n| :--- | ---: | :---: |\n| Grace | 20 | second |\n| Ada | 10 | first |\n| Linus | 30 | third |')
+  })
+
+  it('declines row or column ordering beyond their accessible boundaries', () => {
+    const view = createView('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |')
+    const before = view.state.doc.toString()
+
+    expect(moveTableRow(view, target(view, 0), 'down')).toBe(false)
+    expect(moveTableRow(view, target(view, 1), 'up')).toBe(false)
+    expect(moveTableRow(view, target(view, 2), 'down')).toBe(false)
+    expect(moveTableColumn(view, target(view, 1, 0), 'left')).toBe(false)
+    expect(moveTableColumn(view, target(view, 1, 1), 'right')).toBe(false)
     expect(view.state.doc.toString()).toBe(before)
   })
 
