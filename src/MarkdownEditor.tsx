@@ -27,8 +27,18 @@ import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { externalLinkWidgets, openExternalLinkEditor } from './extensions/link-widget'
 import { tableDecorations } from './extensions/tables'
-import { TablePickerHost } from './extensions/tables/picker'
-import { tableSubmitHandler } from './extensions/tables/state'
+import { dismissTablePicker, TablePickerHost } from './extensions/tables/picker'
+import {
+  captureActiveTableInputFocus,
+  restoreActiveTableInputFocus,
+} from './extensions/tables/widget'
+import {
+  activeTableField,
+  clearTableInteractionEffects,
+  externalChangeInvalidatesTableInteraction,
+  tableInteractionField,
+  tableSubmitHandler,
+} from './extensions/tables/state'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
 import { markdownKeymap } from './extensions/keymap'
@@ -844,13 +854,20 @@ export const MarkdownEditor = forwardRef<
     const change = minimalTextChange(current, value)
     if (!change) return
     valueRef.current = value
+    const interaction = view.state.field(tableInteractionField, false)
+    const resetTableInteraction = externalChangeInvalidatesTableInteraction(view.state, change)
+    const focusSnapshot = !resetTableInteraction && interaction && change.to < interaction.blockFrom
+      ? captureActiveTableInputFocus(view)
+      : null
     view.dispatch({
       changes: change,
+      ...(resetTableInteraction ? { effects: clearTableInteractionEffects() } : {}),
       annotations: [
         externalValueUpdate.of(true),
         Transaction.addToHistory.of(false),
       ],
     })
+    if (focusSnapshot) restoreActiveTableInputFocus(view, focusSnapshot)
   }, [value])
 
   useEffect(() => {
@@ -874,10 +891,20 @@ export const MarkdownEditor = forwardRef<
     const view = viewRef.current
     if (!view) return
 
+    const hadTableInteraction = mode === 'source' && (
+      view.state.field(activeTableField, false) != null ||
+      view.state.field(tableInteractionField, false) != null
+    )
+    if (mode === 'source') dismissTablePicker(view)
+
     view.dispatch({
-      effects: modeCompartment.current.reconfigure(buildModeExtensions()),
+      effects: [
+        ...(hadTableInteraction ? clearTableInteractionEffects() : []),
+        modeCompartment.current.reconfigure(buildModeExtensions()),
+      ],
     })
-  }, [buildModeExtensions])
+    if (hadTableInteraction) view.focus()
+  }, [buildModeExtensions, mode])
 
   useEffect(() => {
     const view = viewRef.current
@@ -948,11 +975,21 @@ export const MarkdownEditor = forwardRef<
     const view = viewRef.current
     if (!view) return
     readOnlyRef.current = readOnly
+    const hadTableInteraction = readOnly && (
+      view.state.field(activeTableField, false) != null ||
+      view.state.field(tableInteractionField, false) != null
+    )
+    if (readOnly) dismissTablePicker(view)
+
     view.dispatch({
-      effects: readOnlyCompartment.current.reconfigure(
-        EditorView.editable.of(!readOnly),
-      ),
+      effects: [
+        ...(hadTableInteraction ? clearTableInteractionEffects() : []),
+        readOnlyCompartment.current.reconfigure(
+          EditorView.editable.of(!readOnly),
+        ),
+      ],
     })
+    if (hadTableInteraction) view.focus()
     emitState(view)
   }, [readOnly, emitState])
 

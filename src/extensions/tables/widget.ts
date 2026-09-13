@@ -38,11 +38,13 @@ import {
 
 const tableFocusTokens = new WeakMap<EditorView, number>()
 
-type InputSelection = {
+export type TableInputFocusSnapshot = {
   start: number
   end: number
   direction: HTMLInputElement['selectionDirection']
 }
+
+type InputSelection = TableInputFocusSnapshot
 
 type TableCell = { rowIndex: number; colIndex: number }
 
@@ -69,6 +71,25 @@ function scheduleTableInputFocus(
     ) as HTMLElement | null
     if (widget) focusTableInput(widget, target.rowIndex, target.colIndex, selection)
   })
+}
+
+export function captureActiveTableInputFocus(view: EditorView): TableInputFocusSnapshot | null {
+  const activeElement = document.activeElement
+  if (
+    !(activeElement instanceof HTMLInputElement) ||
+    !activeElement.classList.contains('me-table-input') ||
+    !view.dom.contains(activeElement)
+  ) return null
+  return inputSelection(activeElement)
+}
+
+export function restoreActiveTableInputFocus(
+  view: EditorView,
+  selection: TableInputFocusSnapshot,
+): void {
+  const interaction = view.state.field(tableInteractionField, false)
+  if (!interaction) return
+  scheduleTableInputFocus(view, interaction.blockFrom, interaction.activeCell, selection)
 }
 
 function activateTable(

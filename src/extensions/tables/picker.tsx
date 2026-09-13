@@ -17,7 +17,7 @@ type TablePickerRequest = {
   document: EditorView['state']['doc']
 }
 
-type TablePickerListener = (request: TablePickerRequest) => void
+type TablePickerListener = (request: TablePickerRequest | null) => void
 
 const pickerListeners = new Map<EditorView, TablePickerListener>()
 
@@ -30,6 +30,11 @@ export function openTablePicker(view: EditorView, insertion: TableInsertion): bo
   if (!listener || !view.state.facet(EditorView.editable)) return false
   listener({ insertion, document: view.state.doc })
   return true
+}
+
+/** Dismisses transient picker UI when the host editor changes mode or editability. */
+export function dismissTablePicker(view: EditorView): void {
+  pickerListeners.get(view)?.(null)
 }
 
 export function TablePickerHost({ view }: { view: EditorView | null }) {

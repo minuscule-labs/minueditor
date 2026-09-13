@@ -854,12 +854,55 @@ function TableCommandFixture() {
 
 function TableInteractionFixture() {
   const [value, setValue] = useState('Before\n\n| Name | Age |\n| --- | --- |\n| Ada | 42 |')
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [readOnly, setReadOnly] = useState(false)
 
   return (
     <main className="app-main" data-testid="table-interaction-fixture">
-      <button type="button" onClick={() => setValue(`Updated\n\n${value}`)}>Prepend prose</button>
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setValue(`Updated\n\n${value}`)}
+      >
+        Prepend prose
+      </button>
+      <button type="button" onClick={() => setValue((current) => current.replace('Ada', 'Grace'))}>Replace table cell externally</button>
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setValue((current) => `${current}\n\nUpdated after`)}
+      >
+        Append prose
+      </button>
+      <button
+        type="button"
+        onClick={() => setValue((current) => {
+          const from = current.indexOf('| Name | Age |')
+          if (from < 0) return current
+          const after = current.indexOf('\n\n', from)
+          const suffix = after < 0 ? '' : current.slice(after)
+          return `${current.slice(0, from)}| New | Table |\n| --- | --- |\n| X | Y |${suffix}`
+        })}
+      >
+        Replace table externally
+      </button>
+      <button
+        type="button"
+        onClick={() => setValue((current) => current.slice(0, current.indexOf('|')).trimEnd())}
+      >
+        Delete table externally
+      </button>
+      <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
+      <button type="button" onClick={() => setReadOnly((current) => !current)}>Read-only: {readOnly ? 'on' : 'off'}</button>
       <div className="editor-frame">
-        <MarkdownEditor value={value} onChange={setValue} autoFocus minHeight={320} />
+        <MarkdownEditor
+          value={value}
+          onChange={setValue}
+          mode={mode}
+          readOnly={readOnly}
+          autoFocus
+          minHeight={320}
+        />
       </div>
       <pre data-testid="markdown-output">{value}</pre>
     </main>
