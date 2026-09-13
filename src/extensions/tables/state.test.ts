@@ -77,6 +77,8 @@ describe('table interaction state', () => {
 
     expect(externalChangeInvalidatesTableInteraction(state, { from: 0, to: 0, insert: 'prefix' })).toBe(true)
     expect(externalChangeInvalidatesTableInteraction(state, { from: 0, to: 0, insert: 'prefix\n' })).toBe(false)
+    expect(externalChangeInvalidatesTableInteraction(state, { from: 0, to: 0, insert: '```\n' })).toBe(true)
+    expect(externalChangeInvalidatesTableInteraction(state, { from: 0, to: 0, insert: '<div>\n' })).toBe(true)
     expect(externalChangeInvalidatesTableInteraction(state, { from: 2, to: 2, insert: 'x' })).toBe(true)
     expect(externalChangeInvalidatesTableInteraction(state, { from: 2, to: 3, insert: 'x' })).toBe(true)
     expect(externalChangeInvalidatesTableInteraction(state, { from: table.length, to: table.length, insert: 'suffix' })).toBe(true)

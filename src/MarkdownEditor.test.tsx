@@ -10,6 +10,7 @@ import { MarkdownEditor, minimalTextChange, type MarkdownEditorHandle } from './
 import type { EditorComment } from './types'
 import { editorSlashCommands, slashCommandCompletions } from './extensions/slash-commands'
 import { openTablePicker } from './extensions/tables/picker'
+import { activeTableField, tableInteractionField } from './extensions/tables/state'
 import { toggleBold, toggleItalic } from './toolbar/commands'
 
 function applyEditorSlashCommand(view: EditorView, label: string) {
@@ -3525,6 +3526,25 @@ describe('MarkdownEditor', () => {
       expect(container.querySelector('.me-table-render')).toHaveTextContent('New')
     })
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it.each(['```\n', '<div>\n'])('clears stale table interaction when a boundary prepend hides the table: %s', async (prefix) => {
+    let view: EditorView | null = null
+    const initial = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container, rerender } = render(
+      <MarkdownEditor value={initial} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />,
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget')!))
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+
+    rerender(<MarkdownEditor value={`${prefix}${initial}`} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />)
+
+    await waitFor(() => {
+      expect(container.querySelector('.me-table-widget')).toBeNull()
+      expect(view?.state.field(activeTableField, false)).toBeNull()
+      expect(view?.state.field(tableInteractionField, false)).toBeNull()
+    })
   })
 
   it('clears table interaction across source-mode and read-only transitions', async () => {

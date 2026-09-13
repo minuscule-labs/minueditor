@@ -1,5 +1,5 @@
 import { Facet, StateEffect, StateField, type EditorState } from '@codemirror/state'
-import { getTableBlockByStart } from './model'
+import { getTableBlockByStart, type TableBlock } from './model'
 
 export const tableSubmitHandler = Facet.define<() => void, (() => void) | null>({
   combine: (handlers) => handlers[0] ?? null,
@@ -38,6 +38,17 @@ export const clearTableInteractionEffects = () => [
  * line-concatenating boundary edit deactivates the widget instead of allowing
  * an old target to edit externally replaced data.
  */
+function boundaryInsertionPreservesTable(
+  state: EditorState,
+  block: TableBlock,
+  change: { from: number; to: number; insert: string },
+): boolean {
+  const prospective = state.update({ changes: change }).state
+  const mappedFrom = prospective.field(activeTableField, false)
+  const mappedBlock = mappedFrom == null ? null : getTableBlockByStart(prospective, mappedFrom)
+  return mappedBlock?.source === block.source
+}
+
 export function externalChangeInvalidatesTableInteraction(
   state: EditorState,
   change: { from: number; to: number; insert: string },
@@ -51,8 +62,12 @@ export function externalChangeInvalidatesTableInteraction(
   if (!block) return true
 
   if (change.from === change.to) {
-    if (change.from === block.from) return !change.insert.endsWith('\n')
-    if (change.from === block.to) return !change.insert.startsWith('\n')
+    if (change.from === block.from) {
+      return !change.insert.endsWith('\n') || !boundaryInsertionPreservesTable(state, block, change)
+    }
+    if (change.from === block.to) {
+      return !change.insert.startsWith('\n') || !boundaryInsertionPreservesTable(state, block, change)
+    }
     return change.from > block.from && change.from < block.to
   }
   // Boundary replacements can concatenate inserted text with the first or
