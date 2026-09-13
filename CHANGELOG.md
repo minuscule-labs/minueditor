@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.15.0 — 2026-09-11
+
+- Added Typora-inspired Markdown table creation, contextual structure/alignment controls, accessible keyboard navigation, persistent cell-range selection, and host-safe `Mod+Enter` submission.
+- Added bounded TSV and safe HTML-table cell-range paste with overwrite confirmation, source-preserving atomic updates, TSV range copy/cut, and portable whole-table Markdown copy.
+- Hardened table clipboard handling with quoted/empty-cell preservation, multiline/unsafe-HTML rejection, incremental dimension limits, focus restoration, and Chromium/Firefox integration coverage.
 - Fixed list Enter, Backspace, Tab, and Shift-Tab ownership so structural edits apply only in valid list syntax while completions and read-only editors retain keyboard ownership.
 - Preserved cursor and multi-selection positions through list indentation, outdent, toggles, and ordered-list renumbering.
 - Changed typed fenced-code creation to commit on Enter instead of the third backtick, with support for tilde/long/container fences, safe unclosed-fence fallback, exact language-token edits, and stable click/Escape focus navigation.
