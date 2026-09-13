@@ -3472,6 +3472,34 @@ describe('MarkdownEditor', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('restores active-cell focus when controlled prose is prepended at a table boundary', async () => {
+    const onChange = vi.fn()
+    const initial = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'
+    const { container, rerender } = render(
+      <MarkdownEditor value={initial} onChange={onChange} />
+    )
+
+    fireEvent.mouseDown(await waitFor(() => container.querySelector('.me-table-widget')!))
+    await waitFor(() => expect(container.querySelector('.me-table-widget--editing')).toBeTruthy())
+    const activeCell = container.querySelector(
+      '.me-table-input[data-row-index="1"][data-col-index="0"]',
+    ) as HTMLInputElement
+    activeCell.focus()
+    activeCell.setSelectionRange(1, 2)
+
+    rerender(<MarkdownEditor value={`Prose\n${initial}`} onChange={onChange} />)
+
+    await waitFor(() => {
+      const mappedCell = container.querySelector(
+        '.me-table-input[data-row-index="1"][data-col-index="0"]',
+      ) as HTMLInputElement
+      expect(container.querySelector('.me-table-widget--editing')).toBeTruthy()
+      expect(document.activeElement).toBe(mappedCell)
+      expect([mappedCell.selectionStart, mappedCell.selectionEnd]).toEqual([1, 2])
+    })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('deactivates table interaction when a controlled update touches or replaces the table', async () => {
     const onChange = vi.fn()
     const initial = '| Name | Age |\n| --- | --- |\n| Ada | 42 |'

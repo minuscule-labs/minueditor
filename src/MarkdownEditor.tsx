@@ -856,7 +856,7 @@ export const MarkdownEditor = forwardRef<
     valueRef.current = value
     const interaction = view.state.field(tableInteractionField, false)
     const resetTableInteraction = externalChangeInvalidatesTableInteraction(view.state, change)
-    const focusSnapshot = !resetTableInteraction && interaction && change.to < interaction.blockFrom
+    const focusSnapshot = !resetTableInteraction && interaction && change.to <= interaction.blockFrom
       ? captureActiveTableInputFocus(view)
       : null
     view.dispatch({
