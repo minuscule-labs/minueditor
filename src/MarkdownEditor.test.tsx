@@ -973,7 +973,11 @@ describe('MarkdownEditor', () => {
     expect(document.querySelector('.me-table-menu:not([hidden])')).toBeNull()
 
     rerender(<MarkdownEditor value={value} onChange={vi.fn()} tableActions />)
-    await waitFor(() => expect(container.querySelector('[aria-label="Table actions"]')).toBeTruthy())
+    const trigger = await waitFor(() => container.querySelector('[aria-label="Table actions"]')!)
+    const icon = trigger.querySelector('svg')
+    expect(trigger).not.toHaveTextContent('…')
+    expect(icon).toHaveAttribute('aria-hidden', 'true')
+    expect(icon).toHaveAttribute('focusable', 'false')
   })
 
   it('opens table actions with Shift+F10 and restores the active cell on Escape', async () => {

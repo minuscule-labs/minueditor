@@ -469,6 +469,26 @@ function syncTableControlsAvailability(wrapper: HTMLElement, block: TableBlock):
   }
 }
 
+function appendTableActionsIcon(button: HTMLButtonElement): void {
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  icon.setAttribute('viewBox', '0 0 24 24')
+  icon.setAttribute('aria-hidden', 'true')
+  icon.setAttribute('focusable', 'false')
+
+  for (const d of [
+    'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z',
+    'M3 9h18',
+    'M3 15h18',
+    'M15 3v18',
+  ]) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    path.setAttribute('d', d)
+    icon.appendChild(path)
+  }
+
+  button.appendChild(icon)
+}
+
 function createTableActions(view: EditorView, block: TableBlock, wrapper: HTMLElement): HTMLElement {
   const actions = document.createElement('div')
   actions.className = 'me-table-actions'
@@ -476,7 +496,7 @@ function createTableActions(view: EditorView, block: TableBlock, wrapper: HTMLEl
   const trigger = document.createElement('button')
   trigger.type = 'button'
   trigger.className = 'me-table-actions__trigger'
-  trigger.textContent = '…'
+  appendTableActionsIcon(trigger)
   trigger.setAttribute('aria-label', 'Table actions')
   trigger.setAttribute('aria-haspopup', 'menu')
   trigger.setAttribute('aria-expanded', 'false')
@@ -522,8 +542,6 @@ function createTableActions(view: EditorView, block: TableBlock, wrapper: HTMLEl
   }
   const positionMenu = () => {
     if (!open) return
-    const anchor = trigger.getBoundingClientRect()
-    const bounds = menu.getBoundingClientRect()
     const viewport = window.visualViewport
     const viewportLeft = viewport?.offsetLeft ?? 0
     const viewportTop = viewport?.offsetTop ?? 0
@@ -536,18 +554,29 @@ function createTableActions(view: EditorView, block: TableBlock, wrapper: HTMLEl
     const minTop = viewportTop + padding
     const maxBottom = viewportTop + viewportHeight - padding
 
+    menu.style.maxWidth = `${Math.max(80, Math.floor(viewportWidth - padding * 2))}px`
+    const anchor = trigger.getBoundingClientRect()
+    const bounds = menu.getBoundingClientRect()
+    const naturalHeight = menu.scrollHeight + bounds.height - menu.clientHeight
+
     let left = anchor.right - bounds.width
     if (left < minLeft) left = anchor.left
     left = Math.max(minLeft, Math.min(left, Math.max(minLeft, maxRight - bounds.width)))
 
-    let top = anchor.bottom + gap
-    if (top + bounds.height > maxBottom) top = anchor.top - gap - bounds.height
-    top = Math.max(minTop, Math.min(top, Math.max(minTop, maxBottom - bounds.height)))
+    const belowTop = anchor.bottom + gap
+    const aboveBottom = anchor.top - gap
+    const availableBelow = Math.max(0, maxBottom - belowTop)
+    const availableAbove = Math.max(0, aboveBottom - minTop)
+    const openBelow = naturalHeight <= availableBelow || availableBelow >= availableAbove
+    const availableHeight = openBelow ? availableBelow : availableAbove
+    const maxMenuHeight = Math.max(80, Math.floor(availableHeight))
+    const renderedHeight = Math.min(naturalHeight, maxMenuHeight)
+    let top = openBelow ? belowTop : aboveBottom - renderedHeight
+    top = Math.max(minTop, Math.min(top, Math.max(minTop, maxBottom - renderedHeight)))
 
     menu.style.left = `${Math.round(left)}px`
     menu.style.top = `${Math.round(top)}px`
-    menu.style.maxWidth = `${Math.max(80, Math.floor(viewportWidth - padding * 2))}px`
-    menu.style.maxHeight = `${Math.max(80, Math.floor(viewportHeight - padding * 2))}px`
+    menu.style.maxHeight = `${maxMenuHeight}px`
   }
   const closeMenu = ({ restoreFocus = true }: { restoreFocus?: boolean } = {}) => {
     if (!open) return

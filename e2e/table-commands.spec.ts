@@ -450,6 +450,22 @@ test('returns focus to the editor after deleting a table', async ({ page }) => {
   await expect(page.locator('.cm-content')).toBeFocused()
 })
 
+test('left-aligns the icon-only Table actions trigger', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const actions = page.locator('.me-table-actions')
+  const trigger = page.getByRole('button', { name: 'Table actions' })
+  await expect(trigger.locator('svg')).toBeVisible()
+  await expect(trigger).not.toContainText('…')
+
+  const actionsBounds = await actions.boundingBox()
+  const triggerBounds = await trigger.boundingBox()
+  expect(actionsBounds).not.toBeNull()
+  expect(triggerBounds).not.toBeNull()
+  expect(Math.abs(triggerBounds!.x - actionsBounds!.x)).toBeLessThan(1)
+})
+
 test('opens and dismisses Table actions from the keyboard', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
@@ -481,8 +497,8 @@ test('keeps focus on a host control after outside-pointer dismissal', async ({ p
   await expect(hostControl).toBeFocused()
 })
 
-test('keeps Table actions inside a narrow viewport and leaves right-click native', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 360 })
+test('keeps Table actions inside a short viewport and leaves right-click native', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 240 })
   await page.goto('/?fixture=table-commands')
 
   await page.locator('.me-table-widget').click()
@@ -490,13 +506,20 @@ test('keeps Table actions inside a narrow viewport and leaves right-click native
   await firstBodyCell.click({ button: 'right' })
   await expect(page.getByRole('menu', { name: 'Table actions' })).toBeHidden()
 
-  await page.getByRole('button', { name: 'Table actions' }).click()
+  const trigger = page.getByRole('button', { name: 'Table actions' })
+  const triggerBounds = await trigger.boundingBox()
+  await trigger.click()
   const bounds = await page.getByRole('menu', { name: 'Table actions' }).boundingBox()
   expect(bounds).not.toBeNull()
+  expect(triggerBounds).not.toBeNull()
   expect(bounds!.x).toBeGreaterThanOrEqual(0)
   expect(bounds!.y).toBeGreaterThanOrEqual(0)
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320)
-  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(360)
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(240)
+  expect(
+    bounds!.y >= triggerBounds!.y + triggerBounds!.height ||
+      bounds!.y + bounds!.height <= triggerBounds!.y,
+  ).toBe(true)
 })
 
 test('creates the default table immediately through the shared toolbar command', async ({ page }) => {
