@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.16.2 — 2026-09-15
+
+- Replaced the table-actions trigger graphic with a horizontal overflow icon and tightened its spacing above the table.
+
 ## 0.16.1 — 2026-09-15
 
 - Replaced the table-actions ellipsis with an accessible table-properties icon and left-aligned the trigger.

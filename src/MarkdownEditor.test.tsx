@@ -978,6 +978,7 @@ describe('MarkdownEditor', () => {
     expect(trigger).not.toHaveTextContent('…')
     expect(icon).toHaveAttribute('aria-hidden', 'true')
     expect(icon).toHaveAttribute('focusable', 'false')
+    expect(icon?.querySelectorAll('circle')).toHaveLength(3)
   })
 
   it('opens table actions with Shift+F10 and restores the active cell on Escape', async () => {

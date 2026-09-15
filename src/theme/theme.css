@@ -486,7 +486,7 @@
     display: flex;
     justify-content: flex-start;
     min-height: 30px;
-    margin: 0 0 4px;
+    margin: 0;
 }
 
 .me-table-actions__trigger {
@@ -508,11 +508,7 @@
 .me-table-actions__trigger svg {
     width: 18px;
     height: 18px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    fill: currentColor;
 }
 
 .me-table-actions__trigger:hover,

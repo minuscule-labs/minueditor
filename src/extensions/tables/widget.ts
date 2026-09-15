@@ -475,15 +475,12 @@ function appendTableActionsIcon(button: HTMLButtonElement): void {
   icon.setAttribute('aria-hidden', 'true')
   icon.setAttribute('focusable', 'false')
 
-  for (const d of [
-    'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z',
-    'M3 9h18',
-    'M3 15h18',
-    'M15 3v18',
-  ]) {
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    path.setAttribute('d', d)
-    icon.appendChild(path)
+  for (const cx of ['5', '12', '19']) {
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    dot.setAttribute('cx', cx)
+    dot.setAttribute('cy', '12')
+    dot.setAttribute('r', '1.75')
+    icon.appendChild(dot)
   }
 
   button.appendChild(icon)
