@@ -27,7 +27,6 @@ import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { externalLinkWidgets, openExternalLinkEditor } from './extensions/link-widget'
 import { tableDecorations } from './extensions/tables'
-import { dismissTablePicker, TablePickerHost } from './extensions/tables/picker'
 import {
   captureActiveTableInputFocus,
   restoreActiveTableInputFocus,
@@ -36,6 +35,8 @@ import {
   activeTableField,
   clearTableInteractionEffects,
   externalChangeInvalidatesTableInteraction,
+  normalizeTableConfiguration,
+  tableConfiguration,
   tableInteractionField,
   tableSubmitHandler,
 } from './extensions/tables/state'
@@ -230,6 +231,8 @@ export const MarkdownEditor = forwardRef<
     mode = 'live',
     resourceUrlResolver,
     floatingToolbar = false,
+    tableActions = true,
+    tableInsertion,
     autoFocus = false,
     spellCheck = true,
     autoCorrect = 'on',
@@ -255,6 +258,10 @@ export const MarkdownEditor = forwardRef<
   ref,
 ) {
   const normalizedMermaid = normalizeMermaidConfig(mermaid)
+  const stableTableConfiguration = useMemo(
+    () => normalizeTableConfiguration(tableActions, tableInsertion),
+    [tableActions, tableInsertion?.bodyRows, tableInsertion?.columns],
+  )
   const stableMermaidConfig = useMemo(
     () => normalizedMermaid.enabled
       ? {
@@ -273,6 +280,7 @@ export const MarkdownEditor = forwardRef<
   const readOnlyRef = useRef(readOnly)
   const readOnlyCompartment = useRef(new Compartment());
   const modeCompartment = useRef(new Compartment())
+  const tableConfigurationCompartment = useRef(new Compartment())
   const resourceUrlCompartment = useRef(new Compartment())
   const resourceUrlResolverIdentityRef = useRef(resourceUrlResolver)
   const resourceUrlGenerationRef = useRef(0)
@@ -765,6 +773,7 @@ export const MarkdownEditor = forwardRef<
         codeLanguages: codeLanguages ? [...codeLanguages] : [],
       }),
       minueditorTheme,
+      tableConfigurationCompartment.current.of(tableConfiguration.of(stableTableConfiguration)),
       resourceUrlCompartment.current.of(resourceUrlConfigFacet.of({
         resolver: resourceUrlResolver,
         generation: resourceUrlGenerationRef.current,
@@ -871,6 +880,16 @@ export const MarkdownEditor = forwardRef<
   }, [value])
 
   useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({
+      effects: tableConfigurationCompartment.current.reconfigure(
+        tableConfiguration.of(stableTableConfiguration),
+      ),
+    })
+  }, [stableTableConfiguration])
+
+  useEffect(() => {
     if (resourceUrlResolverIdentityRef.current === resourceUrlResolver) return
     resourceUrlResolverIdentityRef.current = resourceUrlResolver
     resourceUrlGenerationRef.current += 1
@@ -895,8 +914,6 @@ export const MarkdownEditor = forwardRef<
       view.state.field(activeTableField, false) != null ||
       view.state.field(tableInteractionField, false) != null
     )
-    if (mode === 'source') dismissTablePicker(view)
-
     view.dispatch({
       effects: [
         ...(hadTableInteraction ? clearTableInteractionEffects() : []),
@@ -979,8 +996,6 @@ export const MarkdownEditor = forwardRef<
       view.state.field(activeTableField, false) != null ||
       view.state.field(tableInteractionField, false) != null
     )
-    if (readOnly) dismissTablePicker(view)
-
     view.dispatch({
       effects: [
         ...(hadTableInteraction ? clearTableInteractionEffects() : []),
@@ -998,7 +1013,6 @@ export const MarkdownEditor = forwardRef<
   return (
     <div className={`minueditor-wrap${comments && comments.showPanel !== false ? ' minueditor-wrap--comments' : ''}${className ? ` ${className}` : ''}`}>
       <div ref={containerRef} className="minueditor" data-minueditor />
-      <TablePickerHost view={cmView} />
       {(floatingToolbar || comments?.onCreate || comments?.onRequest) && (
         <FloatingToolbar
           view={cmView}

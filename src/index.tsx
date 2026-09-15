@@ -22,6 +22,7 @@ export type {
   MarkdownEditorProps,
   MarkdownEditorState,
   MarkdownEditorMode,
+  TableInsertionConfig,
   ResourceKind,
   ResourceUrlContext,
   ResourceUrlResolver,

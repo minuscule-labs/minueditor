@@ -1,7 +1,5 @@
 import type { EditorView } from '@codemirror/view'
 import type { EditorToolbarProps } from '../types'
-import { openTablePicker } from '../extensions/tables/picker'
-import { findTableBlocks } from '../extensions/tables/model'
 import {
   toggleBold,
   toggleItalic,
@@ -19,15 +17,6 @@ import {
 } from './commands'
 
 // ── Button definitions ────────────────────────────────────────────────────────
-
-function openToolbarTablePicker(view: EditorView): boolean {
-  const selection = view.state.selection.main
-  const table = findTableBlocks(view.state).find(
-    (block) => selection.from >= block.from && selection.from <= block.to,
-  )
-  const from = table?.to ?? view.state.doc.lineAt(selection.from).to
-  return openTablePicker(view, { from, prefix: '\n\n', suffix: '\n\n' }) || insertTable(view)
-}
 
 interface ToolbarButton {
   label: string
@@ -56,7 +45,7 @@ const FULL_TOOLBAR_BUTTONS: ToolbarButton[] = [
   { label: '☐ List', title: 'Checkbox list', run: toggleCheckboxList, group: 'list' },
   // Block
   { label: '</>', title: 'Code block', run: insertCodeBlock, group: 'block' },
-  { label: '⊞', title: 'Insert table', run: openToolbarTablePicker, group: 'block' },
+  { label: '⊞', title: 'Insert table', run: insertTable, group: 'block' },
   { label: '—', title: 'Horizontal rule', run: insertHR, group: 'block' },
   { label: '🖼', title: 'Insert image', run: insertImage, group: 'block' },
 ]

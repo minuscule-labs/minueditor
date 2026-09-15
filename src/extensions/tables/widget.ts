@@ -5,6 +5,7 @@ import {
   activeTableField,
   setActiveTable,
   setTableInteraction,
+  tableConfiguration,
   tableInteractionField,
   tableSubmitHandler,
   type TableCellSelection,
@@ -28,7 +29,6 @@ import {
   previewTableCellPaste,
   removeTableColumn,
   removeTableRow,
-  resizeTable,
   setTableColumnAlignment,
   updateTableCell,
 } from '../../internal/table-commands'
@@ -39,6 +39,9 @@ import {
 } from '../../internal/widget-navigation'
 
 const tableFocusTokens = new WeakMap<EditorView, number>()
+const tableMenuCleanups = new WeakMap<HTMLElement, () => void>()
+const tableMenuOpeners = new WeakMap<HTMLElement, () => void>()
+let tableMenuId = 0
 
 export type TableInputFocusSnapshot = {
   start: number
@@ -436,11 +439,17 @@ function createTableControlButton(
   return button
 }
 
+function getTableMenu(wrapper: HTMLElement): HTMLElement | null {
+  const id = wrapper.dataset.tableMenuId
+  return id ? wrapper.ownerDocument.getElementById(id) : null
+}
+
 function syncTableControlsAvailability(wrapper: HTMLElement, block: TableBlock): void {
   const target = activeTableCellTarget(wrapper, block)
   const row = block.rows[target.rowIndex]
+  const menu = getTableMenu(wrapper)
   const disable = (label: string, value: boolean) => {
-    const button = wrapper.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement | null
+    const button = menu?.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement | null
     if (button) button.disabled = value
   }
   disable('Add row above', target.rowIndex === 0)
@@ -453,107 +462,285 @@ function syncTableControlsAvailability(wrapper: HTMLElement, block: TableBlock):
   disable('Move column right', target.colIndex >= block.rows[0].length - 1)
   disable('Remove row', !row || target.rowIndex === 0 || block.rows.length <= 2 || row.some((cell) => cell.length > 0))
   disable('Remove column', target.colIndex < 0 || block.rows[0].length <= 1 || block.rows.some((currentRow) => currentRow[target.colIndex]?.length > 0))
+
+  const alignment = block.alignments[target.colIndex] ?? null
+  for (const [label, value] of [['Align default', null], ['Align left', 'left'], ['Align center', 'center'], ['Align right', 'right']] as const) {
+    menu?.querySelector(`[aria-label="${label}"]`)?.setAttribute('aria-checked', String(alignment === value))
+  }
 }
 
-function createTableControls(view: EditorView, block: TableBlock, wrapper: HTMLElement) {
-  const controls = document.createElement('div')
-  controls.className = 'me-table-controls'
-  controls.setAttribute('role', 'toolbar')
-  controls.setAttribute('aria-label', 'Table controls')
+function createTableActions(view: EditorView, block: TableBlock, wrapper: HTMLElement): HTMLElement {
+  const actions = document.createElement('div')
+  actions.className = 'me-table-actions'
 
-  const target = () => activeTableCellTarget(
-    wrapper,
-    getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? block.from)) ?? block,
-  )
-  controls.append(
-    createTableControlButton('Add row above', () => insertTableRow(view, target(), 'above')),
-    createTableControlButton('Add row below', () => insertTableRow(view, target(), 'below')),
-    createTableControlButton('Add column left', () => insertTableColumn(view, target(), 'left')),
-    createTableControlButton('Add column right', () => insertTableColumn(view, target(), 'right')),
-    createTableControlButton('Move row up', () => moveTableRow(view, target(), 'up')),
-    createTableControlButton('Move row down', () => moveTableRow(view, target(), 'down')),
-    createTableControlButton('Move column left', () => moveTableColumn(view, target(), 'left')),
-    createTableControlButton('Move column right', () => moveTableColumn(view, target(), 'right')),
-    createTableControlButton('Remove row', () => removeTableRow(view, target())),
-    createTableControlButton('Remove column', () => removeTableColumn(view, target())),
-  )
-
-  const alignment = document.createElement('span')
-  alignment.className = 'me-table-controls__group'
-  alignment.setAttribute('aria-label', 'Column alignment')
-  for (const [label, value] of [['Align default', null], ['Align left', 'left'], ['Align center', 'center'], ['Align right', 'right']] as const) {
-    alignment.appendChild(createTableControlButton(label, () => setTableColumnAlignment(view, target(), value)))
-  }
-  controls.appendChild(alignment)
-
-  const resize = document.createElement('details')
-  resize.className = 'me-table-controls__resize'
-  const resizeStatus = document.createElement('span')
-  resizeStatus.className = 'me-table-controls__status'
-  resizeStatus.setAttribute('aria-live', 'polite')
-  const summary = document.createElement('summary')
-  summary.textContent = 'Resize'
-  resize.appendChild(summary)
-  const resizeForm = document.createElement('div')
-  resizeForm.className = 'me-table-controls__resize-form'
-  const columns = document.createElement('input')
-  columns.type = 'number'
-  columns.min = String(block.rows[0].length)
-  columns.max = String(TABLE_LIMITS.maxColumns)
-  columns.value = String(block.rows[0].length)
-  columns.setAttribute('aria-label', 'Columns')
-  const bodyRows = document.createElement('input')
-  bodyRows.type = 'number'
-  bodyRows.min = String(block.rows.length - 1)
-  bodyRows.max = String(TABLE_LIMITS.maxBodyRows)
-  bodyRows.value = String(block.rows.length - 1)
-  bodyRows.setAttribute('aria-label', 'Body rows')
-  resizeForm.append(columns, bodyRows, createTableControlButton('Apply resize', () => {
-    const current = getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? block.from))
-    const nextColumns = Number(columns.value)
-    const nextBodyRows = Number(bodyRows.value)
-    if (!current || nextColumns < current.rows[0].length || nextBodyRows < current.rows.length - 1) {
-      resizeStatus.textContent = 'Shrinking requires confirmation and is unavailable.'
-      return false
-    }
-    const resized = resizeTable(view, target(), nextColumns, nextBodyRows)
-    if (!resized) resizeStatus.textContent = 'Choose a larger table size within the supported limits.'
-    return resized
-  }))
-  resize.append(resizeForm, resizeStatus)
-  controls.appendChild(resize)
+  const trigger = document.createElement('button')
+  trigger.type = 'button'
+  trigger.className = 'me-table-actions__trigger'
+  trigger.textContent = '…'
+  trigger.setAttribute('aria-label', 'Table actions')
+  trigger.setAttribute('aria-haspopup', 'menu')
+  trigger.setAttribute('aria-expanded', 'false')
 
   const status = document.createElement('span')
-  status.className = 'me-table-controls__status'
+  status.className = 'me-table-actions__status'
   status.dataset.tableStatus = 'true'
+  status.setAttribute('role', 'status')
   status.setAttribute('aria-live', 'polite')
-  controls.append(
-    createTableControlButton('Copy table as Markdown', () => {
+
+  const menu = document.createElement('div')
+  const menuId = `me-table-actions-menu-${++tableMenuId}`
+  menu.id = menuId
+  menu.className = 'me-table-menu'
+  menu.hidden = true
+  menu.setAttribute('role', 'menu')
+  menu.setAttribute('aria-label', 'Table actions')
+  trigger.setAttribute('aria-controls', menuId)
+  wrapper.dataset.tableMenuId = menuId
+
+  let open = false
+  let returnSelection: InputSelection | undefined
+
+  const currentBlock = () => getTableBlockByStart(
+    view.state,
+    Number(wrapper.dataset.tableFrom ?? block.from),
+  )
+  const target = () => activeTableCellTarget(wrapper, currentBlock() ?? block)
+  const captureReturnSelection = () => {
+    const activeElement = wrapper.ownerDocument.activeElement
+    if (activeElement instanceof HTMLInputElement && activeElement.classList.contains('me-table-input')) {
+      returnSelection = inputSelection(activeElement)
+    }
+  }
+  const restoreActiveCell = () => {
+    if (!wrapper.isConnected) return
+    focusTableInput(
+      wrapper,
+      Number(wrapper.dataset.activeRowIndex ?? 0),
+      Number(wrapper.dataset.activeColIndex ?? 0),
+      returnSelection,
+    )
+  }
+  const positionMenu = () => {
+    if (!open) return
+    const anchor = trigger.getBoundingClientRect()
+    const bounds = menu.getBoundingClientRect()
+    const viewport = window.visualViewport
+    const viewportLeft = viewport?.offsetLeft ?? 0
+    const viewportTop = viewport?.offsetTop ?? 0
+    const viewportWidth = viewport?.width ?? window.innerWidth
+    const viewportHeight = viewport?.height ?? window.innerHeight
+    const padding = 8
+    const gap = 6
+    const minLeft = viewportLeft + padding
+    const maxRight = viewportLeft + viewportWidth - padding
+    const minTop = viewportTop + padding
+    const maxBottom = viewportTop + viewportHeight - padding
+
+    let left = anchor.right - bounds.width
+    if (left < minLeft) left = anchor.left
+    left = Math.max(minLeft, Math.min(left, Math.max(minLeft, maxRight - bounds.width)))
+
+    let top = anchor.bottom + gap
+    if (top + bounds.height > maxBottom) top = anchor.top - gap - bounds.height
+    top = Math.max(minTop, Math.min(top, Math.max(minTop, maxBottom - bounds.height)))
+
+    menu.style.left = `${Math.round(left)}px`
+    menu.style.top = `${Math.round(top)}px`
+    menu.style.maxWidth = `${Math.max(80, Math.floor(viewportWidth - padding * 2))}px`
+    menu.style.maxHeight = `${Math.max(80, Math.floor(viewportHeight - padding * 2))}px`
+  }
+  const closeMenu = ({ restoreFocus = true }: { restoreFocus?: boolean } = {}) => {
+    if (!open) return
+    open = false
+    menu.hidden = true
+    trigger.setAttribute('aria-expanded', 'false')
+    if (restoreFocus) requestAnimationFrame(restoreActiveCell)
+  }
+  const enabledItems = () => Array.from(
+    menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]'),
+  ).filter((item) => !item.disabled)
+  const openMenu = (focus: 'first' | 'last' = 'first') => {
+    if (open || !wrapper.isConnected) return
+    captureReturnSelection()
+    const latest = currentBlock()
+    if (!latest) return
+    syncTableControlsAvailability(wrapper, latest)
+    const styles = getComputedStyle(wrapper)
+    for (const property of [
+      '--me-toolbar-border',
+      '--me-toolbar-bg',
+      '--me-toolbar-btn-color',
+      '--me-table-border',
+      '--me-table-bg',
+      '--me-deleted-accent',
+    ]) {
+      const value = styles.getPropertyValue(property)
+      if (value) menu.style.setProperty(property, value)
+    }
+    menu.style.colorScheme = styles.colorScheme
+    // Opening a menu takes focus ownership from any activation callback that
+    // was queued when the table widget first became active.
+    tableFocusTokens.set(view, (tableFocusTokens.get(view) ?? 0) + 1)
+    open = true
+    menu.hidden = false
+    menu.style.visibility = 'hidden'
+    trigger.setAttribute('aria-expanded', 'true')
+    positionMenu()
+    menu.style.visibility = ''
+    const items = enabledItems()
+    items[focus === 'first' ? 0 : items.length - 1]?.focus()
+  }
+  const runAction = (
+    action: () => boolean | void,
+    { restoreFocus = true }: { restoreFocus?: boolean } = {},
+  ) => {
+    const applied = action()
+    if (applied === false) {
+      status.textContent = 'The table changed; reopen Table actions and try again.'
+      const latest = currentBlock()
+      if (latest) syncTableControlsAvailability(wrapper, latest)
+      return
+    }
+    closeMenu({ restoreFocus })
+  }
+  const createItem = (
+    label: string,
+    text: string,
+    action: () => boolean | void,
+    options: { destructive?: boolean; radio?: boolean; restoreFocus?: boolean } = {},
+  ) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = `me-table-menu__item${options.destructive ? ' me-table-menu__item--destructive' : ''}`
+    button.textContent = text
+    button.setAttribute('aria-label', label)
+    button.setAttribute('role', options.radio ? 'menuitemradio' : 'menuitem')
+    if (options.radio) button.setAttribute('aria-checked', 'false')
+    button.addEventListener('click', () => runAction(action, { restoreFocus: options.restoreFocus !== false }))
+    return button
+  }
+  const addGroup = (label: string, items: readonly HTMLButtonElement[]) => {
+    const group = document.createElement('div')
+    group.className = 'me-table-menu__group'
+    group.setAttribute('role', 'group')
+    const heading = document.createElement('div')
+    const headingId = `${menuId}-${label.toLowerCase()}`
+    heading.id = headingId
+    heading.className = 'me-table-menu__heading'
+    heading.textContent = label
+    group.setAttribute('aria-labelledby', headingId)
+    group.append(heading, ...items)
+    menu.appendChild(group)
+  }
+
+  addGroup('Row', [
+    createItem('Add row above', 'Add row above', () => insertTableRow(view, target(), 'above')),
+    createItem('Add row below', 'Add row below', () => insertTableRow(view, target(), 'below')),
+    createItem('Move row up', 'Move row up', () => moveTableRow(view, target(), 'up')),
+    createItem('Move row down', 'Move row down', () => moveTableRow(view, target(), 'down')),
+    createItem('Remove row', 'Remove row', () => removeTableRow(view, target()), { destructive: true }),
+  ])
+  addGroup('Column', [
+    createItem('Add column left', 'Add column left', () => insertTableColumn(view, target(), 'left')),
+    createItem('Add column right', 'Add column right', () => insertTableColumn(view, target(), 'right')),
+    createItem('Move column left', 'Move column left', () => moveTableColumn(view, target(), 'left')),
+    createItem('Move column right', 'Move column right', () => moveTableColumn(view, target(), 'right')),
+    createItem('Remove column', 'Remove column', () => removeTableColumn(view, target()), { destructive: true }),
+  ])
+  addGroup('Alignment', [
+    createItem('Align default', 'Default', () => setTableColumnAlignment(view, target(), null), { radio: true }),
+    createItem('Align left', 'Left', () => setTableColumnAlignment(view, target(), 'left'), { radio: true }),
+    createItem('Align center', 'Center', () => setTableColumnAlignment(view, target(), 'center'), { radio: true }),
+    createItem('Align right', 'Right', () => setTableColumnAlignment(view, target(), 'right'), { radio: true }),
+  ])
+  addGroup('Table', [
+    createItem('Copy table as Markdown', 'Copy table as Markdown', () => {
       if (!navigator.clipboard?.writeText) {
         status.textContent = 'Clipboard access is unavailable.'
         return
       }
-      void navigator.clipboard.writeText(
-        getTableBlockByStart(view.state, Number(wrapper.dataset.tableFrom ?? block.from))?.source ?? block.source,
-      ).then(
+      void navigator.clipboard.writeText(currentBlock()?.source ?? block.source).then(
         () => { status.textContent = 'Table copied.' },
         () => { status.textContent = 'Could not copy table.' },
       )
     }),
-    createTableControlButton('Exit table editing', () => deactivateTable(
+    createItem('Exit table editing', 'Exit table editing', () => deactivateTable(
       view,
       Number(wrapper.dataset.tableFrom ?? block.from),
-    )),
-    createTableControlButton('Delete table', () => deleteTable(view, target())),
-    status,
-  )
-  return controls
+    ), { restoreFocus: false }),
+    createItem('Delete table', 'Delete table', () => deleteTable(view, target()), {
+      destructive: true,
+      restoreFocus: false,
+    }),
+  ])
+
+  const handleOutsidePointer = (event: Event) => {
+    const eventTarget = event.target as Node | null
+    if (eventTarget && (menu.contains(eventTarget) || trigger.contains(eventTarget))) return
+    // Preserve the focus destination chosen by the outside interaction.
+    closeMenu({ restoreFocus: false })
+  }
+  const handleViewportChange = () => positionMenu()
+  const cleanup = () => {
+    document.removeEventListener('pointerdown', handleOutsidePointer, true)
+    window.removeEventListener('resize', handleViewportChange)
+    window.removeEventListener('scroll', handleViewportChange, true)
+    tableMenuOpeners.delete(wrapper)
+    menu.remove()
+  }
+
+  trigger.addEventListener('mousedown', (event) => {
+    captureReturnSelection()
+    event.stopPropagation()
+  })
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation()
+    if (open) closeMenu()
+    else openMenu()
+  })
+  trigger.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    event.preventDefault()
+    openMenu(event.key === 'ArrowUp' ? 'last' : 'first')
+  })
+  menu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      closeMenu()
+      return
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      closeMenu()
+      return
+    }
+    const items = enabledItems()
+    const current = items.indexOf(document.activeElement as HTMLButtonElement)
+    let next = -1
+    if (event.key === 'ArrowDown') next = current < 0 ? 0 : (current + 1) % items.length
+    else if (event.key === 'ArrowUp') next = current < 0 ? items.length - 1 : (current - 1 + items.length) % items.length
+    else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = items.length - 1
+    if (next < 0) return
+    event.preventDefault()
+    items[next]?.focus()
+  })
+  document.addEventListener('pointerdown', handleOutsidePointer, true)
+  window.addEventListener('resize', handleViewportChange)
+  window.addEventListener('scroll', handleViewportChange, true)
+  tableMenuCleanups.set(wrapper, cleanup)
+  tableMenuOpeners.set(wrapper, openMenu)
+  document.body.appendChild(menu)
+  actions.append(trigger, status)
+  return actions
 }
 
 class TableWidget extends WidgetType {
   constructor(
     readonly block: TableBlock,
     readonly isEditing: boolean,
+    readonly showTableActions: boolean,
   ) {
     super()
   }
@@ -565,7 +752,8 @@ class TableWidget extends WidgetType {
       this.block.source === other.block.source &&
       JSON.stringify(this.block.rows) === JSON.stringify(other.block.rows) &&
       JSON.stringify(this.block.alignments) === JSON.stringify(other.block.alignments) &&
-      this.isEditing === other.isEditing
+      this.isEditing === other.isEditing &&
+      this.showTableActions === other.showTableActions
     )
   }
 
@@ -625,8 +813,10 @@ class TableWidget extends WidgetType {
     scroller.appendChild(table)
     if (this.isEditing) {
       restoreTableInteraction(view, wrapper, this.block)
-      wrapper.appendChild(createTableControls(view, this.block, wrapper))
-      syncTableControlsAvailability(wrapper, this.block)
+      if (this.showTableActions) {
+        wrapper.appendChild(createTableActions(view, this.block, wrapper))
+        syncTableControlsAvailability(wrapper, this.block)
+      }
     }
     wrapper.appendChild(createTableBoundary(view, this.block, wrapper, 'before'))
     wrapper.appendChild(scroller)
@@ -641,6 +831,7 @@ class TableWidget extends WidgetType {
     dom.dataset.tableSource = this.block.source
 
     if (!this.isEditing) return false
+    if (this.showTableActions !== Boolean(dom.querySelector('.me-table-actions'))) return false
 
     const block = getTableBlockByStart(view.state, this.block.from) ?? this.block
     const expectedCells = block.rows.reduce((count, row) => count + row.length, 0)
@@ -680,6 +871,11 @@ class TableWidget extends WidgetType {
     restoreTableInteraction(view, dom, block)
     syncTableControlsAvailability(dom, block)
     return true
+  }
+
+  override destroy(dom: HTMLElement): void {
+    tableMenuCleanups.get(dom)?.()
+    tableMenuCleanups.delete(dom)
   }
 
   override ignoreEvent(): boolean {
@@ -823,6 +1019,13 @@ function createTableInput(
   input.addEventListener('compositionend', () => {
     delete input.dataset.composing
   })
+  input.addEventListener('contextmenu', (event) => {
+    // Shift+F10 may synthesize a contextmenu event after keydown. Suppress only
+    // that keyboard event; pointer right-click remains fully native.
+    if (wrapper.dataset.keyboardTableMenu !== 'true') return
+    event.preventDefault()
+    event.stopPropagation()
+  })
   input.addEventListener('copy', (event) => {
     if (!copySelectedTableCells(event, view, blockFrom, wrapper)) return
     event.preventDefault()
@@ -908,6 +1111,15 @@ function createTableInput(
       return
     }
     event.stopPropagation()
+    if (event.key === 'F10' && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      const openTableMenu = tableMenuOpeners.get(wrapper)
+      if (!openTableMenu) return
+      event.preventDefault()
+      wrapper.dataset.keyboardTableMenu = 'true'
+      openTableMenu()
+      window.setTimeout(() => { delete wrapper.dataset.keyboardTableMenu }, 0)
+      return
+    }
     if (event.key === 'Escape') {
       event.preventDefault()
       if (tableSelectionBounds(wrapper)) {
@@ -1089,11 +1301,12 @@ function createTableInput(
 export function buildTableDecorations(state: EditorState): DecorationSet {
   const ranges: ReturnType<Decoration['range']>[] = []
   const activeFrom = state.field(activeTableField, false)
+  const showTableActions = state.facet(tableConfiguration).actions
 
   for (const block of findTableBlocks(state)) {
     ranges.push(
       Decoration.replace({
-        widget: new TableWidget(block, activeFrom === block.from),
+        widget: new TableWidget(block, activeFrom === block.from, showTableActions),
         block: true,
         inclusive: true,
       }).range(block.from, block.to),
