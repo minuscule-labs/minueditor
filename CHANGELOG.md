@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.16.1 — 2026-09-15
+
+- Replaced the table-actions ellipsis with an accessible table-properties icon and left-aligned the trigger.
+- Improved table-actions menu placement and scrolling in short viewports.
+
 ## 0.16.0 — 2026-09-14
 
 - Changed slash, toolbar, and imperative table insertion to create a focused two-column table with one body row immediately, with optional `tableInsertion` defaults and no dimensions picker.

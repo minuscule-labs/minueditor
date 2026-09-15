@@ -484,7 +484,7 @@
 
 .me-table-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     min-height: 30px;
     margin: 0 0 4px;
 }
@@ -502,8 +502,17 @@
     color: inherit;
     cursor: pointer;
     font: inherit;
-    font-size: 18px;
     line-height: 1;
+}
+
+.me-table-actions__trigger svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .me-table-actions__trigger:hover,
