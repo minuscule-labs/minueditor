@@ -457,7 +457,9 @@ test('left-aligns the icon-only Table actions trigger', async ({ page }) => {
   const actions = page.locator('.me-table-actions')
   const trigger = page.getByRole('button', { name: 'Table actions' })
   await expect(trigger.locator('svg')).toBeVisible()
+  await expect(trigger.locator('svg circle')).toHaveCount(3)
   await expect(trigger).not.toContainText('…')
+  await expect(actions).toHaveCSS('margin-bottom', '0px')
 
   const actionsBounds = await actions.boundingBox()
   const triggerBounds = await trigger.boundingBox()
