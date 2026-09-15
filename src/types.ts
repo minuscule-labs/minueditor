@@ -237,6 +237,13 @@ export type ResourceUrlResolver = (
 
 export type MarkdownEditorMode = 'live' | 'source'
 
+export interface TableInsertionConfig {
+  /** Number of columns in newly inserted tables. Defaults to 2. */
+  columns?: number
+  /** Number of body rows in newly inserted tables, in addition to the header. Defaults to 1. */
+  bodyRows?: number
+}
+
 export interface MarkdownEditorProps {
   value: string
   onChange: (markdown: string) => void
@@ -254,6 +261,10 @@ export interface MarkdownEditorProps {
   /** Resolves parsed canonical Markdown image/link destinations for runtime display and navigation only. */
   resourceUrlResolver?: ResourceUrlResolver
   floatingToolbar?: boolean
+  /** Shows the editor-owned contextual Table actions menu for active tables. Defaults to true. */
+  tableActions?: boolean
+  /** Default shape used by slash, toolbar, and imperative table insertion. */
+  tableInsertion?: TableInsertionConfig
   autoFocus?: boolean
   /** Enables browser/OS spellcheck for the editable document body. Defaults to true. */
   spellCheck?: boolean

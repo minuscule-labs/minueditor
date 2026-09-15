@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.16.0 — 2026-09-14
+
+- Changed slash, toolbar, and imperative table insertion to create a focused two-column table with one body row immediately, with optional `tableInsertion` defaults and no dimensions picker.
+- Replaced the expanded active-table controls and resize form with an editor-owned, viewport-aware `Table actions` menu supporting pointer and keyboard access, focus restoration, grouped commands, and a `tableActions` opt-out.
+- Preserved native browser context menus in editable prose and table cells.
+- Set the maintained browser-test matrix to Chromium and Firefox.
+- Fixed tables in long notes remaining as raw Markdown after background parsing reached a newly visible viewport.
+
 ## 0.15.0 — 2026-09-11
 
 - Added Typora-inspired Markdown table creation, contextual structure/alignment controls, accessible keyboard navigation, persistent cell-range selection, and host-safe `Mod+Enter` submission.

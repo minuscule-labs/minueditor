@@ -1,5 +1,34 @@
 import { Facet, StateEffect, StateField, type EditorState } from '@codemirror/state'
-import { getTableBlockByStart } from './model'
+import type { TableInsertionConfig } from '../../types'
+import { getTableBlockByStart, validTableDimensions } from './model'
+
+export type TableConfiguration = {
+  actions: boolean
+  insertion: Required<TableInsertionConfig>
+}
+
+export const DEFAULT_TABLE_CONFIGURATION: TableConfiguration = {
+  actions: true,
+  insertion: { columns: 2, bodyRows: 1 },
+}
+
+export function normalizeTableConfiguration(
+  actions: boolean | undefined,
+  insertion: TableInsertionConfig | undefined,
+): TableConfiguration {
+  const columns = insertion?.columns ?? DEFAULT_TABLE_CONFIGURATION.insertion.columns
+  const bodyRows = insertion?.bodyRows ?? DEFAULT_TABLE_CONFIGURATION.insertion.bodyRows
+  return {
+    actions: actions !== false,
+    insertion: validTableDimensions(columns, bodyRows)
+      ? { columns, bodyRows }
+      : DEFAULT_TABLE_CONFIGURATION.insertion,
+  }
+}
+
+export const tableConfiguration = Facet.define<TableConfiguration, TableConfiguration>({
+  combine: (configurations) => configurations[0] ?? DEFAULT_TABLE_CONFIGURATION,
+})
 
 export const tableSubmitHandler = Facet.define<() => void, (() => void) | null>({
   combine: (handlers) => handlers[0] ?? null,

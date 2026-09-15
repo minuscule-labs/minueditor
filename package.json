@@ -1,6 +1,6 @@
 {
   "name": "@dpklabs/minueditor",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Reusable React markdown editor built on CodeMirror 6 with Obsidian-style live editing",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -37,7 +37,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:browser": "playwright test",
-    "test:browser:install": "playwright install chromium firefox webkit",
+    "test:browser:install": "playwright install chromium firefox",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "version:patch": "npm version patch --no-git-tag-version",

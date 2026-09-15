@@ -834,6 +834,7 @@ function TableCommandFixture() {
     <main className="app-main" data-testid="table-command-fixture">
       <section className="surface">
         <h1>Table command browser fixture</h1>
+        <button type="button" data-testid="host-focus-target">Host focus target</button>
         <EditorToolbar view={view} variant="full" />
         <div className="editor-frame">
           <MarkdownEditor

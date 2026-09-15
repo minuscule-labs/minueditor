@@ -271,7 +271,21 @@ editorRef.current?.goToHeading(headings[0].slug)
 
 Use `getMarkdownHeadings(editorState)` when you already have a configured CodeMirror `EditorState`, or `editorRef.current?.getHeadings()` for the mounted editor. MinuEditor does not rewrite headings or insert proprietary block IDs.
 
-## Table keyboard shortcuts
+## Tables
+
+`/table`, the full toolbar, and `editorRef.current?.insertTable()` immediately insert a two-column table with one body row and focus the first header cell. The insertion is one undoable editor transaction. Override the default shape declaratively when a host needs a different starting point:
+
+```tsx
+<MarkdownEditor
+  value={value}
+  onChange={setValue}
+  tableInsertion={{ columns: 3, bodyRows: 2 }}
+/>
+```
+
+Active tables show one `…` button labeled **Table actions**. Its grouped menu owns row, column, alignment, Markdown copy, exit, and delete commands. Open it with the button or `Shift+F10`; use arrow keys, Home, and End within the menu, and Escape to dismiss it and return focus to the active cell. Native browser context menus remain available in table inputs. Set `tableActions={false}` only when a host intentionally supplies another discoverable command surface.
+
+### Table keyboard shortcuts
 
 When editing markdown tables, the editor supports:
 
@@ -287,7 +301,8 @@ When editing markdown tables, the editor supports:
 | `Backspace` / `Delete` with selected cells | Clear selected cells, or remove selected full rows/columns |
 | `Shift+Mod+Backspace` | Remove current column in the active table widget |
 | `Ctrl+Mod+Backspace` | Remove current row in the active table widget |
-| `Escape` | Leave the active table widget |
+| `Shift+F10` | Open the contextual Table actions menu |
+| `Escape` | Dismiss Table actions, clear a cell selection, or leave the active table widget |
 
 `Mod` is `Cmd` on macOS/iOS and `Ctrl` on Windows/Linux.
 

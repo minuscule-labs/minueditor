@@ -12,7 +12,12 @@ import {
   type TableAlignment,
   type TableBlock,
 } from '../extensions/tables/model'
-import { activeTableField, setActiveTable, setTableInteraction } from '../extensions/tables/state'
+import {
+  activeTableField,
+  setActiveTable,
+  setTableInteraction,
+  tableConfiguration,
+} from '../extensions/tables/state'
 import { focusElementWithoutScroll } from './widget-navigation'
 
 /** A target is valid only for the exact table instance rendered to the user. */
@@ -124,8 +129,12 @@ export function focusTableCell(view: EditorViewType, target: Pick<TableCellTarge
 
 export function insertTableAt(
   view: EditorViewType,
-  { from, to = from, columns = 2, bodyRows = 1, prefix = '', suffix = '' }: { from: number; to?: number; columns?: number; bodyRows?: number; prefix?: string; suffix?: string },
+  options: { from: number; to?: number; columns?: number; bodyRows?: number; prefix?: string; suffix?: string },
 ): boolean {
+  const { from, to = from, prefix = '', suffix = '' } = options
+  const insertion = view.state.facet(tableConfiguration).insertion
+  const columns = options.columns ?? insertion.columns
+  const bodyRows = options.bodyRows ?? insertion.bodyRows
   if (!canEdit(view) || !validTableDimensions(columns, bodyRows) || !Number.isInteger(from) || !Number.isInteger(to)) return false
   if (from < 0 || to < from || to > view.state.doc.length) return false
   const table = createEmptyTableMarkdown(columns, bodyRows)

@@ -12,6 +12,6 @@ export default defineConfig({
   },
   server: {
     port: 3333,
-    open: process.env.CI !== 'true',
+    open: false,
   },
 })

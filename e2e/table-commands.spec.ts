@@ -36,8 +36,6 @@ test('reorders body rows and aligned columns through accessible table controls',
   await page.locator('.me-table-widget').click()
 
   const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
-  await expect(page.getByRole('button', { name: 'Move row up' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Move column left' })).toBeDisabled()
 
   await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').press('Tab')
   const secondBodyName = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
@@ -45,17 +43,23 @@ test('reorders body rows and aligned columns through accessible table controls',
   await page.locator('.me-table-input[data-row-index="2"][data-col-index="1"]').fill('37')
 
   await firstBodyCell.click()
-  await page.getByRole('button', { name: 'Move row down' }).click()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Move row up' })).toBeDisabled()
+  await expect(page.getByRole('menuitem', { name: 'Move column left' })).toBeDisabled()
+  await page.getByRole('menuitem', { name: 'Move row down' }).click()
   await expect(markdown).toHaveText('| Name | Age |\n| --- | --- |\n| Grace | 37 |\n| Ada | 42 |')
   await expect(page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')).toBeFocused()
-  await expect(page.getByRole('button', { name: 'Move row down' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Move row down' })).toBeDisabled()
 
   const activeAge = page.locator('.me-table-input[data-row-index="2"][data-col-index="1"]')
   await activeAge.click()
-  await page.getByRole('button', { name: 'Move column left' }).click()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await page.getByRole('menuitem', { name: 'Move column left' }).click()
   await expect(markdown).toHaveText('| Age | Name |\n| --- | --- |\n| 37 | Grace |\n| 42 | Ada |')
   await expect(page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')).toBeFocused()
-  await expect(page.getByRole('button', { name: 'Move column left' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Move column left' })).toBeDisabled()
 })
 
 test('pastes a TSV rectangle into empty table cells without creating a second document table', async ({ page }) => {
@@ -298,7 +302,8 @@ test('uses the active cell as the Shift-click anchor after an ordinary edit', as
   await expect(firstBodyCell.locator('xpath=ancestor::td')).toHaveClass(/me-table-cell--selected/)
   await expect(secondBodyCell.locator('xpath=ancestor::td')).toHaveClass(/me-table-cell--selected/)
 
-  await page.getByRole('button', { name: 'Add column right' }).click()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await page.getByRole('menuitem', { name: 'Add column right' }).click()
   await expect(page.getByTestId('markdown-output')).toHaveText(
     '| Name | Age |  |\n| --- | --- | --- |\n| Ada Lovelace | 42 |  |',
   )
@@ -426,7 +431,8 @@ test('keeps contextual control availability in sync after undo', async ({ page }
 
   const insertedCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
   await insertedCell.fill('Temporary value')
-  const removeColumn = page.getByRole('button', { name: 'Remove column' })
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  const removeColumn = page.getByRole('menuitem', { name: 'Remove column' })
   await expect(removeColumn).toBeDisabled()
 
   await insertedCell.press('Meta+z')
@@ -437,40 +443,70 @@ test('returns focus to the editor after deleting a table', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
   await page.locator('.me-table-widget').click()
-  await page.getByRole('button', { name: 'Delete table' }).click()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await page.getByRole('menuitem', { name: 'Delete table' }).click()
 
   await expect(page.getByTestId('markdown-output')).toHaveText('')
   await expect(page.locator('.cm-content')).toBeFocused()
 })
 
-test('rejects picker insertion after the document changes', async ({ page }) => {
+test('opens and dismisses Table actions from the keyboard', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
   await page.locator('.me-table-widget').click()
-  await page.getByTitle('Insert table').click()
-  const picker = page.getByRole('dialog', { name: 'Insert table' })
   const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
-  await firstBodyCell.fill('Ada Lovelace')
-
-  await picker.getByRole('button', { name: 'Insert' }).click()
-  await expect(picker.getByRole('alert')).toHaveText('The document changed. Reopen the picker to choose a new insertion location.')
-  await expect(page.getByTestId('markdown-output')).toHaveText('| Name | Age |\n| --- | --- |\n| Ada Lovelace | 42 |')
-  await expect(page.locator('.me-table-input')).toHaveCount(4)
+  await firstBodyCell.click()
+  await firstBodyCell.press('Shift+F10')
+  await expect(page.getByRole('menu', { name: 'Table actions' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Add row above' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu', { name: 'Table actions' })).toBeHidden()
+  await expect(firstBodyCell).toBeFocused()
 })
 
-test('creates a table through the shared toolbar picker', async ({ page }) => {
+test('keeps focus on a host control after outside-pointer dismissal', async ({ page }) => {
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  await expect(page.getByRole('menu', { name: 'Table actions' })).toBeVisible()
+
+  const hostControl = page.getByTestId('host-focus-target')
+  await hostControl.click()
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  }))
+
+  await expect(page.getByRole('menu', { name: 'Table actions' })).toBeHidden()
+  await expect(hostControl).toBeFocused()
+})
+
+test('keeps Table actions inside a narrow viewport and leaves right-click native', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 360 })
+  await page.goto('/?fixture=table-commands')
+
+  await page.locator('.me-table-widget').click()
+  const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
+  await firstBodyCell.click({ button: 'right' })
+  await expect(page.getByRole('menu', { name: 'Table actions' })).toBeHidden()
+
+  await page.getByRole('button', { name: 'Table actions' }).click()
+  const bounds = await page.getByRole('menu', { name: 'Table actions' }).boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds!.x).toBeGreaterThanOrEqual(0)
+  expect(bounds!.y).toBeGreaterThanOrEqual(0)
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320)
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(360)
+})
+
+test('creates the default table immediately through the shared toolbar command', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
 
   await page.getByTitle('Insert table').click()
-  const picker = page.getByRole('dialog', { name: 'Insert table' })
-  await expect(picker).toBeVisible()
-  await picker.getByRole('spinbutton', { name: 'Columns' }).fill('3')
-  const bodyRows = picker.getByRole('spinbutton', { name: 'Body rows' })
-  await bodyRows.fill('2')
-  await bodyRows.press('Enter')
 
+  await expect(page.getByRole('dialog', { name: 'Insert table' })).toHaveCount(0)
   await expect(page.getByTestId('markdown-output')).toHaveText(
-    '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n\n|  |  |  |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n',
+    '| Name | Age |\n| --- | --- |\n| Ada | 42 |\n\n|  |  |\n| --- | --- |\n|  |  |\n\n',
   )
   await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
 })
