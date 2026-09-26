@@ -1156,8 +1156,22 @@ function PlaygroundApp() {
   )
 }
 
+function MermaidStabilityFixture() {
+  const [value, setValue] = useState('- **Bold** item\n\n```mermaid\ngraph TD\n  A --> B\n```')
+
+  return (
+    <main className="app-main" data-testid="mermaid-stability-fixture">
+      <div className="editor-frame">
+        <MarkdownEditor value={value} onChange={setValue} mermaid autoFocus minHeight={320} />
+      </div>
+      <pre data-testid="markdown-output">{value}</pre>
+    </main>
+  )
+}
+
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
+  if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
   if (fixture === 'table-commands') return <TableCommandFixture />
   if (fixture === 'table-interaction') return <TableInteractionFixture />

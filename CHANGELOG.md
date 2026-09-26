@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.16.3 — 2026-09-26
+
+- Kept unchanged Mermaid diagrams mounted while editing earlier text, preserving zoom state and avoiding flicker.
+- Kept “Edit source” targeting the correct Mermaid block after earlier text shifts its position.
+
 ## 0.16.2 — 2026-09-15
 
 - Replaced the table-actions trigger graphic with a horizontal overflow icon and tightened its spacing above the table.
