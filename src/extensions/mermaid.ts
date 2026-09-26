@@ -538,9 +538,9 @@ class MermaidWidget extends WidgetType {
   }
 
   override eq(other: MermaidWidget): boolean {
-    return this.block.from === other.block.from &&
-      this.block.to === other.block.to &&
-      this.block.source === other.block.source &&
+    return this.block.source === other.block.source &&
+      this.block.to - this.block.from === other.block.to - other.block.from &&
+      this.block.contentFrom - this.block.from === other.block.contentFrom - other.block.from &&
       this.config.theme === other.config.theme &&
       this.config.interactive === other.config.interactive &&
       this.config.load === other.config.load &&
@@ -548,20 +548,25 @@ class MermaidWidget extends WidgetType {
   }
 
   override toDOM(view: EditorView): HTMLElement {
-    return createMermaidSurface(
+    // CodeMirror may reuse this DOM after edits shift the block. Resolve its
+    // current position on click instead of closing over the original offset.
+    let surface: HTMLElement
+    surface = createMermaidSurface(
       this.block.source,
       this.config,
       this.isEditable,
       this.isEditable
         ? () => {
+            const contentFrom = view.posAtDOM(surface) + (this.block.contentFrom - this.block.from)
             view.focus()
             view.dispatch({
               effects: view.scrollSnapshot(),
-              selection: { anchor: this.block.contentFrom },
+              selection: { anchor: contentFrom },
             })
           }
         : undefined,
     )
+    return surface
   }
 
   override destroy(dom: HTMLElement): void {

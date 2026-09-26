@@ -183,6 +183,94 @@ describe('Mermaid rich blocks', () => {
     await waitFor(() => expect(container.querySelector('[data-testid="diagram"]')).toBeInTheDocument())
   })
 
+  it('keeps an unchanged diagram mounted while editing a styled bullet above it', async () => {
+    const { load, renderDiagram } = fakeEngine()
+    let view: EditorView | null = null
+    const value = '- **Bold** item\n\n```mermaid\ngraph TD\n  A --> B\n```'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        mermaid={{ load }}
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+
+    await waitFor(() => expect(container.querySelector('.me-mermaid-block--ready')).toBeInTheDocument())
+    const diagram = container.querySelector('.me-mermaid-block')
+    const zoomIn = diagram!.querySelector('[aria-label="Zoom in"]') as HTMLButtonElement
+    fireEvent.click(zoomIn)
+    expect(diagram!.querySelector('svg')!.style.transform).toContain('scale(1.25)')
+    expect(renderDiagram).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      view!.dispatch({ changes: { from: value.indexOf('item'), insert: 'long ' } })
+    })
+    expect(container.querySelector('.me-mermaid-block')).toBe(diagram)
+    expect(diagram!.querySelector('svg')!.style.transform).toContain('scale(1.25)')
+
+    act(() => {
+      const from = view!.state.doc.toString().indexOf('long ')
+      view!.dispatch({ changes: { from, to: from + 'long '.length, insert: 'short ' } })
+    })
+    expect(container.querySelector('.me-mermaid-block')).toBe(diagram)
+    expect(renderDiagram).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      const from = view!.state.doc.toString().indexOf('A --> B')
+      view!.dispatch({ changes: { from, to: from + 'A --> B'.length, insert: 'A --> C' } })
+    })
+    await waitFor(() => expect(renderDiagram).toHaveBeenCalledTimes(2))
+  })
+
+  it('opens the correct source after earlier text shifts a Mermaid block', async () => {
+    const { load } = fakeEngine()
+    let view: EditorView | null = null
+    const value = '- **Bold** item\n\n```mermaid\ngraph TD\n  A --> B\n```'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        mermaid={{ load }}
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+
+    await waitFor(() => expect(container.querySelector('.me-mermaid-block--ready')).toBeInTheDocument())
+    act(() => {
+      view!.dispatch({ changes: { from: value.indexOf('item'), insert: 'more ' } })
+    })
+    fireEvent.click(container.querySelector('.me-mermaid-edit')!)
+    const current = view!.state.doc.toString()
+    expect(view!.state.selection.main.head).toBe(current.indexOf('graph TD'))
+    expect(container.querySelector('.me-mermaid-block')).not.toBeInTheDocument()
+  })
+
+  it('opens the selected one of two identical diagrams after their offsets shift', async () => {
+    const { load } = fakeEngine()
+    let view: EditorView | null = null
+    const value = '- **Bold** item\n\n```mermaid\ngraph TD\n```\n\n```mermaid\ngraph TD\n```'
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        mermaid={{ load }}
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+
+    await waitFor(() => expect(container.querySelectorAll('.me-mermaid-block--ready')).toHaveLength(2))
+    const diagrams = Array.from(container.querySelectorAll('.me-mermaid-block'))
+    act(() => {
+      view!.dispatch({ changes: { from: value.indexOf('item'), insert: 'more ' } })
+    })
+    expect(Array.from(container.querySelectorAll('.me-mermaid-block'))).toEqual(diagrams)
+    fireEvent.click(diagrams[1].querySelector('.me-mermaid-edit')!)
+    const current = view!.state.doc.toString()
+    expect(view!.state.selection.main.head).toBe(current.lastIndexOf('graph TD'))
+    expect(container.querySelectorAll('.me-mermaid-block')).toHaveLength(1)
+  })
+
   it('reveals exact source from the diagram edit control', async () => {
     const { load } = fakeEngine()
     const value = '```mermaid\ngraph TD\n  A --> B\n```'
