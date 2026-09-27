@@ -18,6 +18,8 @@ import {
   tabInMarkdownTable,
   toggleBold,
   toggleItalic,
+  toggleCheckboxList,
+  toggleOrderedList,
   toggleUnorderedList,
   wrapLink,
 } from './commands'
@@ -292,20 +294,10 @@ describe('list indentation commands', () => {
     })
   })
 
-  it('indents existing unordered list lines on Tab', () => {
-    const view = createMockView(['- one', '- two'])
-    const handled = indentList(view)
-    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
-      changes: Array<{ from: number; to: number; insert: string }>
-      range: { from: number; to: number }
-    }
-
-    expect(handled).toBe(true)
-    expect(view.dispatch).toHaveBeenCalledOnce()
-    expect(dispatched.changes).toEqual([
-      { from: 0, to: 0, insert: '    ' },
-      { from: 6, to: 6, insert: '    ' },
-    ])
+  it('indents existing unordered siblings under the preceding parent', () => {
+    const view = createStatefulView('- parent\n- one\n- two', { anchor: 9, head: 20 })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- parent\n    - one\n    - two')
   })
 
   it('outdents existing indented list lines on Shift-Tab', () => {
@@ -325,19 +317,19 @@ describe('list indentation commands', () => {
   })
 
   it('keeps a caret attached to the same list text after indenting', () => {
-    const view = createStatefulView('- abcdef', { anchor: 4 })
+    const view = createStatefulView('- parent\n- abcdef', { anchor: 13 })
 
     expect(indentList(view)).toBe(true)
-    expect(view.state.doc.toString()).toBe('    - abcdef')
-    expect(view.state.selection.main.anchor).toBe(8)
+    expect(view.state.doc.toString()).toBe('- parent\n    - abcdef')
+    expect(view.state.selection.main.anchor).toBe(17)
   })
 
   it('preserves backward selection direction while indenting', () => {
-    const view = createStatefulView('- abcdef', { anchor: 6, head: 2 })
+    const view = createStatefulView('- parent\n- abcdef', { anchor: 15, head: 11 })
 
     expect(indentList(view)).toBe(true)
-    expect(view.state.selection.main.anchor).toBe(10)
-    expect(view.state.selection.main.head).toBe(6)
+    expect(view.state.selection.main.anchor).toBe(19)
+    expect(view.state.selection.main.head).toBe(15)
   })
 
   it('maps a cross-line selection through all list-toggle changes', () => {
@@ -360,9 +352,92 @@ describe('list indentation commands', () => {
     expect(view.state.selection.main.anchor).toBe(3)
   })
 
-  it('maps every cursor through all multi-cursor list changes', () => {
+  it('converts bullets, ordered items, and partial tasks without stacking markers', () => {
+    const bullet = createStatefulView('- one', { anchor: 4 })
+    expect(toggleCheckboxList(bullet)).toBe(true)
+    expect(bullet.state.doc.toString()).toBe('- [ ] one')
+    expect(bullet.state.selection.main.anchor).toBe(8)
+    expect(toggleUnorderedList(bullet)).toBe(true)
+    expect(bullet.state.doc.toString()).toBe('- one')
+    expect(bullet.state.selection.main.anchor).toBe(4)
+
+    const ordered = createStatefulView('2. two', { anchor: 5 })
+    expect(toggleCheckboxList(ordered)).toBe(true)
+    expect(ordered.state.doc.toString()).toBe('- [ ] two')
+    expect(toggleOrderedList(ordered)).toBe(true)
+    expect(ordered.state.doc.toString()).toBe('1. two')
+
+    const partial = createStatefulView('    - [/] three', { anchor: 13 })
+    expect(toggleCheckboxList(partial)).toBe(true)
+    expect(partial.state.doc.toString()).toBe('    three')
+    expect(toggleUnorderedList(partial)).toBe(true)
+    expect(partial.state.doc.toString()).toBe('    - three')
+  })
+
+  it('converts a task with extra marker whitespace to an unordered bullet', () => {
+    const task = createStatefulView('-  [ ] one', { anchor: 8 })
+    expect(toggleUnorderedList(task)).toBe(true)
+    expect(task.state.doc.toString()).toBe('- one')
+  })
+
+  it('applies a list toggle uniformly to mixed selected lines', () => {
+    const task = createStatefulView('- one\n- [x] two', { anchor: 3, head: 14 })
+    expect(toggleCheckboxList(task)).toBe(true)
+    expect(task.state.doc.toString()).toBe('- [ ] one\n- [x] two')
+    expect(task.state.selection.main.anchor).toBe(7)
+    expect(task.state.selection.main.head).toBe(18)
+    expect(toggleCheckboxList(task)).toBe(true)
+    expect(task.state.doc.toString()).toBe('one\ntwo')
+
+    const bullet = createStatefulView('- one\n- [ ] two', { anchor: 3, head: 14 })
+    expect(toggleUnorderedList(bullet)).toBe(true)
+    expect(bullet.state.doc.toString()).toBe('- one\n- two')
+    expect(toggleUnorderedList(bullet)).toBe(true)
+    expect(bullet.state.doc.toString()).toBe('one\ntwo')
+  })
+
+  it('renumbers all selected lines when converting a mixed list to ordered', () => {
+    const view = createStatefulView('5. one\n- two\n7. three', { anchor: 4, head: 20 })
+    expect(toggleOrderedList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('1. one\n2. two\n3. three')
+    expect(toggleOrderedList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('one\ntwo\nthree')
+  })
+
+  it('numbers mixed ordered items independently at each nesting depth', () => {
+    const doc = '1. parent\n    - child\n2. sibling'
+    const view = createStatefulView(doc, { anchor: 0, head: doc.length })
+    expect(toggleOrderedList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('1. parent\n    1. child\n2. sibling')
+  })
+
+  it('does not indent a list without an available preceding sibling', () => {
+    const lone = createStatefulView('- [ ] one', { anchor: 9 })
+    expect(indentList(lone)).toBe(false)
+    expect(lone.state.doc.toString()).toBe('- [ ] one')
+
+    const all = createStatefulView('- one\n- two', { anchor: 2, head: 10 })
+    expect(indentList(all)).toBe(false)
+    expect(all.state.doc.toString()).toBe('- one\n- two')
+
+    const firstNested = createStatefulView('- parent\n    - [ ] child', { anchor: 20 })
+    expect(indentList(firstNested)).toBe(false)
+    expect(firstNested.state.doc.toString()).toBe('- parent\n    - [ ] child')
+  })
+
+  it('indents a sibling beneath an unselected parent, including ordered parents', () => {
+    const view = createStatefulView('- parent\n- one\n- two', { anchor: 9, head: 20 })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- parent\n    - one\n    - two')
+
+    const orderedParent = createStatefulView('1. parent\n- [ ] child', { anchor: 19 })
+    expect(indentList(orderedParent)).toBe(true)
+    expect(orderedParent.state.doc.toString()).toBe('1. parent\n    - [ ] child')
+  })
+
+  it('maps multiple cursors while converting bullet and ordered items to tasks', () => {
     let state = EditorState.create({
-      doc: '- abc\n- def',
+      doc: '- one\n1. two',
       selection: EditorSelection.create([
         EditorSelection.cursor(4),
         EditorSelection.cursor(10),
@@ -370,27 +445,23 @@ describe('list indentation commands', () => {
       extensions: [EditorState.allowMultipleSelections.of(true)],
     })
     const view = {
-      get state() {
-        return state
-      },
-      dispatch(spec: Parameters<EditorState['update']>[0]) {
-        state = state.update(spec).state
-      },
+      get state() { return state },
+      dispatch(spec: Parameters<EditorState['update']>[0]) { state = state.update(spec).state },
     } as unknown as EditorView
 
-    expect(indentList(view)).toBe(true)
-    expect(view.state.doc.toString()).toBe('    - abc\n    - def')
-    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([8, 18])
+    expect(toggleCheckboxList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- [ ] one\n- [ ] two')
+    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([8, 17])
   })
 
-  it('changes a shared list line only once for multiple cursors', () => {
+  it('maps every cursor through all multi-cursor list changes', () => {
     let state = EditorState.create({
-      doc: '- abc',
+      doc: '- parent\n- abc\n- def',
       selection: EditorSelection.create([
-        EditorSelection.cursor(3),
-        EditorSelection.cursor(4),
+        EditorSelection.cursor(13),
+        EditorSelection.cursor(19),
       ]),
-      extensions: [EditorState.allowMultipleSelections.of(true)],
+      extensions: [EditorState.allowMultipleSelections.of(true), markdown({ base: markdownLanguage })],
     })
     const view = {
       get state() {
@@ -402,8 +473,31 @@ describe('list indentation commands', () => {
     } as unknown as EditorView
 
     expect(indentList(view)).toBe(true)
-    expect(view.state.doc.toString()).toBe('    - abc')
-    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([7, 8])
+    expect(view.state.doc.toString()).toBe('- parent\n    - abc\n    - def')
+    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([17, 27])
+  })
+
+  it('changes a shared list line only once for multiple cursors', () => {
+    let state = EditorState.create({
+      doc: '- parent\n- abc',
+      selection: EditorSelection.create([
+        EditorSelection.cursor(12),
+        EditorSelection.cursor(13),
+      ]),
+      extensions: [EditorState.allowMultipleSelections.of(true), markdown({ base: markdownLanguage })],
+    })
+    const view = {
+      get state() {
+        return state
+      },
+      dispatch(spec: Parameters<EditorState['update']>[0]) {
+        state = state.update(spec).state
+      },
+    } as unknown as EditorView
+
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- parent\n    - abc')
+    expect(view.state.selection.ranges.map((range) => range.anchor)).toEqual([16, 17])
   })
 
   it('does not indent non-list lines', () => {
@@ -414,41 +508,35 @@ describe('list indentation commands', () => {
     expect(view.dispatch).not.toHaveBeenCalled()
   })
 
-  it('indents existing ordered list lines on Tab', () => {
-    const view = createMockView(['1. one', '2. two'])
-    const handled = indentList(view)
-    const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
-      changes: Array<{ from: number; to: number; insert: string }>
-      range: { from: number; to: number }
-    }
-
-    expect(handled).toBe(true)
-    expect(dispatched.changes).toEqual([
-      { from: 0, to: 0, insert: '    ' },
-      { from: 7, to: 7, insert: '    ' },
-    ])
+  it('indents an ordered sibling on Tab', () => {
+    const view = createStatefulView('1. one\n2. two', { anchor: 9 })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('1. one\n    1. two')
   })
 
-  it('renumbers ordered list lines after indenting a later ordered item', () => {
-    const view = createMockView(['1. one', '2. two', '3. three'], {
-      from: 7,
-      to: 20,
-      anchor: 7,
-      head: 20,
-      empty: false,
-    })
+  it('indents beneath a wide ordered marker and Shift-Tab restores the original line', () => {
+    const original = '123. parent\n- [ ] child'
+    const view = createStatefulView(original, { anchor: original.length })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('123. parent\n     - [ ] child')
+    expect(outdentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(original)
+  })
 
-    const handled = indentList(view)
+  it('indents and outdents a selected block under one wide ordered parent uniformly', () => {
+    const original = '123. parent\n- [ ] first\n- [ ] second'
+    const from = original.indexOf('- [ ] first')
+    const view = createStatefulView(original, { anchor: from, head: original.length })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('123. parent\n     - [ ] first\n     - [ ] second')
+    expect(outdentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe(original)
+  })
 
-    expect(handled).toBe(true)
-    expect(view.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        changes: [
-          { from: 7, to: 8, insert: '    1' },
-          { from: 14, to: 15, insert: '    2' },
-        ],
-      })
-    )
+  it('renumbers ordered list lines after indenting later ordered siblings', () => {
+    const view = createStatefulView('1. one\n2. two\n3. three', { anchor: 7, head: 20 })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('1. one\n    1. two\n    2. three')
   })
 
   it('renumbers following ordered siblings while preserving a multi-digit list start', () => {
@@ -460,17 +548,9 @@ describe('list indentation commands', () => {
   })
 
   it('uses spaces for nested list indentation so markdown continuation stays stable', () => {
-    const view = createMockView(['- parent', '- child'])
-    indentList(view)
-
-    expect(view.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        changes: [
-          expect.objectContaining({ insert: '    ' }),
-          expect.objectContaining({ insert: '    ' }),
-        ],
-      })
-    )
+    const view = createStatefulView('- parent\n- child', { anchor: 13 })
+    expect(indentList(view)).toBe(true)
+    expect(view.state.doc.toString()).toBe('- parent\n    - child')
   })
 
   it('does not outdent top-level list lines with no indent', () => {
