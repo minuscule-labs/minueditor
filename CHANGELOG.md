@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.16.4 — 2026-09-26
+
+- Fixed live task-list keyboard behavior so checkbox markers remain atomic during navigation and deletion, with raw Markdown editing preserved in source mode.
+- Made mixed list-toolbar conversions consistent and corrected ordered-list numbering and Tab/Shift-Tab indentation for nested lists, including beneath wide ordered markers.
+
 ## 0.16.3 — 2026-09-26
 
 - Kept unchanged Mermaid diagrams mounted while editing earlier text, preserving zoom state and avoiding flicker.
