@@ -174,6 +174,7 @@ Available handle methods include:
 - `openImagePicker()`
 - `toggleBold()` / `toggleItalic()` / `toggleInlineCode()` / `wrapLink()`
 - `insertTable()` / `insertCodeBlock()`
+- `indentList()` / `outdentList()` — apply existing list commands to the current selection; return `false` when no change is available or the editor is read-only.
 
 For custom integrations, the handle also exposes `view`, the underlying CodeMirror `EditorView`:
 
@@ -250,7 +251,7 @@ Comments use a controlled, host-owned data model. MinuEditor supplies selection-
 />
 ```
 
-Select text and use the Comment action, click a line’s right-side action to select that whole line, or call `editorRef.current?.requestComment()`. Comment bodies are simple text. `range` anchors preserve the selected quote and detach when it changes; `line` anchors follow edits to the complete source line until that source is removed. Hosts that prefer a popover can set `showPanel: false`, open creation UI from `onRequest(anchor)`, and use `onSelectGroup(comments)` to receive all comments represented by a clicked line icon. Resolve/reopen is represented through `status`; replies, mentions, reactions, and suggested edits are intentionally outside this editor contract. See `docs/comments.md` for the adapter and anchor behavior.
+Select text and use the Comment action, click a line’s right-side action to select that whole line, or call `editorRef.current?.requestComment()`. Set `floatingCommentToolbar={false}` to remove the selection toolbar’s Comment action when the host provides its own toolbar; imperative requests and line-comment actions remain available. Comment bodies are simple text. `range` anchors preserve the selected quote and detach when it changes; `line` anchors follow edits to the complete source line until that source is removed. Hosts that prefer a popover can set `showPanel: false`, open creation UI from `onRequest(anchor)`, and use `onSelectGroup(comments)` to receive all comments represented by a clicked line icon. Resolve/reopen is represented through `status`; replies, mentions, reactions, and suggested edits are intentionally outside this editor contract. See `docs/comments.md` for the adapter and anchor behavior.
 
 The lower-level `DocumentAnnotation` API remains available for generic line/range metadata and future revision-based diff review. It is not an AI-specific wrapper. Theme variables such as `--me-comment-accent` and `--me-comment-bg` can override comment presentation.
 

@@ -192,6 +192,24 @@ describe('MarkdownEditor', () => {
     await waitFor(() => expect(ref.current?.getMarkdown()).toContain('```'))
   })
 
+  it('indents and outdents list items through the ref handle', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    render(<MarkdownEditor value={'- Parent\n- Child'} onChange={vi.fn()} ref={ref} />)
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    expect(ref.current?.setSelection(9)).toBe(true)
+    expect(ref.current?.indentList()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('- Parent\n    - Child'))
+
+    expect(ref.current?.outdentList()).toBe(true)
+    await waitFor(() => expect(ref.current?.getMarkdown()).toBe('- Parent\n- Child'))
+
+    expect(ref.current?.setSelection(0)).toBe(true)
+    expect(ref.current?.indentList()).toBe(false)
+    expect(ref.current?.outdentList()).toBe(false)
+  })
+
   it('returns false for mutating ref commands in readOnly mode', async () => {
     const ref = createRef<MarkdownEditorHandle>()
     const onChange = vi.fn()
@@ -207,6 +225,8 @@ describe('MarkdownEditor', () => {
     expect(ref.current?.insertImage({ src: 'https://example.com/a.png' })).toBe(false)
     expect(ref.current?.openImagePicker()).toBe(false)
     expect(ref.current?.toggleBold()).toBe(false)
+    expect(ref.current?.indentList()).toBe(false)
+    expect(ref.current?.outdentList()).toBe(false)
     expect(ref.current?.insertTable()).toBe(false)
     expect(ref.current?.insertCodeBlock()).toBe(false)
     expect(ref.current?.undo()).toBe(false)
@@ -1269,6 +1289,35 @@ describe('MarkdownEditor', () => {
     // FloatingToolbar is invisible until a selection is made; it shouldn't
     // be in the DOM at all when floatingToolbar prop is false
     expect(container.querySelector('.me-toolbar--floating')).toBeFalsy()
+  })
+
+  it('can suppress the comment selection toolbar without disabling comment requests', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onRequest = vi.fn()
+    const { container } = render(
+      <MarkdownEditor
+        ref={ref}
+        value={'Alpha beta'}
+        onChange={vi.fn()}
+        comments={{ items: [], showPanel: false, onRequest }}
+        floatingCommentToolbar={false}
+      />
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+    act(() => {
+      expect(ref.current!.setSelection(0, 5)).toBe(true)
+      expect(ref.current!.focus()).toBe(true)
+    })
+
+    expect(container.querySelector('.me-toolbar--floating')).toBeFalsy()
+    act(() => expect(ref.current!.requestComment()).toBe(true))
+    expect(onRequest).toHaveBeenCalledWith(expect.objectContaining({
+      anchorType: 'range',
+      from: 0,
+      to: 5,
+      quote: 'Alpha',
+    }))
   })
 
   it('renders table widgets by default', async () => {

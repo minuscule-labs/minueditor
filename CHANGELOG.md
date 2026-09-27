@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Exposed `indentList()` and `outdentList()` on `MarkdownEditorHandle`, backed by the existing list commands.
+- Added `floatingCommentToolbar` so hosts can suppress the selection toolbar’s Comment action while retaining imperative and line-comment workflows.
+
 ## 0.16.4 — 2026-09-26
 
 - Fixed live task-list keyboard behavior so checkbox markers remain atomic during navigation and deletion, with raw Markdown editing preserved in source mode.

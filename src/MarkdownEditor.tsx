@@ -70,6 +70,8 @@ import {
   enterAfterHiddenInlineSuffix,
   enterInMarkdownList,
   enterInMarkdownTable,
+  indentList,
+  outdentList,
   toggleBold,
   toggleInlineCode,
   toggleItalic,
@@ -123,6 +125,8 @@ export interface MarkdownEditorHandle {
   getSelection: () => MarkdownEditorState['selection'] | null
   setSelection: (from: number, to?: number) => boolean
   requestComment: () => boolean
+  indentList: () => boolean
+  outdentList: () => boolean
   getHeadings: () => readonly MarkdownHeading[]
   goToHeading: (slug: string) => boolean
   focus: () => boolean
@@ -211,7 +215,8 @@ function buildEditorState(
  * Fully controlled: consumer owns `value` and `onChange`.
  * The underlying document is always plain markdown.
  * When `floatingToolbar` is set, a FloatingToolbar appears above
- * text selections inside the editor.
+ * text selections inside the editor. `floatingCommentToolbar` independently
+ * controls its Comment action when comment callbacks are configured.
  *
  * When `onViewReady` is set, it is called with the EditorView instance
  * after CM6 mounts. Useful for wiring an external toolbar.
@@ -231,6 +236,7 @@ export const MarkdownEditor = forwardRef<
     mode = 'live',
     resourceUrlResolver,
     floatingToolbar = false,
+    floatingCommentToolbar = true,
     tableActions = true,
     tableInsertion,
     autoFocus = false,
@@ -435,6 +441,8 @@ export const MarkdownEditor = forwardRef<
       getMarkdown: () => viewRef.current?.state.doc.toString() ?? null,
       getSelection: () => editorStateRef.current?.selection ?? null,
       requestComment: () => withView(requestComment),
+      indentList: () => withView((view) => !readOnlyRef.current && indentList(view)),
+      outdentList: () => withView((view) => !readOnlyRef.current && outdentList(view)),
       setSelection: (from: number, to = from) => withView((view) => {
         const docLength = view.state.doc.length
         const anchor = Math.max(0, Math.min(from, docLength))
@@ -1018,14 +1026,16 @@ export const MarkdownEditor = forwardRef<
 
   // ── Render ────────────────────────────────────────────────────────────
 
+  const showCommentToolbar = floatingCommentToolbar && Boolean(comments?.onCreate || comments?.onRequest)
+
   return (
     <div className={`minueditor-wrap${comments && comments.showPanel !== false ? ' minueditor-wrap--comments' : ''}${className ? ` ${className}` : ''}`}>
       <div ref={containerRef} className="minueditor" data-minueditor />
-      {(floatingToolbar || comments?.onCreate || comments?.onRequest) && (
+      {(floatingToolbar || showCommentToolbar) && (
         <FloatingToolbar
           view={cmView}
           showFormatting={floatingToolbar}
-          {...(comments?.onCreate || comments?.onRequest ? { onCommentRequest: requestComment } : {})}
+          {...(showCommentToolbar ? { onCommentRequest: requestComment } : {})}
         />
       )}
       {comments && comments.showPanel !== false ? (

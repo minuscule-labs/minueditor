@@ -261,6 +261,8 @@ export interface MarkdownEditorProps {
   /** Resolves parsed canonical Markdown image/link destinations for runtime display and navigation only. */
   resourceUrlResolver?: ResourceUrlResolver
   floatingToolbar?: boolean
+  /** Shows the selection-toolbar Comment action when comment callbacks are configured. Defaults to true. */
+  floatingCommentToolbar?: boolean
   /** Shows the editor-owned contextual Table actions menu for active tables. Defaults to true. */
   tableActions?: boolean
   /** Default shape used by slash, toolbar, and imperative table insertion. */
