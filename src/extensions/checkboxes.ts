@@ -143,6 +143,15 @@ function unwrapTaskMarker(view: EditorView, markerFrom: number, contentFrom: num
   return true
 }
 
+function deleteTaskMarkerBackward(view: EditorView): boolean {
+  const task = taskPrefixAtSelection(view)
+  const pos = view.state.selection.main.head
+  if (!task || pos <= task.markerFrom || pos > task.contentFrom) return false
+  return view.state.facet(EditorView.editable)
+    ? unwrapTaskMarker(view, task.markerFrom, task.contentFrom, 'backward')
+    : true
+}
+
 // Only installed in live mode. A checkbox replaces three source characters,
 // so native navigation/deletion must not land or operate inside its raw syntax.
 export const taskListKeymap = Prec.highest(keymap.of([
@@ -204,14 +213,15 @@ export const taskListKeymap = Prec.highest(keymap.of([
   },
   {
     key: 'Backspace',
-    run(view) {
-      const task = taskPrefixAtSelection(view)
-      const pos = view.state.selection.main.head
-      if (!task || pos <= task.markerFrom || pos > task.contentFrom) return false
-      return view.state.facet(EditorView.editable)
-        ? unwrapTaskMarker(view, task.markerFrom, task.contentFrom, 'backward')
-        : true
-    },
+    run: deleteTaskMarkerBackward,
+  },
+  {
+    key: 'Alt-Backspace',
+    run: deleteTaskMarkerBackward,
+  },
+  {
+    key: 'Mod-Backspace',
+    run: deleteTaskMarkerBackward,
   },
   {
     key: 'Delete',
