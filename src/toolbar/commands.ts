@@ -1,5 +1,7 @@
 import type { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
+import { syntaxTree } from '@codemirror/language';
+import type { SyntaxNode } from '@lezer/common';
 import { setActiveCodeBlock } from "../extensions/codeblock/state";
 import {
   insertTableAt,
@@ -769,19 +771,25 @@ function toggleLinePrefix(
   view: EditorView,
   makePrefix: (line: string) => string | null,
   isActive: (line: string) => boolean,
+  renumberActive = false,
 ): boolean {
   const { state } = view;
   const lineChanges: TextChange[] = [];
-  for (const number of selectedListLineNumbers(state, true)) {
+  const selected = selectedListLineNumbers(state, true);
+  const allActive = selected.every((number) => isActive(state.doc.line(number).text));
+  for (const number of selected) {
     const line = state.doc.line(number);
-    const next = isActive(line.text)
-      ? line.text.replace(/^(\s*)(?:[-*+]\s+\[[ xX/]\]\s+|[-*+]\s+|\d+\.\s+)/, "$1")
-      : (() => {
-          const prefix = makePrefix(line.text);
-          if (prefix === null) return line.text;
-          const indent = line.text.match(/^\s*/)?.[0].length ?? 0;
-          return `${line.text.slice(0, indent)}${prefix}${line.text.slice(indent)}`;
-        })();
+    const withoutMarker = line.text.replace(/^(\s*)(?:[-*+]\s+\[[ xX/]\](?:\s+|$)|[-*+]\s+|\d+\.\s+)/, "$1");
+    const next = allActive
+      ? withoutMarker
+      : isActive(line.text) && !renumberActive
+        ? line.text
+        : (() => {
+            const prefix = makePrefix(line.text);
+            if (prefix === null) return line.text;
+            const indent = line.text.match(/^\s*/)?.[0].length ?? 0;
+            return `${line.text.slice(0, indent)}${prefix}${withoutMarker.slice(indent)}`;
+          })();
     const change = minimalLineChange(line, next);
     if (change) lineChanges.push(change);
   }
@@ -808,16 +816,25 @@ export function toggleUnorderedList(view: EditorView): boolean {
   return toggleLinePrefix(
     view,
     () => "- ",
-    (line) => /^\s*[-*+]\s/.test(line),
+    (line) => /^\s*[-*+]\s+/.test(line) && !/^\s*[-*+]\s+\[[ xX/]\](?:\s|$)/.test(line),
   );
 }
 
 export function toggleOrderedList(view: EditorView): boolean {
-  let counter = 1;
+  const counters = new Map<number, number>();
   return toggleLinePrefix(
     view,
-    () => `${counter++}. `,
+    (line) => {
+      const indent = lineIndentWidth(line.match(/^\s*/)?.[0] ?? '');
+      const next = (counters.get(indent) ?? 0) + 1;
+      counters.set(indent, next);
+      for (const depth of counters.keys()) {
+        if (depth > indent) counters.delete(depth);
+      }
+      return `${next}. `;
+    },
     (line) => /^\s*\d+\.\s/.test(line),
+    true,
   );
 }
 
@@ -825,7 +842,7 @@ export function toggleCheckboxList(view: EditorView): boolean {
   return toggleLinePrefix(
     view,
     () => "- [ ] ",
-    (line) => /^\s*[-*+]\s+\[[ x]\]\s/.test(line),
+    (line) => /^\s*[-*+]\s+\[[ xX/]\](?:\s|$)/.test(line),
   );
 }
 
@@ -905,7 +922,7 @@ function selectedListLineNumbers(
 
 function updateSelectedListLines(
   view: EditorView,
-  updater: (line: string) => string | null,
+  updater: (line: string, number: number) => string | null,
 ): boolean {
   const { state } = view;
   const selected = selectedListLineNumbers(state);
@@ -920,7 +937,7 @@ function updateSelectedListLines(
   const resetOrderedAt = new Set<number>();
   for (const number of selected) {
     const current = nextLines[number - 1];
-    const next = updater(current);
+    const next = updater(current, number);
     if (next !== null) {
       if (
         /^\s*\d+\.\s/.test(current) &&
@@ -948,15 +965,131 @@ function updateSelectedListLines(
   return true;
 }
 
-export function indentList(view: EditorView): boolean {
-  return updateSelectedListLines(view, (line) => `${LIST_INDENT}${line}`);
+function precedingListItem(item: SyntaxNode): SyntaxNode | null {
+  if (item.prevSibling?.name === 'ListItem') return item.prevSibling;
+  // Adjacent lists with different markers (for example, an ordered parent and
+  // a bullet child) are separate parser nodes until the child is indented.
+  const previousList = item.parent?.prevSibling;
+  if (previousList?.name !== 'BulletList' && previousList?.name !== 'OrderedList') return null;
+  return previousList.lastChild?.name === 'ListItem' ? previousList.lastChild : null;
+}
+
+function listItemForLine(state: EditorView['state'], lineNumber: number, tree = syntaxTree(state)): SyntaxNode | null {
+  const line = state.doc.line(lineNumber);
+  const markerFrom = line.from + (line.text.match(/^[ \t]*/)?.[0].length ?? 0);
+  let node: SyntaxNode | null = tree.resolveInner(markerFrom, 1);
+  while (node && node.name !== 'ListItem') node = node.parent;
+  return node && node.from >= line.from && node.from <= markerFrom ? node : null;
+}
+
+function listItemContentIndent(line: string): number | null {
+  const match = line.match(/^([ \t]*)([-*+]|\d+\.)([ \t]+)/);
+  if (!match) return null;
+  const paddingWidth = lineIndentWidth(match[3]);
+  // CommonMark caps list-marker padding at four columns; additional spaces
+  // belong to the item content rather than increasing its continuation indent.
+  const padding = paddingWidth > 4 ? 1 : paddingWidth;
+  return lineIndentWidth(match[1]) + match[2].length + padding;
+}
+
+function hasAvailableListParent(view: EditorView): boolean {
+  const { state } = view;
+  const selected = selectedListLineNumbers(state);
+  if (selected.some((number) => !isListLine(state.doc.line(number).text))) return false;
+  const selectedSet = new Set(selected);
+  const tree = syntaxTree(state);
+
+  return selected.every((number) => {
+    const item = listItemForLine(state, number, tree);
+    if (!item) return false;
+    let previous = precedingListItem(item);
+    while (previous && selectedSet.has(state.doc.lineAt(previous.from).number)) {
+      previous = precedingListItem(previous);
+    }
+    return previous !== null;
+  });
+}
+
+export function indentList(view: EditorView, allowRawIndent = false): boolean {
+  if (allowRawIndent) return updateSelectedListLines(view, (line) => `${LIST_INDENT}${line}`);
+
+  const { state } = view;
+  const selected = selectedListLineNumbers(state);
+  if (!hasAvailableListParent(view)) return false;
+  const selectedSet = new Set(selected);
+  const tree = syntaxTree(state);
+  const parents = new Map<number, SyntaxNode>();
+
+  for (const number of selected) {
+    const item = listItemForLine(state, number, tree);
+    if (!item) return false;
+    let parent = precedingListItem(item);
+    while (parent && selectedSet.has(state.doc.lineAt(parent.from).number)) {
+      parent = precedingListItem(parent);
+    }
+    if (!parent) return false;
+    parents.set(number, parent);
+  }
+
+  return updateSelectedListLines(view, (line, number) => {
+    const parent = parents.get(number);
+    if (!parent) return null;
+    const parentLine = state.doc.lineAt(parent.from);
+    const parentContentIndent = listItemContentIndent(parentLine.text);
+    if (parentContentIndent === null) return null;
+    const currentIndent = lineIndentWidth(line.match(/^[ \t]*/)?.[0] ?? '');
+    const nextIndent = Math.max(currentIndent + lineIndentWidth(LIST_INDENT), parentContentIndent);
+    return `${' '.repeat(nextIndent - currentIndent)}${line}`;
+  });
+}
+
+function enclosingListItem(item: SyntaxNode): SyntaxNode | null {
+  for (let node = item.parent; node; node = node.parent) {
+    if (node.name === 'ListItem') return node;
+  }
+  return null;
+}
+
+function outdentWidth(
+  state: EditorView['state'],
+  lineNumber: number,
+  line: string,
+  selected: Set<number>,
+): number {
+  if (typeof state.field === 'function') {
+    const item = listItemForLine(state, lineNumber);
+    let parent = item && enclosingListItem(item);
+    while (parent && selected.has(state.doc.lineAt(parent.from).number)) {
+      parent = enclosingListItem(parent);
+    }
+    if (parent) {
+      const parentLine = state.doc.lineAt(parent.from);
+      const parentPrefix = parentLine.text.match(/^[ \t]*/)?.[0] ?? '';
+      const currentPrefix = line.match(/^[ \t]*/)?.[0] ?? '';
+      const parentIndent = lineIndentWidth(parentPrefix);
+      const parentContentIndent = listItemContentIndent(parentLine.text);
+      const currentIndent = lineIndentWidth(currentPrefix);
+      // Undo the extra alignment needed under a wide ordered marker in one step.
+      if (
+        /^ *$/.test(parentPrefix) &&
+        /^ *$/.test(currentPrefix) &&
+        parentContentIndent === currentIndent &&
+        currentIndent > parentIndent
+      ) {
+        return currentIndent - parentIndent;
+      }
+    }
+  }
+  if (line.startsWith('    ')) return 4;
+  if (line.startsWith('  ')) return 2;
+  return 0;
 }
 
 export function outdentList(view: EditorView): boolean {
-  return updateSelectedListLines(view, (line) => {
-    if (line.startsWith("    ")) return line.slice(4);
-    if (line.startsWith("  ")) return line.slice(2);
-    return line;
+  const selected = new Set(selectedListLineNumbers(view.state));
+  return updateSelectedListLines(view, (line, number) => {
+    const width = outdentWidth(view.state, number, line, selected);
+    return width ? line.slice(width) : line;
   });
 }
 

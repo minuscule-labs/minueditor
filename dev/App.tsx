@@ -1169,8 +1169,40 @@ function MermaidStabilityFixture() {
   )
 }
 
+function TaskListKeyboardFixture() {
+  const [value, setValue] = useState('- [ ] one')
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [state, setState] = useState<MarkdownEditorState | null>(null)
+  const [view, setView] = useState<EditorView | null>(null)
+
+  return (
+    <main className="app-main" data-testid="task-list-keyboard-fixture">
+      <button type="button" onClick={() => setValue('- [ ] one')}>Reset task</button>
+      <button type="button" onClick={() => setValue('- one')}>Reset bullet</button>
+      <button type="button" onClick={() => setValue('- [ ]one')}>Reset malformed task</button>
+      <button type="button" onClick={() => setValue('    - [ ] code')}>Reset code-like task</button>
+      <button type="button" onClick={() => setValue('- parent\n\n        - [ ] code')}>Reset list code task</button>
+      <button type="button" onClick={() => setValue('- parent\n- [ ] one')}>Reset nested task</button>
+      <button type="button" onClick={() => setValue('123. parent\n- [ ] child')}>Reset wide ordered task</button>
+      <button type="button" onClick={() => {
+        if (!view) return
+        view.dispatch({ selection: { anchor: view.state.doc.length } })
+        view.focus()
+      }}>Focus task end</button>
+      <button type="button" onClick={() => view?.focus()}>Restore editor focus</button>
+      <button type="button" onClick={() => setMode((current) => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
+      <div className="editor-frame">
+        <MarkdownEditor value={value} onChange={setValue} mode={mode} onStateChange={setState} onViewReady={setView} autoFocus minHeight={320} />
+      </div>
+      <pre data-testid="markdown-output">{value}</pre>
+      <output data-testid="selection-offset">{state?.selection.from ?? ''}</output>
+    </main>
+  )
+}
+
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
+  if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
   if (fixture === 'table-commands') return <TableCommandFixture />

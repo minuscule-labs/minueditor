@@ -13,7 +13,7 @@ import {
   placeholder as cmPlaceholder,
   keymap,
 } from '@codemirror/view'
-import { defaultKeymap, historyKeymap, history, redoDepth, undoDepth } from '@codemirror/commands'
+import { defaultKeymap, deleteCharBackward, historyKeymap, history, redoDepth, undoDepth } from '@codemirror/commands'
 import { acceptCompletion, completionStatus } from '@codemirror/autocomplete'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { syntaxTree } from '@codemirror/language'
@@ -22,7 +22,7 @@ import { markdownDecorations } from './extensions/decorations'
 import { calloutDecorations } from './extensions/callouts'
 import { documentAnnotationExtension } from './extensions/annotations'
 import { commentDecorationsExtension } from './extensions/comments'
-import { checkboxDecorations } from './extensions/checkboxes'
+import { checkboxDecorations, normalizeTaskSelectionForLiveMode, taskListAtomicRanges, taskListKeymap } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { externalLinkWidgets, openExternalLinkEditor } from './extensions/link-widget'
@@ -42,7 +42,7 @@ import {
 } from './extensions/tables/state'
 import { codeBlockDecorations } from './extensions/codeblock'
 import { imageArrowNavigation, imageDecorations, imagePasteHandler, imagePickerExtension } from './extensions/images'
-import { markdownKeymap } from './extensions/keymap'
+import { liveListMarkerMode, markdownKeymap } from './extensions/keymap'
 import { pasteAsPlainTextExtension, richPasteExtension } from './extensions/rich-paste'
 import {
   mermaidBlockExtension,
@@ -516,7 +516,10 @@ export const MarkdownEditor = forwardRef<
   }, [onViewReady])
 
   const buildModeExtensions = useCallback((): Extension[] => {
-    if (mode === 'source') return []
+    if (mode === 'source') return [Prec.highest(keymap.of([{
+      key: 'Backspace',
+      run: (view) => view.state.facet(EditorView.editable) ? deleteCharBackward(view) : true,
+    }]))]
     const mermaidEnabled = stableMermaidConfig !== false
     return [
       visualMarkdown,
@@ -532,6 +535,9 @@ export const MarkdownEditor = forwardRef<
       ),
       markdownDecorations,
       checkboxDecorations,
+      taskListAtomicRanges,
+      liveListMarkerMode.of(true),
+      taskListKeymap,
       imageDecorations,
     ]
   }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode, stableMermaidConfig])
@@ -914,11 +920,13 @@ export const MarkdownEditor = forwardRef<
       view.state.field(activeTableField, false) != null ||
       view.state.field(tableInteractionField, false) != null
     )
+    const normalizedTaskSelection = mode === 'live' ? normalizeTaskSelectionForLiveMode(view) : null
     view.dispatch({
       effects: [
         ...(hadTableInteraction ? clearTableInteractionEffects() : []),
         modeCompartment.current.reconfigure(buildModeExtensions()),
       ],
+      ...(normalizedTaskSelection ? { selection: normalizedTaskSelection } : {}),
     })
     if (hadTableInteraction) view.focus()
   }, [buildModeExtensions, mode])

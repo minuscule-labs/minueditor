@@ -2446,6 +2446,137 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('keeps task checkbox syntax atomic under Home, arrow, Backspace, and Delete', async () => {
+    for (const marker of ['[ ]', '[/]', '[x]']) {
+      let view: EditorView | null = null
+      const { container, unmount } = render(
+        <MarkdownEditor
+          value={`- ${marker} one`}
+          onChange={vi.fn()}
+          onViewReady={(nextView) => { view = nextView }}
+        />,
+      )
+      await waitFor(() => expect(view).toBeTruthy())
+      const content = container.querySelector('.cm-content')!
+      act(() => { view!.dispatch({ selection: { anchor: 3 } }) })
+      fireEvent.keyDown(content, { key: 'Home' })
+      expect(view!.state.selection.main.head).toBe(6)
+      fireEvent.keyDown(content, { key: 'ArrowLeft' })
+      expect(view!.state.selection.main.head).toBe(0)
+      fireEvent.keyDown(content, { key: 'ArrowRight' })
+      expect(view!.state.selection.main.head).toBe(6)
+      fireEvent.keyDown(content, { key: 'Backspace' })
+      expect(view!.state.doc.toString()).toBe('one')
+      expect(view!.state.selection.main.head).toBe(0)
+      unmount()
+
+      let deleteView: EditorView | null = null
+      const { container: nextContainer, unmount: unmountNext } = render(
+        <MarkdownEditor
+          value={`- ${marker} one`}
+          onChange={vi.fn()}
+          onViewReady={(nextView) => { deleteView = nextView }}
+        />,
+      )
+      await waitFor(() => expect(deleteView).toBeTruthy())
+      act(() => { deleteView!.dispatch({ selection: { anchor: 4 } }) })
+      fireEvent.keyDown(nextContainer.querySelector('.cm-content')!, { key: 'Delete' })
+      expect(deleteView!.state.doc.toString()).toBe('one')
+      expect(deleteView!.state.selection.main.head).toBe(0)
+      unmountNext()
+    }
+  })
+
+  it('normalizes source-mode carets and partial selections when showing live task widgets', async () => {
+    let view: EditorView | null = null
+    const props = { value: '- [ ] one', onChange: vi.fn(), onViewReady: (nextView: EditorView) => { view = nextView } }
+    const { rerender } = render(<MarkdownEditor {...props} mode="source" />)
+    await waitFor(() => expect(view).toBeTruthy())
+
+    act(() => { view!.dispatch({ selection: { anchor: 3 } }) })
+    rerender(<MarkdownEditor {...props} mode="live" />)
+    await waitFor(() => expect(view!.state.selection.main.head).toBe(6))
+
+    rerender(<MarkdownEditor {...props} mode="source" />)
+    act(() => { view!.dispatch({ selection: { anchor: 4, head: 3 } }) })
+    rerender(<MarkdownEditor {...props} mode="live" />)
+    await waitFor(() => {
+      expect(view!.state.selection.main.from).toBe(0)
+      expect(view!.state.selection.main.to).toBe(6)
+      expect(view!.state.selection.main.anchor).toBe(6)
+    })
+  })
+
+  it('does not render task widgets for malformed markers or indented code', async () => {
+    const { container, rerender } = render(<MarkdownEditor value="- [ ]one" onChange={vi.fn()} />)
+    expect(container.querySelector('.me-checkbox')).toBeNull()
+    rerender(<MarkdownEditor value="    - [ ] code" onChange={vi.fn()} />)
+    expect(container.querySelector('.me-checkbox')).toBeNull()
+  })
+
+  it('does not render or guard task-like code nested inside a list', async () => {
+    let view: EditorView | null = null
+    const value = '- parent\n\n        - [ ] code'
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />,
+    )
+    await waitFor(() => expect(view).toBeTruthy())
+    expect(container.querySelector('.me-checkbox')).toBeNull()
+    const codeStart = value.indexOf('- [ ] code')
+    act(() => { view!.dispatch({ selection: { anchor: codeStart + 2 } }) })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Home' })
+    expect(view!.state.selection.main.head).not.toBe(value.indexOf('code'))
+  })
+
+  it('renders a valid task checkbox after parsing reaches a distant viewport', async () => {
+    let view: EditorView | null = null
+    const value = `${Array.from({ length: 3000 }, (_, index) => `Paragraph ${index}`).join('\n\n')}\n\n- [ ] distant task`
+    const { container } = render(
+      <MarkdownEditor value={value} onChange={vi.fn()} onViewReady={(nextView) => { view = nextView }} />,
+    )
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => { view!.dispatch({ selection: { anchor: value.indexOf('distant task') }, scrollIntoView: true }) })
+    await waitFor(() => {
+      expect(container.querySelector('.me-checkbox')).toBeTruthy()
+    }, { timeout: 7_000 })
+  }, 10_000)
+
+  it('unwraps a nested task marker without removing its indentation', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- parent\n    - [/] child'}
+        onChange={vi.fn()}
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+    await waitFor(() => expect(view).toBeTruthy())
+    act(() => { view!.dispatch({ selection: { anchor: view!.state.doc.toString().indexOf('child') } }) })
+    fireEvent.keyDown(container.querySelector('.cm-content')!, { key: 'Backspace' })
+    expect(view!.state.doc.toString()).toBe('- parent\n    child')
+    expect(view!.state.selection.main.head).toBe(13)
+  })
+
+  it('does not edit task markers with Backspace or Delete in read-only mode', async () => {
+    let view: EditorView | null = null
+    const { container } = render(
+      <MarkdownEditor
+        value={'- [x] one'}
+        onChange={vi.fn()}
+        readOnly
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+    await waitFor(() => expect(view).toBeTruthy())
+    const content = container.querySelector('.cm-content')!
+    act(() => { view!.dispatch({ selection: { anchor: 6 } }) })
+    fireEvent.keyDown(content, { key: 'Backspace' })
+    expect(view!.state.doc.toString()).toBe('- [x] one')
+    act(() => { view!.dispatch({ selection: { anchor: 3 } }) })
+    fireEvent.keyDown(content, { key: 'Delete' })
+    expect(view!.state.doc.toString()).toBe('- [x] one')
+  })
+
   it('uses the installed Enter keymap to exit a top-level empty list item', async () => {
     let view: EditorView | null = null
     const { container } = render(
