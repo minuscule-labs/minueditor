@@ -4,6 +4,8 @@
 
 - Exposed `indentList()` and `outdentList()` on `MarkdownEditorHandle`, backed by the existing list commands.
 - Added `floatingCommentToolbar` so hosts can suppress the selection toolbar’s Comment action while retaining imperative and line-comment workflows.
+- Made list indentation availability syntax-aware, protected list-like fenced code from toolbar outdent, and exposed `canIndentList`/`canOutdentList` state for host toolbars.
+- Made inline formatting state reflect the selected text rather than unrelated formatting elsewhere on the active line.
 
 ## 0.16.4 — 2026-09-26
 

@@ -982,6 +982,10 @@ function listItemForLine(state: EditorView['state'], lineNumber: number, tree = 
   return node && node.from >= line.from && node.from <= markerFrom ? node : null;
 }
 
+export function isParsedListItemLine(state: EditorView['state'], lineNumber: number): boolean {
+  return typeof state.field === 'function' && listItemForLine(state, lineNumber) !== null;
+}
+
 function listItemContentIndent(line: string): number | null {
   const match = line.match(/^([ \t]*)([-*+]|\d+\.)([ \t]+)/);
   if (!match) return null;
@@ -1010,12 +1014,16 @@ function hasAvailableListParent(view: EditorView): boolean {
   });
 }
 
+export function canIndentList(view: EditorView): boolean {
+  return hasAvailableListParent(view);
+}
+
 export function indentList(view: EditorView, allowRawIndent = false): boolean {
   if (allowRawIndent) return updateSelectedListLines(view, (line) => `${LIST_INDENT}${line}`);
 
   const { state } = view;
   const selected = selectedListLineNumbers(state);
-  if (!hasAvailableListParent(view)) return false;
+  if (!canIndentList(view)) return false;
   const selectedSet = new Set(selected);
   const tree = syntaxTree(state);
   const parents = new Map<number, SyntaxNode>();
@@ -1085,7 +1093,19 @@ function outdentWidth(
   return 0;
 }
 
-export function outdentList(view: EditorView): boolean {
+export function canOutdentList(view: EditorView, allowRawIndent = false): boolean {
+  const { state } = view;
+  const selected = selectedListLineNumbers(state);
+  if (selected.length === 0 || selected.some((number) => !isListLine(state.doc.line(number).text))) return false;
+  if (!allowRawIndent && selected.some((number) => !isParsedListItemLine(state, number))) return false;
+
+  const selectedSet = new Set(selected);
+  return selected.some((number) => outdentWidth(state, number, state.doc.line(number).text, selectedSet) > 0);
+}
+
+export function outdentList(view: EditorView, allowRawIndent = false): boolean {
+  if (!canOutdentList(view, allowRawIndent)) return false;
+
   const selected = new Set(selectedListLineNumbers(view.state));
   return updateSelectedListLines(view, (line, number) => {
     const width = outdentWidth(view.state, number, line, selected);

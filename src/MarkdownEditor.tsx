@@ -67,10 +67,13 @@ import type {
 } from './types'
 import { visualMarkdown } from './extensions/visual-markdown'
 import {
+  canIndentList as canIndentListCommand,
+  canOutdentList as canOutdentListCommand,
   enterAfterHiddenInlineSuffix,
   enterInMarkdownList,
   enterInMarkdownTable,
   indentList,
+  isParsedListItemLine,
   outdentList,
   toggleBold,
   toggleInlineCode,
@@ -156,20 +159,46 @@ function selectedMarkdownText(state: EditorState): { text: string; ranges: Sourc
   }
 }
 
-function getActiveMarks(lineText: string): MarkdownEditorState['activeMarks'] {
+function selectionHasMarker(ranges: readonly string[], marker: string): boolean {
+  return ranges.length > 0 && ranges.every(
+    (text) => text.length >= marker.length * 2 && text.startsWith(marker) && text.endsWith(marker),
+  )
+}
+
+function selectionHasItalic(ranges: readonly string[]): boolean {
+  return ranges.length > 0 && ranges.every((text) => {
+    const singleAsterisk = text.startsWith('*') && text.endsWith('*') && !text.startsWith('**') && !text.endsWith('**')
+    const singleUnderscore = text.startsWith('_') && text.endsWith('_') && !text.startsWith('__') && !text.endsWith('__')
+    return text.length >= 2 && (singleAsterisk || singleUnderscore)
+  })
+}
+
+function getActiveMarks(
+  lineText: string,
+  selectedTexts: readonly string[] | null,
+  isListItem: boolean,
+): MarkdownEditorState['activeMarks'] {
   const heading = /^(#{1,6})\s+/.exec(lineText)
-  const list = /^\s*[-*+]\s+\[[ xX/]\]\s+/.test(lineText)
-    ? 'task'
-    : /^\s*[-*+]\s+/.test(lineText)
-      ? 'bullet'
-      : /^\s*\d+\.\s+/.test(lineText)
-        ? 'ordered'
-        : null
+  const list = isListItem
+    ? /^\s*[-*+]\s+\[[ xX/]\]\s+/.test(lineText)
+      ? 'task'
+      : /^\s*[-*+]\s+/.test(lineText)
+        ? 'bullet'
+        : /^\s*\d+\.\s+/.test(lineText)
+          ? 'ordered'
+          : null
+    : null
 
   return {
-    bold: /\*\*[^*]+\*\*|__[^_]+__/.test(lineText),
-    italic: /(^|[^*])\*[^*\s][^*]*\*|(^|[^_])_[^_\s][^_]*_/.test(lineText),
-    code: /`[^`]+`/.test(lineText),
+    bold: selectedTexts
+      ? selectionHasMarker(selectedTexts, '**') || selectionHasMarker(selectedTexts, '__')
+      : /\*\*[^*]+\*\*|__[^_]+__/.test(lineText),
+    italic: selectedTexts
+      ? selectionHasItalic(selectedTexts)
+      : /(^|[^*])\*[^*\s][^*]*\*|(^|[^_])_[^_\s][^_]*_/.test(lineText),
+    code: selectedTexts
+      ? selectionHasMarker(selectedTexts, '`')
+      : /`[^`]+`/.test(lineText),
     link: /\[[^\]]+\]\([^)]+\)|\[\[[^\]\n]+\]\]/.test(lineText),
     headingLevel: heading ? (heading[1].length as 1 | 2 | 3 | 4 | 5 | 6) : null,
     list,
@@ -185,6 +214,9 @@ function buildEditorState(
   const value = view.state.doc.toString()
   const selection = view.state.selection.main
   const activeLine = view.state.doc.lineAt(selection.from)
+  const selectedTexts = selection.empty
+    ? null
+    : selectedMarkdownText(view.state).ranges.map((range) => view.state.doc.sliceString(range.from, range.to))
 
   return {
     value,
@@ -193,6 +225,8 @@ function buildEditorState(
     isEmpty: value.trim().length === 0,
     canUndo: undoDepth(view.state) > 0,
     canRedo: redoDepth(view.state) > 0,
+    canIndentList: !readOnly && canIndentListCommand(view),
+    canOutdentList: !readOnly && canOutdentListCommand(view),
     readOnly,
     selection: {
       from: selection.from,
@@ -205,7 +239,11 @@ function buildEditorState(
       to: activeLine.to,
       text: activeLine.text,
     },
-    activeMarks: getActiveMarks(activeLine.text),
+    activeMarks: getActiveMarks(
+      activeLine.text,
+      selectedTexts,
+      isParsedListItemLine(view.state, activeLine.number),
+    ),
   }
 }
 

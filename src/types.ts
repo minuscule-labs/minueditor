@@ -9,6 +9,10 @@ export interface MarkdownEditorState {
   isEmpty: boolean
   canUndo: boolean
   canRedo: boolean
+  /** Whether the current selection can be nested under a preceding list item. */
+  canIndentList: boolean
+  /** Whether the current selection can be outdented without changing non-list text. */
+  canOutdentList: boolean
   readOnly: boolean
   selection: {
     from: number
@@ -21,6 +25,7 @@ export interface MarkdownEditorState {
     to: number
     text: string
   }
+  /** Inline formatting reflects selected text when a range is selected; block marks describe the active line. */
   activeMarks: {
     bold: boolean
     italic: boolean

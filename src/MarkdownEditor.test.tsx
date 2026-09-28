@@ -318,6 +318,77 @@ describe('MarkdownEditor', () => {
     })
   })
 
+  it('derives inline formatting state from the selected text', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onStateChange = vi.fn()
+    render(
+      <MarkdownEditor
+        ref={ref}
+        value={'plain **bold** text'}
+        onChange={vi.fn()}
+        onStateChange={onStateChange}
+      />,
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    act(() => expect(ref.current?.setSelection(0, 5)).toBe(true))
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0].activeMarks.bold).toBe(false)
+    })
+
+    act(() => expect(ref.current?.setSelection(8, 12)).toBe(true))
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0].activeMarks.bold).toBe(true)
+    })
+  })
+
+  it('limits list context and indentation capabilities to valid list lines', async () => {
+    const ref = createRef<MarkdownEditorHandle>()
+    const onStateChange = vi.fn()
+    const value = '```\n    - code\n```\n\n- Root\n- Child'
+    render(
+      <MarkdownEditor ref={ref} value={value} onChange={vi.fn()} onStateChange={onStateChange} />,
+    )
+
+    await waitFor(() => expect(ref.current?.view).toBeTruthy())
+
+    act(() => expect(ref.current?.setSelection(value.indexOf('- code') + 1)).toBe(true))
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        activeMarks: { list: null },
+        canIndentList: false,
+        canOutdentList: false,
+      })
+    })
+    expect(ref.current?.outdentList()).toBe(false)
+    expect(ref.current?.getMarkdown()).toBe(value)
+
+    act(() => expect(ref.current?.setSelection(value.indexOf('- Root') + 2)).toBe(true))
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        activeMarks: { list: 'bullet' },
+        canIndentList: false,
+        canOutdentList: false,
+      })
+    })
+
+    act(() => expect(ref.current?.setSelection(value.indexOf('- Child') + 2)).toBe(true))
+    await waitFor(() => {
+      expect(onStateChange.mock.calls.at(-1)?.[0]).toMatchObject({
+        activeMarks: { list: 'bullet' },
+        canIndentList: true,
+        canOutdentList: false,
+      })
+    })
+
+    act(() => expect(ref.current?.indentList()).toBe(true))
+    await waitFor(() => {
+      expect(ref.current?.getMarkdown()).toBe('```\n    - code\n```\n\n- Root\n    - Child')
+      expect(onStateChange.mock.calls.at(-1)?.[0].canOutdentList).toBe(true)
+    })
+  })
+
   it('renders document annotations and forwards clicks', async () => {
     const onAnnotationClick = vi.fn()
 

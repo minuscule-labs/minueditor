@@ -80,7 +80,7 @@ export const markdownKeymap = keymap.of([
       if (!view.state.facet(EditorView.editable)) return false
       if (shiftTabInMarkdownTable(view)) return true
       if (!hasListItemAncestor(view)) return false
-      outdentList(view)
+      outdentList(view, !view.state.facet(liveListMarkerMode))
       return true
     },
   },

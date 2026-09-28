@@ -7,6 +7,8 @@ import {
   enterAfterHiddenInlineSuffix,
   enterInMarkdownList,
   enterInMarkdownTable,
+  canIndentList,
+  canOutdentList,
   indentList,
   insertTableColumnLeft,
   insertTableColumnRight,
@@ -302,7 +304,7 @@ describe('list indentation commands', () => {
 
   it('outdents existing indented list lines on Shift-Tab', () => {
     const view = createMockView(['    - one', '    - two'])
-    const handled = outdentList(view)
+    const handled = outdentList(view, true)
     const dispatched = vi.mocked(view.dispatch).mock.calls[0][0] as {
       changes: Array<{ from: number; to: number; insert: string }>
       range: { from: number; to: number }
@@ -314,6 +316,32 @@ describe('list indentation commands', () => {
       { from: 0, to: 4, insert: '' },
       { from: 10, to: 14, insert: '' },
     ])
+  })
+
+  it('does not outdent list-like fenced code unless raw indentation is requested', () => {
+    const source = '```\n    - code\n```'
+    const view = createStatefulView(source, { anchor: source.indexOf('- code') + 1 })
+
+    expect(canOutdentList(view)).toBe(false)
+    expect(outdentList(view)).toBe(false)
+    expect(view.state.doc.toString()).toBe(source)
+
+    expect(canOutdentList(view, true)).toBe(true)
+    expect(outdentList(view, true)).toBe(true)
+    expect(view.state.doc.toString()).toBe('```\n- code\n```')
+  })
+
+  it('reports list indentation availability from parsed context', () => {
+    const root = createStatefulView('- root', { anchor: 2 })
+    expect(canIndentList(root)).toBe(false)
+    expect(canOutdentList(root)).toBe(false)
+
+    const sibling = createStatefulView('- root\n- child', { anchor: 9 })
+    expect(canIndentList(sibling)).toBe(true)
+    expect(canOutdentList(sibling)).toBe(false)
+    expect(indentList(sibling)).toBe(true)
+    expect(canIndentList(sibling)).toBe(false)
+    expect(canOutdentList(sibling)).toBe(true)
   })
 
   it('keeps a caret attached to the same list text after indenting', () => {
@@ -554,33 +582,19 @@ describe('list indentation commands', () => {
   })
 
   it('does not outdent top-level list lines with no indent', () => {
-    const view = createMockView(['- one'])
+    const view = createStatefulView('- one', { anchor: 2 })
     const handled = outdentList(view)
 
     expect(handled).toBe(false)
-    expect(view.dispatch).not.toHaveBeenCalled()
+    expect(view.state.doc.toString()).toBe('- one')
   })
 
   it('renumbers ordered list lines after outdenting nested ordered items', () => {
-    const view = createMockView(['1. one', '    1. two', '    2. three'], {
-      from: 7,
-      to: 30,
-      anchor: 7,
-      head: 30,
-      empty: false,
-    })
-
+    const view = createStatefulView('1. one\n    1. two\n    2. three', { anchor: 7, head: 30 })
     const handled = outdentList(view)
 
     expect(handled).toBe(true)
-    expect(view.dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        changes: [
-          { from: 7, to: 12, insert: '2' },
-          { from: 18, to: 23, insert: '3' },
-        ],
-      })
-    )
+    expect(view.state.doc.toString()).toBe('1. one\n2. two\n3. three')
   })
 })
 

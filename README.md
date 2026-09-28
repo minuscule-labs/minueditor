@@ -176,6 +176,8 @@ Available handle methods include:
 - `insertTable()` / `insertCodeBlock()`
 - `indentList()` / `outdentList()` — apply existing list commands to the current selection; return `false` when no change is available or the editor is read-only.
 
+`onStateChange` reports `canIndentList` and `canOutdentList` so hosts can disable unavailable list actions. Inline `activeMarks` reflects the selected text when a range is selected, rather than unrelated formatting elsewhere on the line.
+
 For custom integrations, the handle also exposes `view`, the underlying CodeMirror `EditorView`:
 
 ```tsx
