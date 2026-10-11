@@ -862,6 +862,56 @@ function FormattedSelectionFixture() {
   )
 }
 
+const CALLOUT_EDITING_EXAMPLES = {
+  plain: '> [!NOTE]\n> Body text.',
+  formatted: '> [!TIP]\n> **Body text.**',
+  list: '> [!NOTE]\n> - **List item.**',
+  nested: '> [!NOTE]\n> > Nested quote.',
+}
+
+function CalloutEditingFixture() {
+  const [value, setValue] = useState(CALLOUT_EDITING_EXAMPLES.plain)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [readOnly, setReadOnly] = useState(false)
+  const [state, setState] = useState<MarkdownEditorState | null>(null)
+  const [view, setView] = useState<EditorView | null>(null)
+  const [submitCount, setSubmitCount] = useState(0)
+
+  function focusEnd(visible: boolean) {
+    if (!view) return
+    const line = view.state.doc.line(view.state.doc.lines)
+    const suffix = visible ? /[*_~`]+$/.exec(line.text)?.[0].length ?? 0 : 0
+    view.dispatch({ selection: { anchor: line.to - suffix } })
+    view.focus()
+  }
+
+  return (
+    <main className="app-main" data-testid="callout-editing-fixture">
+      <section className="surface">
+        <h1>Callout editing lab</h1>
+        <p className="surface-desc">Enter continues the callout; Enter on an empty quoted line exits. Shift+Enter retains blank quoted lines. Nested lists and quotes keep their standard Markdown behavior.</p>
+        <button type="button" onClick={() => setValue(CALLOUT_EDITING_EXAMPLES.plain)}>Reset plain callout</button>
+        <button type="button" onClick={() => setValue(CALLOUT_EDITING_EXAMPLES.formatted)}>Reset formatted callout</button>
+        <button type="button" onClick={() => setValue(CALLOUT_EDITING_EXAMPLES.list)}>Reset list callout</button>
+        <button type="button" onClick={() => setValue(CALLOUT_EDITING_EXAMPLES.nested)}>Reset nested quote</button>
+        <button type="button" onClick={() => focusEnd(true)}>Focus visible text end</button>
+        <button type="button" onClick={() => focusEnd(false)}>Focus source end</button>
+        <button type="button" onClick={() => setMode(current => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
+        <button type="button" onClick={() => setReadOnly(current => !current)}>Read-only: {String(readOnly)}</button>
+        <div className="editor-frame">
+          <MarkdownEditor value={value} onChange={setValue} mode={mode} readOnly={readOnly} onViewReady={setView} onStateChange={setState} onSubmit={() => setSubmitCount(current => current + 1)} autoFocus minHeight={260} />
+        </div>
+        <output data-testid="selection-offset">{state ? `${state.selection.from}–${state.selection.to}` : ''}</output>
+        <output data-testid="submit-count">{submitCount}</output>
+        <h2>Document source</h2>
+        <pre data-testid="markdown-output">{value}</pre>
+        <h2>Rendered preview</h2>
+        <MarkdownRenderer value={value} />
+      </section>
+    </main>
+  )
+}
+
 function CursorStabilityFixture() {
   const [value, setValue] = useState('')
 
@@ -1262,6 +1312,7 @@ function TaskListKeyboardFixture() {
 
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
+  if (fixture === 'callout-editing') return <CalloutEditingFixture />
   if (fixture === 'formatted-selection') return <FormattedSelectionFixture />
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />

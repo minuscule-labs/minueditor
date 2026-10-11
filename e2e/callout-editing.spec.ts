@@ -1,0 +1,90 @@
+import { expect, test } from '@playwright/test'
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('/?fixture=callout-editing')
+  await page.getByRole('button', { name: 'Focus visible text end' }).click()
+})
+
+test('continues and exits a callout with two Enter presses, then types outside it', async ({ page }) => {
+  const editor = page.locator('.cm-content')
+  const source = page.getByTestId('markdown-output')
+  await editor.press('Enter')
+  await expect(source).toHaveText('> [!NOTE]\n> Body text.\n> ')
+  await editor.press('Enter')
+  await expect(source).toHaveText('> [!NOTE]\n> Body text.\n\n')
+  await editor.press('A')
+  await expect(source).toHaveText('> [!NOTE]\n> Body text.\n\nA')
+  await expect(page.locator('.me-renderer .me-callout p')).toHaveText('Body text.')
+  await expect(editor).toBeFocused()
+})
+
+test('continues after hidden bold markers rather than splitting or leaving the callout', async ({ page }) => {
+  await page.getByRole('button', { name: 'Reset formatted callout' }).click()
+  await page.getByRole('button', { name: 'Focus visible text end' }).click()
+  const editor = page.locator('.cm-content')
+  await editor.press('Enter')
+  await expect(page.getByTestId('markdown-output')).toHaveText('> [!TIP]\n> **Body text.**\n> ')
+  await expect(page.locator('.me-renderer .me-callout strong')).toHaveText('Body text.')
+  await editor.press('Enter')
+  await expect(page.getByTestId('markdown-output')).toHaveText('> [!TIP]\n> **Body text.**\n\n')
+})
+
+test('retains quoted blank lines with Shift+Enter and lets another paragraph follow', async ({ page }) => {
+  const editor = page.locator('.cm-content')
+  await editor.press('Enter')
+  await editor.press('Shift+Enter')
+  await editor.press('Shift+Enter')
+  await editor.press('N')
+  await expect(page.getByTestId('markdown-output')).toHaveText('> [!NOTE]\n> Body text.\n> \n> \n> N')
+  await expect(page.locator('.me-renderer .me-callout')).toHaveCount(1)
+  await expect(page.locator('.me-renderer .me-callout p')).toHaveText(['Body text.', 'N'])
+})
+
+test('keeps the standard nested-list Enter sequence before exiting the callout', async ({ page }) => {
+  await page.getByRole('button', { name: 'Reset list callout' }).click()
+  await page.getByRole('button', { name: 'Focus visible text end' }).click()
+  const editor = page.locator('.cm-content')
+  const source = page.getByTestId('markdown-output')
+  await editor.press('Enter')
+  await expect(source).toHaveText('> [!NOTE]\n> - **List item.**\n> - ')
+  await editor.press('Enter')
+  await expect(source).toHaveText('> [!NOTE]\n> - **List item.**\n>\n> - ')
+  await editor.press('Enter')
+  await expect(source).toHaveText('> [!NOTE]\n> - **List item.**\n>\n> ')
+  await editor.press('Enter')
+  await expect(source).toHaveText('> [!NOTE]\n> - **List item.**\n>\n\n')
+  await expect(page.locator('.me-renderer li strong')).toHaveText('List item.')
+})
+
+test('source mode keeps the existing three-Enter Markdown quote exit', async ({ page }) => {
+  await page.getByRole('button', { name: 'Mode: live' }).click()
+  await page.getByRole('button', { name: 'Focus source end' }).click()
+  const editor = page.locator('.cm-content')
+  await editor.press('Enter')
+  await editor.press('Enter')
+  await expect(page.getByTestId('markdown-output')).toHaveText('> [!NOTE]\n> Body text.\n>\n> ')
+  await editor.press('Enter')
+  await expect(page.getByTestId('markdown-output')).toHaveText('> [!NOTE]\n> Body text.\n\n')
+})
+
+test('undo restores the callout and host submit still owns Mod+Enter', async ({ page }) => {
+  const editor = page.locator('.cm-content')
+  await editor.press('Enter')
+  await editor.press('Enter')
+  await editor.press('ControlOrMeta+z')
+  await expect(page.getByTestId('markdown-output')).toContainText('> [!NOTE]\n> Body text.')
+  await expect(editor).toBeFocused()
+  const original = await page.getByTestId('markdown-output').textContent()
+  await editor.press('ControlOrMeta+Enter')
+  await expect(page.getByTestId('submit-count')).toHaveText('1')
+  await expect(page.getByTestId('markdown-output')).toHaveText(original!)
+})
+
+test('Enter and Shift+Enter do not modify a read-only callout', async ({ page }) => {
+  await page.getByRole('button', { name: 'Read-only: false' }).click()
+  await page.getByRole('button', { name: 'Focus source end' }).click()
+  const editor = page.locator('.cm-content')
+  await editor.press('Enter')
+  await editor.press('Shift+Enter')
+  await expect(page.getByTestId('markdown-output')).toHaveText('> [!NOTE]\n> Body text.')
+})

@@ -34,6 +34,8 @@ test('reorders body rows and aligned columns through accessible table controls',
   await page.goto('/?fixture=table-commands')
   const markdown = page.getByTestId('markdown-output')
   await page.locator('.me-table-widget').click()
+  // Activation queues a header focus move; wait before targeting another cell.
+  await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
 
   const firstBodyCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]')
 
@@ -65,6 +67,7 @@ test('reorders body rows and aligned columns through accessible table controls',
 test('pastes a TSV rectangle into empty table cells without creating a second document table', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
   await page.locator('.me-table-widget').click()
+  await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
   await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').press('Tab')
 
   const firstNewCell = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
@@ -87,6 +90,7 @@ test('pastes a TSV rectangle into empty table cells without creating a second do
 test('pastes an HTML table as a safe text-only cell rectangle', async ({ page }) => {
   await page.goto('/?fixture=table-commands')
   await page.locator('.me-table-widget').click()
+  await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
   await page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]').press('Tab')
   const firstNewCell = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')
   await firstNewCell.evaluate((input: HTMLInputElement) => {

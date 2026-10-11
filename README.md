@@ -200,6 +200,8 @@ MinuEditor recognizes the five portable GitHub alert types in live and static re
 
 Supported types are `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`. The default slash-command menu includes one command for each type. Live mode displays a labeled callout and reveals the exact marker while it is being edited; source mode always shows the ordinary blockquote Markdown. Unknown or malformed markers remain normal blockquotes.
 
+In live mode, Enter continues callout text, and Enter on an empty quoted line exits to prose with a separating blank line. Shift+Enter keeps blank quoted lines for additional paragraphs. Closing inline-formatting markers remain on their original line. Nested lists and quotes retain their standard Markdown keyboard behavior; source mode retains the normal Markdown quote-editing path.
+
 Callouts are document content and travel with Markdown exports. They are separate from host-owned comments or `DocumentAnnotation` review metadata.
 
 ## Mermaid diagrams

@@ -14,6 +14,18 @@ Open `http://127.0.0.1:3333/?fixture=formatted-selection` for the focused clipbo
 - [ ] Confirm partial formatted-content selections retain the existing whole-span snapping behavior; this change does not introduce partial-content serialization.
 - [ ] Try the original failing snippet in the consumer app before approving this package.
 
+## Callout editing
+
+Open `http://localhost:3333/?fixture=callout-editing` for the focused callout lab.
+
+- [ ] Click **Focus visible text end**, press Enter to continue, then Enter on the empty quoted line to exit. Type prose and confirm the rendered callout does not include it.
+- [ ] Reset the formatted callout, focus the visible text end, and repeat. Confirm the closing `**` remains on the original line.
+- [ ] After continuing onto an empty quoted line, use Shift+Enter to retain blank lines; type a second paragraph and confirm it stays inside the same callout.
+- [ ] Reset the list callout and check continuation. Its native sequence makes the empty second item loose before unwrapping it; only the subsequent empty quote exits the callout.
+- [ ] Reset the nested quote and confirm nested-quote behavior is unchanged.
+- [ ] Switch to source mode and confirm the existing three-Enter quote-exit path remains unchanged.
+- [ ] Check undo, Cmd/Ctrl+Enter submit, and both Enter variants in read-only mode.
+
 ## Lists and code blocks
 
 - [ ] Type a top-level bullet, press Enter, and confirm the next marker matches.

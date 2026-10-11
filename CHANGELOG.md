@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Made live callouts exit on the first empty quoted line, preserve closing inline-formatting markers during continuation, and retain blank quoted lines with Shift+Enter without changing native nested-list/quote or source-mode behavior.
+- Prioritized host `onSubmit` callbacks over the default Mod+Enter blank-line binding and prevented Shift+Enter from modifying read-only documents.
 - Fixed formatted-text copy/cut and mouse-selection boundaries using parsed Markdown, preserving complete nested/underscore/code markers and excluding literal code-block text from formatting expansion.
 - Exposed `indentList()` and `outdentList()` on `MarkdownEditorHandle`, backed by the existing list commands.
 - Added `floatingCommentToolbar` so hosts can suppress the selection toolbar’s Comment action while retaining imperative and line-comment workflows.

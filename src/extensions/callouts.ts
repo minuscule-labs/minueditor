@@ -1,4 +1,5 @@
 import { syntaxTree } from '@codemirror/language'
+import type { Tree } from '@lezer/common'
 import { type EditorState, RangeSet, type Range } from '@codemirror/state'
 import {
   Decoration,
@@ -47,10 +48,10 @@ function parseCalloutMarker(line: string): { type: CalloutType; from: number; to
   }
 }
 
-export function findCalloutBlocks(state: EditorState): CalloutBlock[] {
+export function findCalloutBlocks(state: EditorState, tree: Tree = syntaxTree(state)): CalloutBlock[] {
   const blocks: CalloutBlock[] = []
 
-  syntaxTree(state).iterate({
+  tree.iterate({
     enter(node) {
       if (node.name !== 'Blockquote') return
 

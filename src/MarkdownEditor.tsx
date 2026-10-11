@@ -20,6 +20,7 @@ import { syntaxTree } from '@codemirror/language'
 import { minueditorTheme } from './theme'
 import { markdownDecorations } from './extensions/decorations'
 import { calloutDecorations } from './extensions/callouts'
+import { enterInCallout } from './extensions/callout-editing'
 import { documentAnnotationExtension } from './extensions/annotations'
 import { commentDecorationsExtension } from './extensions/comments'
 import { checkboxDecorations, normalizeTaskSelectionForLiveMode, taskListAtomicRanges, taskListKeymap } from './extensions/checkboxes'
@@ -822,13 +823,23 @@ export const MarkdownEditor = forwardRef<
             return (
               enterInMarkdownTable(view) ||
               (hasSyntaxAncestor(view, ['ListItem']) && enterInMarkdownList(view)) ||
+              enterInCallout(view) ||
               enterAfterHiddenInlineSuffix(view)
             )
           },
         },
+        {
+          key: 'Shift-Enter',
+          run: (view) => {
+            if (!view.state.facet(EditorView.editable)) return true
+            if (completionStatus(view.state) === 'active') return false
+            return enterInCallout(view, true)
+          },
+        },
       ])),
-      keymap.of([...defaultKeymap, ...historyKeymap]),
+      // A host submit callback owns Mod-Enter ahead of insertBlankLine.
       submitKeymap,
+      keymap.of([...defaultKeymap, ...historyKeymap]),
       ...(onSubmit ? [tableSubmitHandler.of(() => onSubmitRef.current?.())] : []),
       markdown({
         base: markdownLanguage,
