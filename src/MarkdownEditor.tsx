@@ -149,9 +149,18 @@ export interface MarkdownEditorHandle {
 }
 
 function selectedMarkdownText(state: EditorState): { text: string; ranges: SourceRange[] } {
-  const ranges = state.selection.ranges
+  const expanded = state.selection.ranges
     .filter((range) => !range.empty)
     .map((range) => expandInlineMarkdownRange(state, { from: range.from, to: range.to }))
+    .sort((a, b) => a.from - b.from || a.to - b.to)
+  const ranges: SourceRange[] = []
+  for (const range of expanded) {
+    const previous = ranges[ranges.length - 1]
+    // Separate source selections can expand into the same formatted span.
+    // Copy it once and never submit overlapping deletions for a cut.
+    if (previous && range.from < previous.to) previous.to = Math.max(previous.to, range.to)
+    else ranges.push({ ...range })
+  }
 
   return {
     ranges,
@@ -747,6 +756,7 @@ export const MarkdownEditor = forwardRef<
         event.clipboardData?.setData('text/plain', text)
         view.dispatch({
           changes: ranges.map((range) => ({ from: range.from, to: range.to, insert: '' })),
+          userEvent: 'delete.cut',
         })
         return true
       },

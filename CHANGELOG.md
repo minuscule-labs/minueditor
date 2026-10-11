@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed formatted-text copy/cut and mouse-selection boundaries using parsed Markdown, preserving complete nested/underscore/code markers and excluding literal code-block text from formatting expansion.
 - Exposed `indentList()` and `outdentList()` on `MarkdownEditorHandle`, backed by the existing list commands.
 - Added `floatingCommentToolbar` so hosts can suppress the selection toolbar’s Comment action while retaining imperative and line-comment workflows.
 - Made list indentation availability syntax-aware, protected list-like fenced code from toolbar outdent, and exposed `canIndentList`/`canOutdentList` state for host toolbars.

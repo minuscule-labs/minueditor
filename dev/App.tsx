@@ -802,6 +802,66 @@ function OutlineDemo({ codeHighlighter }: { codeHighlighter: CodeHighlighter }) 
   )
 }
 
+const FORMATTED_SELECTION_INITIAL = [
+  '**Bold opening** starts this snippet.',
+  'Continue copying upward from here.',
+  '',
+  '__Underscore bold__ and ***bold italic***.',
+  '',
+  'Literal inline code: ``prefix **not bold** ` suffix``.',
+  '',
+  '```md',
+  '**literal stars in fenced code**',
+  '```',
+].join('\n')
+
+function FormattedSelectionFixture() {
+  const [value, setValue] = useState(FORMATTED_SELECTION_INITIAL)
+  const [pasted, setPasted] = useState('')
+  const [state, setState] = useState<MarkdownEditorState | null>(null)
+  const [view, setView] = useState<EditorView | null>(null)
+
+  function selectExample(example: 'opening' | 'closing' | 'underscore' | 'nested' | 'caret') {
+    if (!view) return
+    const doc = view.state.doc.toString()
+    const snippet = example === 'underscore' ? '__Underscore bold__'
+      : example === 'nested' ? '***bold italic***' : '**Bold opening**'
+    const from = doc.indexOf(snippet)
+    if (from < 0) return
+    const snippetEnd = doc.indexOf('\n\n', from)
+    const end = snippetEnd < 0 ? doc.length : snippetEnd
+    const anchor = example === 'opening' || example === 'caret' ? end : from + snippet.length - 1
+    const head = example === 'opening' ? from + 1 : example === 'caret' ? end
+      : from + (example === 'nested' ? 3 : 2)
+    view.dispatch({ selection: { anchor, head } })
+    view.focus()
+  }
+
+  return (
+    <main className="app-main" data-testid="formatted-selection-fixture">
+      <section className="surface">
+        <h1>Formatted selection clipboard lab</h1>
+        <p className="surface-desc">Drag upward or use Shift+Arrow to select text, copy/cut, and paste below. The buttons reproduce marker-edge selections.</p>
+        <button type="button" onClick={() => { setValue(FORMATTED_SELECTION_INITIAL); setPasted('') }}>Reset examples</button>
+        <button type="button" onClick={() => selectExample('opening')}>Select upward snippet</button>
+        <button type="button" onClick={() => selectExample('closing')}>Select clipped closing marker</button>
+        <button type="button" onClick={() => selectExample('underscore')}>Select underscore bold</button>
+        <button type="button" onClick={() => selectExample('nested')}>Select nested formatting</button>
+        <button type="button" onClick={() => selectExample('caret')}>Focus snippet end</button>
+        <div className="editor-frame">
+          <MarkdownEditor value={value} onChange={setValue} onViewReady={setView} onStateChange={setState} autoFocus minHeight={260} />
+        </div>
+        <output data-testid="selection-offset">{state ? `${state.selection.from}–${state.selection.to}` : ''}</output>
+        <h2>Paste copied Markdown here</h2>
+        <textarea aria-label="Paste copied Markdown here" rows={5} value={pasted} onChange={event => setPasted(event.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
+        <MarkdownRenderer value={pasted} />
+        <h2>Document source</h2>
+        <pre data-testid="markdown-output">{value}</pre>
+      </section>
+    </main>
+  )
+}
+
 function CursorStabilityFixture() {
   const [value, setValue] = useState('')
 
@@ -1202,6 +1262,7 @@ function TaskListKeyboardFixture() {
 
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
+  if (fixture === 'formatted-selection') return <FormattedSelectionFixture />
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />

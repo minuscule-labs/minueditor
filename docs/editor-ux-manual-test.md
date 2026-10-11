@@ -2,6 +2,18 @@
 
 Run the development playground with `pnpm dev`. Use `?fixture=cursor-stability` for the focused list/code journey.
 
+## Formatted-text clipboard
+
+Open `http://127.0.0.1:3333/?fixture=formatted-selection` for the focused clipboard lab.
+
+- [ ] Drag upward from the second line into the opening bold marker; copy and paste into the lab textarea. Confirm the preview is bold and the Markdown has both complete `**` pairs.
+- [ ] Repeat with keyboard Shift+ArrowUp and with the **Select upward snippet** preset.
+- [ ] Try **Select clipped closing marker**, **Select underscore bold**, and **Select nested formatting**; confirm copied Markdown preserves all markers.
+- [ ] Cut the underscore example; confirm only that full formatted span is removed, adjacent text survives, and undo restores it.
+- [ ] Copy literal text from inside the fenced-code example; confirm it is not expanded as bold text. Inline-code selections retain their code delimiters, including longer backtick fences.
+- [ ] Confirm partial formatted-content selections retain the existing whole-span snapping behavior; this change does not introduce partial-content serialization.
+- [ ] Try the original failing snippet in the consumer app before approving this package.
+
 ## Lists and code blocks
 
 - [ ] Type a top-level bullet, press Enter, and confirm the next marker matches.
