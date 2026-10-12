@@ -351,6 +351,7 @@ test('Delete clears a selected full row without removing its structure', async (
   await page.goto('/?fixture=table-commands')
 
   await page.locator('.me-table-widget').click()
+  await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
   const finalCell = page.locator('.me-table-input[data-row-index="1"][data-col-index="1"]')
   await finalCell.press('Tab')
   const first = page.locator('.me-table-input[data-row-index="2"][data-col-index="0"]')

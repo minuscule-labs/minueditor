@@ -475,6 +475,20 @@ Disable all rich conversion or individual conversion paths with `richPaste`:
 
 Converted output is always Markdown; no HTML becomes canonical editor state.
 
+### Task-list clipboard
+
+Copying whole task rows preserves `- [ ]`, `- [/]`, and `- [x]`, including nesting. Live-mode copy/cut repairs selections clipped inside hidden task prefixes; intentionally selecting only a label copies just that label. Source mode keeps raw task-prefix selections exact.
+
+When HTML conversion applies to lists, leading checkbox inputs and `role="checkbox"` controls retain their serialized checked state. `aria-checked="mixed"` becomes `[/]`; formatted labels and nested tasks are retained. Explicit list Markdown stays authoritative, including tab indentation, and recognized HTML lists take precedence over the spreadsheet-tab heuristic. Other Markdown-looking plain text continues to take precedence over HTML.
+
+### Paste into an empty list item
+
+With rich paste enabled in live mode, pasting a complete list fragment into an empty task, bullet, or numbered item replaces that item's prefix instead of duplicating it. The pasted marker, number, and checkbox state are retained, and nested items are rebased to the destination indentation. Neighboring items are not renumbered or converted. Undo restores the empty item separately from the Enter that created it.
+
+Nonempty items, selections replacing existing text, source mode, and Cmd/Ctrl+Shift+V retain their existing insertion behavior. Plain label text keeps the destination prefix. Ambiguous indentation falls back to raw insertion rather than guessing.
+
+Plain labels or CSS-only checkbox styling cannot restore missing state. External apps may not understand the nonstandard partial marker `[/]`; MinuEditor preserves it rather than silently changing it to checked or unchecked.
+
 ## Internal URL smart paste
 
 A host can recognize one of its own pasted HTTP(S) URLs and store a stable ID-backed wikilink instead of a deployment-specific Markdown URL:

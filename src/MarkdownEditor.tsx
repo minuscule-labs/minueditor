@@ -23,7 +23,7 @@ import { calloutDecorations } from './extensions/callouts'
 import { enterInCallout } from './extensions/callout-editing'
 import { documentAnnotationExtension } from './extensions/annotations'
 import { commentDecorationsExtension } from './extensions/comments'
-import { checkboxDecorations, normalizeTaskSelectionForLiveMode, taskListAtomicRanges, taskListKeymap } from './extensions/checkboxes'
+import { checkboxDecorations, expandTaskMarkdownRange, normalizeTaskSelectionForLiveMode, taskListAtomicRanges, taskListKeymap } from './extensions/checkboxes'
 import { autolinkPaste } from './extensions/autolink'
 import { linkClickNavigation } from './extensions/link-click'
 import { externalLinkWidgets, openExternalLinkEditor } from './extensions/link-widget'
@@ -149,10 +149,15 @@ export interface MarkdownEditorHandle {
   insertCodeBlock: () => boolean
 }
 
+function expandLiveMarkdownRange(state: EditorState, range: SourceRange): SourceRange {
+  const taskSafe = state.facet(liveListMarkerMode) ? expandTaskMarkdownRange(state, range) : range
+  return expandInlineMarkdownRange(state, taskSafe)
+}
+
 function selectedMarkdownText(state: EditorState): { text: string; ranges: SourceRange[] } {
   const expanded = state.selection.ranges
     .filter((range) => !range.empty)
-    .map((range) => expandInlineMarkdownRange(state, { from: range.from, to: range.to }))
+    .map((range) => expandLiveMarkdownRange(state, { from: range.from, to: range.to }))
     .sort((a, b) => a.from - b.from || a.to - b.to)
   const ranges: SourceRange[] = []
   for (const range of expanded) {
@@ -727,7 +732,7 @@ export const MarkdownEditor = forwardRef<
         const selection = view.state.selection.main
         if (selection.empty) return false
 
-        const expanded = expandInlineMarkdownRange(view.state, {
+        const expanded = expandLiveMarkdownRange(view.state, {
           from: selection.from,
           to: selection.to,
         })

@@ -1,4 +1,5 @@
-import { EditorSelection, Prec, RangeSetBuilder } from '@codemirror/state'
+import { EditorSelection, Prec, RangeSetBuilder, type EditorState } from '@codemirror/state'
+import type { SourceRange } from '../internal/inline-markdown'
 import { syntaxTree } from '@codemirror/language'
 import {
   Decoration,
@@ -75,7 +76,7 @@ class CheckboxWidget extends WidgetType {
 
 // ── Live task-list keyboard boundaries ───────────────────────────────────────
 
-function taskPrefixOnLine(view: EditorView, line: { from: number; text: string }) {
+function taskPrefixOnLine(view: Pick<EditorView, 'state'>, line: { from: number; text: string }) {
   const match = /^(\s*)([-*+]\s+)(\[[ xX/]\])(\s+|$)/.exec(line.text)
   if (!match) return null
   const markerFrom = line.from + match[1].length
@@ -101,6 +102,21 @@ function taskPrefixAtSelection(view: EditorView) {
   return selection.empty ? taskPrefixOnLine(view, view.state.doc.lineAt(selection.head)) : null
 }
 
+function taskSelectionBoundary(state: EditorState, pos: number, side: 'start' | 'end'): number {
+  const task = taskPrefixOnLine({ state }, state.doc.lineAt(pos))
+  if (!task || pos <= task.lineFrom || pos >= task.contentFrom) return pos
+  return side === 'start' ? task.lineFrom : task.contentFrom
+}
+
+/** Recover only clipped live prefixes, not deliberately selected label text. */
+export function expandTaskMarkdownRange(state: EditorState, range: SourceRange): SourceRange {
+  if (range.from === range.to) return range
+  return {
+    from: taskSelectionBoundary(state, range.from, 'start'),
+    to: taskSelectionBoundary(state, range.to, 'end'),
+  }
+}
+
 // Source mode can leave a selection inside raw syntax. Before the live widget
 // replaces it, move a caret to the visible text and expand partial selections
 // to cover the entire prefix so subsequent typing/deletion cannot split it.
@@ -108,10 +124,9 @@ export function normalizeTaskSelectionForLiveMode(view: EditorView): EditorSelec
   let changed = false
   const ranges = view.state.selection.ranges.map((range) => {
     const boundary = (pos: number, side: 'start' | 'end') => {
-      const task = taskPrefixOnLine(view, view.state.doc.lineAt(pos))
-      if (!task || pos <= task.lineFrom || pos >= task.contentFrom) return pos
-      changed = true
-      return side === 'start' ? task.lineFrom : task.contentFrom
+      const mapped = taskSelectionBoundary(view.state, pos, side)
+      if (mapped !== pos) changed = true
+      return mapped
     }
     if (range.empty) {
       const pos = boundary(range.head, 'end')

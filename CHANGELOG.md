@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Normalized complete-list paste into empty live task, bullet, and numbered items without duplicating prefixes; preserved pasted checkbox states, markers/numbers, nesting, and separate paste undo while leaving nonempty items, source mode, and explicit plain-text paste unchanged.
+- Preserved nested HTML lists ahead of the spreadsheet-tab heuristic and used marker-width-aware indentation beneath numbered items.
+- Preserved task-list checkbox states during HTML paste, including `aria-checked="mixed"` as `[/]`, formatted labels, and nested checklists.
+- Repaired live copy/cut selections clipped inside hidden task prefixes while keeping label-only and source-mode selections unchanged; prevented tab-indented task Markdown and recognized HTML checklists from becoming accidental spreadsheet tables.
 - Made live callouts exit on the first empty quoted line, preserve closing inline-formatting markers during continuation, and retain blank quoted lines with Shift+Enter without changing native nested-list/quote or source-mode behavior.
 - Prioritized host `onSubmit` callbacks over the default Mod+Enter blank-line binding and prevented Shift+Enter from modifying read-only documents.
 - Fixed formatted-text copy/cut and mouse-selection boundaries using parsed Markdown, preserving complete nested/underscore/code markers and excluding literal code-block text from formatting expansion.

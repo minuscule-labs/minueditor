@@ -26,6 +26,25 @@ Open `http://localhost:3333/?fixture=callout-editing` for the focused callout la
 - [ ] Switch to source mode and confirm the existing three-Enter quote-exit path remains unchanged.
 - [ ] Check undo, Cmd/Ctrl+Enter submit, and both Enter variants in read-only mode.
 
+## Task-list clipboard
+
+Open `http://localhost:3333/?fixture=task-clipboard` for the source/rendered checklist and paste destination.
+
+- [ ] Use **Select all source items**, Cmd/Ctrl+C, **Focus paste destination**, and Cmd/Ctrl+V. Confirm all four states/rows, including nested `[/]`, survive in destination Markdown and widgets.
+- [ ] Reset; use **Select clipped partial marker**, then copy/paste. Confirm the full `- [/] Partial task` is copied, not `/] Partial task`. Repeat with a real upward drag or keyboard selection from the original failing scenario.
+- [ ] Cut that clipped selection; confirm the complete prefix is removed, adjacent rows survive, and undo restores the task.
+- [ ] Use **Select partial-task label**; confirm only `Partial task` is copied, without an added checkbox.
+- [ ] Switch source mode and repeat the clipped preset; confirm intentionally selected raw `/] Partial task` stays exact.
+- [ ] Use **Select rendered checklist**, then real Cmd/Ctrl+C and paste into the destination. Confirm unchecked, partial, checked, and nested task states survive. **Simulate rendered HTML paste** provides a repeatable HTML-conversion check but does not replace this native clipboard check.
+- [ ] Toggle a source checkbox and repeat rendered HTML paste; confirm the new state is used.
+- [ ] Paste a tab-indented Markdown checklist or a rendered nested checklist from another app; confirm it does not become a table.
+- [ ] Try Cmd/Ctrl+Shift+V and **Rich paste: off**; confirm HTML state recovery is bypassed and clipboard plain text is inserted.
+- [ ] Copy a whole task, click **Prepare task before Enter**, press Enter, then paste. Confirm only one prefix remains and the pasted `[/]`/checked state wins. Undo should restore the new empty item, not remove the preceding Enter.
+- [ ] Repeat with **Use bullet source** / **Prepare bullet before Enter**, and **Use numbered source** / **Prepare numbered item before Enter**. Confirm the pasted marker/number is retained, nested children remain nested, and surrounding items are not renumbered. Reset tasks afterwards to restore the checkbox examples.
+- [ ] Repeat using **Simulate rendered HTML paste** into the new empty items. Confirm nested numbered children have enough indentation to remain children.
+- [ ] Paste just a label or paste into nonempty list text; confirm the existing prefix/text is not stripped. Source mode and Cmd/Ctrl+Shift+V should keep their raw insertion behavior.
+- [ ] Try the original failing copy/paste in MinuNotes and the external app involved. If the clipboard contains only labels or CSS styling, state cannot be recovered; external apps may not support `[/]`.
+
 ## Lists and code blocks
 
 - [ ] Type a top-level bullet, press Enter, and confirm the next marker matches.

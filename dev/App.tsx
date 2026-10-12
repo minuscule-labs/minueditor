@@ -912,6 +912,108 @@ function CalloutEditingFixture() {
   )
 }
 
+const TASK_CLIPBOARD_INITIAL = '- [ ] Open task\n- [/] Partial task\n- [x] Done task\n  - [/] Nested task'
+
+function TaskClipboardFixture() {
+  const [source, setSource] = useState(TASK_CLIPBOARD_INITIAL)
+  const [target, setTarget] = useState('')
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [richPaste, setRichPaste] = useState(true)
+  const [sourceView, setSourceView] = useState<EditorView | null>(null)
+  const targetRef = useRef<MarkdownEditorHandle>(null)
+  const sourcePreview = useRef<HTMLDivElement>(null)
+
+  function selectSource(example: 'all' | 'clipped' | 'label') {
+    if (!sourceView) return
+    const doc = sourceView.state.doc.toString()
+    const from = doc.indexOf('- [/] Partial task')
+    if (example !== 'all' && from < 0) return
+    const anchor = example === 'all' ? doc.length : from + '- [/] Partial task'.length
+    const head = example === 'all' ? 0 : from + (example === 'clipped' ? 3 : 6)
+    sourceView.dispatch({ selection: { anchor, head } })
+    sourceView.focus()
+  }
+
+  function prepareList(kind: 'task' | 'bullet' | 'numbered') {
+    const view = targetRef.current?.view
+    if (!view) return
+    const text = kind === 'task' ? '- [x] Existing task'
+      : kind === 'bullet' ? '- Existing bullet' : '1. Existing numbered item'
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: text },
+      selection: { anchor: text.length },
+    })
+    view.focus()
+  }
+
+  function selectRendered() {
+    if (!sourcePreview.current) return
+    const range = document.createRange()
+    range.selectNodeContents(sourcePreview.current)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }
+
+  function pasteRendered() {
+    const view = targetRef.current?.view
+    const preview = sourcePreview.current
+    if (!view || !preview) return
+    const plain = preview.innerText
+    const html = preview.innerHTML
+    view.focus()
+    const event = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', {
+      value: { items: [], getData: (type: string) => type === 'text/html' ? html : plain },
+    })
+    view.contentDOM.dispatchEvent(event)
+    if (!event.defaultPrevented) targetRef.current?.replaceSelection(plain)
+  }
+
+  return (
+    <main className="app-main" data-testid="task-clipboard-fixture">
+      <section className="surface">
+        <h1>List clipboard lab</h1>
+        <p className="surface-desc">Copy tasks from the source editor or rendered checklist into the destination. Whole rows keep checkbox states; label-only selections stay plain text. Source mode keeps raw marker selections exact.</p>
+        <button type="button" onClick={() => { setSource(TASK_CLIPBOARD_INITIAL); setTarget('') }}>Reset tasks</button>
+        <button type="button" onClick={() => setSource('- Pasted bullet\n  - Nested bullet')}>Use bullet source</button>
+        <button type="button" onClick={() => setSource('1. Pasted numbered item\n   1. Nested numbered item')}>Use numbered source</button>
+        <button type="button" onClick={() => selectSource('all')}>Select all source items</button>
+        <button type="button" onClick={() => selectSource('clipped')}>Select clipped partial marker</button>
+        <button type="button" onClick={() => selectSource('label')}>Select partial-task label</button>
+        <button type="button" onClick={() => setMode(current => current === 'live' ? 'source' : 'live')}>Source mode: {mode}</button>
+        <div className="editor-frame" data-testid="task-source-editor">
+          <MarkdownEditor value={source} onChange={setSource} onViewReady={setSourceView} mode={mode} autoFocus minHeight={200} />
+        </div>
+        <pre data-testid="task-source-markdown">{source}</pre>
+        <h2>Rendered checklist</h2>
+        <button type="button" onClick={selectRendered}>Select rendered checklist</button>
+        <p className="surface-desc">After selecting, use Cmd/Ctrl+C and paste into the destination to test the real browser clipboard.</p>
+        <div ref={sourcePreview} data-testid="task-source-preview"><MarkdownRenderer value={source} /></div>
+        <h2>Paste destination</h2>
+        <button type="button" onClick={() => {
+          const view = targetRef.current?.view
+          if (!view) return
+          view.dispatch({ selection: { anchor: view.state.doc.length } })
+          view.focus()
+        }}>Focus paste destination</button>
+        <button type="button" onClick={() => prepareList('task')}>Prepare task before Enter</button>
+        <button type="button" onClick={() => prepareList('bullet')}>Prepare bullet before Enter</button>
+        <button type="button" onClick={() => prepareList('numbered')}>Prepare numbered item before Enter</button>
+        <p className="surface-desc">Copy a whole list item, use a Prepare button, press Enter, then paste. The empty item adopts the pasted prefix without duplicating it. Plain label text keeps the existing prefix.</p>
+        <button type="button" onClick={pasteRendered}>Simulate rendered HTML paste</button>
+        <button type="button" onClick={() => setRichPaste(current => !current)}>Rich paste: {richPaste ? 'on' : 'off'}</button>
+        <button type="button" onClick={() => setTarget('')}>Clear destination</button>
+        <div className="editor-frame" data-testid="task-target-editor">
+          <MarkdownEditor ref={targetRef} value={target} onChange={setTarget} richPaste={richPaste} minHeight={200} />
+        </div>
+        <pre data-testid="task-target-markdown">{target}</pre>
+        <MarkdownRenderer value={target} />
+      </section>
+    </main>
+  )
+}
+
 function CursorStabilityFixture() {
   const [value, setValue] = useState('')
 
@@ -1312,6 +1414,7 @@ function TaskListKeyboardFixture() {
 
 export default function App() {
   const fixture = new URLSearchParams(window.location.search).get('fixture')
+  if (fixture === 'task-clipboard') return <TaskClipboardFixture />
   if (fixture === 'callout-editing') return <CalloutEditingFixture />
   if (fixture === 'formatted-selection') return <FormattedSelectionFixture />
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
