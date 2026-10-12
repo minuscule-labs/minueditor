@@ -131,7 +131,7 @@
     --me-table-bg: #ffffff;
     --me-table-header-bg: #f6f6f6;
     --me-table-row-alt-bg: #fafafa;
-    --me-table-cell-min-width: 10ch;
+    --me-table-cell-min-width: 8ch;
     --me-table-selection-bg: rgba(37, 99, 235, 0.12);
     --me-table-selection-header-bg: rgba(37, 99, 235, 0.18);
 
@@ -1166,15 +1166,20 @@
 }
 
 .me-renderer-table-scroller {
+    box-sizing: border-box;
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
+    contain: inline-size;
     overflow-x: auto;
     overflow-y: hidden;
     margin: 0.75em 0;
 }
 
 .me-renderer table {
-    min-width: 100%;
     width: max-content;
+    max-width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
     font-size: 0.9em;
 }
@@ -1183,12 +1188,16 @@
 .me-renderer td {
     padding: 6px 12px;
     border: 1px solid var(--me-table-border, #e0e0e0);
+    vertical-align: top;
     text-align: left;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: var(--me-table-cell-min-width, 8ch);
 }
 
 .me-renderer table code {
-    white-space: pre;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .me-renderer th {

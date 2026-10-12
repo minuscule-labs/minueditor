@@ -780,6 +780,7 @@ export const minueditorTheme = EditorView.theme({
   ".me-table-render": {
     borderCollapse: "collapse",
     width: "max-content",
+    maxWidth: "100%",
     tableLayout: "auto",
     backgroundColor: "var(--me-table-bg, transparent)",
   },
@@ -788,17 +789,26 @@ export const minueditorTheme = EditorView.theme({
     border: "1px solid var(--me-table-border, rgba(127,127,127,0.28))",
     padding: "0.3rem 0.45rem",
     verticalAlign: "top",
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
+    overflowWrap: "anywhere",
     textAlign: "left",
-    minWidth: "4ch",
+    minWidth: "var(--me-table-cell-min-width, 8ch)",
   },
 
   ".me-table-render code": {
-    whiteSpace: "pre",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+  },
+
+  ".me-table-widget--editing .me-table-render": {
+    maxWidth: "none",
   },
 
   ".me-table-widget--editing .me-table-render th, .me-table-widget--editing .me-table-render td": {
     padding: "0",
+    whiteSpace: "nowrap",
+    overflowWrap: "normal",
+    minWidth: "4ch",
   },
 
   ".me-table-render .me-table-cell--selected": {

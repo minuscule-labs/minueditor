@@ -56,7 +56,19 @@ Open `http://localhost:3333/?fixture=table-inline` for live and static table com
 - [ ] Toggle read-only; confirm previews remain formatted and clicking a cell does not activate inputs.
 - [ ] Use **Replace header externally** and confirm the preview updates to code without modifying the other cells.
 - [ ] Confirm link labels do not navigate from the live preview; cell-range TSV copy/cut and whole-table Markdown copy retain raw delimiters while editing.
-- [ ] Wrapping is deliberately unchanged here; validate this package before the wrapping package.
+- [ ] Continue with the wrapping lab below for responsive layout checks.
+
+## Adaptive table wrapping
+
+Open `http://localhost:3333/?fixture=table-wrapping` for live/static comparison.
+
+- [ ] Choose **Prose example** and **Narrow width**. Both previews wrap descriptions inside the table. **Wide width** should reduce the row height without changing Markdown.
+- [ ] Choose **Long tokens example**. Plain identifiers and inline code wrap when necessary; the double space before `tail` is retained.
+- [ ] Choose **Compact example** at wide width. Neither table stretches across the entire surface.
+- [ ] Choose **Wide example** at narrow width. Columns retain a readable minimum and scroll inside the table rather than widening the page.
+- [ ] Click the long-token table to edit. Inputs must retain complete raw Markdown and single-line horizontal scrolling. Escape restores wrapped previews without changing the source.
+- [ ] Check source/read-only modes, mobile viewport widths, and resizing the host panel; source stays literal and read-only cells do not activate inputs.
+- [ ] Optional host customization: set `--me-table-cell-min-width: 16ch` on `.minueditor` and `.me-renderer`. Both previews should use a larger column floor; editing inputs remain unchanged.
 
 ## Lists and code blocks
 

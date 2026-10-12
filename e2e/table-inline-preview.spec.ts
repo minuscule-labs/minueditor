@@ -13,8 +13,8 @@ test('renders inline formatting in headers and body cells without changing Markd
   await expect(editor.locator('td del')).toHaveText('old')
   const codes = editor.locator('td code')
   await expect(codes).toHaveText(['inline code', 'a ` b', 'left|right', 'a  b'])
-  expect(await codes.last().evaluate(element => getComputedStyle(element).whiteSpace)).toBe('pre')
-  expect(await page.getByTestId('table-inline-renderer').locator('td code').last().evaluate(element => getComputedStyle(element).whiteSpace)).toBe('pre')
+  expect(await codes.last().evaluate(element => getComputedStyle(element).whiteSpace)).toBe('pre-wrap')
+  expect(await page.getByTestId('table-inline-renderer').locator('td code').last().evaluate(element => getComputedStyle(element).whiteSpace)).toBe('pre-wrap')
   await expect(page.getByTestId('table-inline-markdown')).toHaveText(source!)
 })
 

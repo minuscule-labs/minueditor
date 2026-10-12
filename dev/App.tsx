@@ -1048,7 +1048,7 @@ function TableInlineFixture() {
     <main className="app-main" data-testid="table-inline-fixture">
       <section className="surface">
         <h1>Inline table Markdown lab</h1>
-        <p className="surface-desc">Inactive cells show code, bold, italic, and strike formatting. Click the table to edit raw Markdown; Escape restores its preview. Links show their labels without navigation. Wrapping is unchanged in this package.</p>
+        <p className="surface-desc">Inactive cells show code, bold, italic, and strike formatting. Click the table to edit raw Markdown; Escape restores its preview. Links show their labels without navigation. Preview cells wrap when space is constrained.</p>
         <button type="button" onClick={() => setValue(TABLE_INLINE_INITIAL)}>Reset table</button>
         <button type="button" onClick={() => setMode(current => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
         <button type="button" onClick={() => setReadOnly(current => !current)}>Read-only: {readOnly ? 'on' : 'off'}</button>
@@ -1059,6 +1059,50 @@ function TableInlineFixture() {
         <pre data-testid="table-inline-markdown">{value}</pre>
         <h2>Static renderer comparison</h2>
         <div data-testid="table-inline-renderer"><MarkdownRenderer value={value} /></div>
+      </section>
+    </main>
+  )
+}
+
+const TABLE_WRAP_PROSE = 'A detailed description with enough ordinary words to wrap naturally inside its column instead of stretching the table beyond the available editor width. '.repeat(2).trim()
+const TABLE_WRAP_TOKEN = 'minueditor_resource_' + 'abcdef0123456789'.repeat(12)
+const TABLE_WRAP_EXAMPLES = {
+  prose: `| Key | **Description** | State |\n| --- | --- | ---: |\n| Alpha | ${TABLE_WRAP_PROSE} | Ready |`,
+  tokens: `| Key | Identifier | Code |\n| --- | --- | --- |\n| Alpha | ${TABLE_WRAP_TOKEN} | \`${TABLE_WRAP_TOKEN}  tail\` |`,
+  compact: '| Name | Age |\n| --- | ---: |\n| Ada | 42 |',
+  wide: `| ${Array.from({ length: 8 }, (_, index) => `Column ${index + 1}`).join(' | ')} |\n| ${Array.from({ length: 8 }, () => '---').join(' | ')} |\n| ${Array.from({ length: 8 }, (_, index) => `Value ${index + 1}`).join(' | ')} |`,
+}
+
+function TableWrappingFixture() {
+  const [value, setValue] = useState(TABLE_WRAP_EXAMPLES.prose)
+  const [width, setWidth] = useState(760)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [readOnly, setReadOnly] = useState(false)
+
+  return (
+    <main className="app-main" data-testid="table-wrapping-fixture">
+      <section className="surface">
+        <h1>Adaptive table wrapping lab</h1>
+        <p className="surface-desc">Long prose and tokens wrap in previews. Small tables stay content-sized; genuinely wide tables scroll. Editing still uses single-line raw Markdown inputs.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button type="button" onClick={() => setValue(TABLE_WRAP_EXAMPLES.prose)}>Prose example</button>
+          <button type="button" onClick={() => setValue(TABLE_WRAP_EXAMPLES.tokens)}>Long tokens example</button>
+          <button type="button" onClick={() => setValue(TABLE_WRAP_EXAMPLES.compact)}>Compact example</button>
+          <button type="button" onClick={() => setValue(TABLE_WRAP_EXAMPLES.wide)}>Wide example</button>
+          <button type="button" onClick={() => setWidth(320)}>Narrow width</button>
+          <button type="button" onClick={() => setWidth(760)}>Wide width</button>
+          <button type="button" onClick={() => setMode(current => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
+          <button type="button" onClick={() => setReadOnly(current => !current)}>Read-only: {readOnly ? 'on' : 'off'}</button>
+        </div>
+        <div style={{ width, maxWidth: '100%', minWidth: 0 }} data-testid="table-wrap-width">
+          <h2>Live editor</h2>
+          <div className="editor-frame" data-testid="table-wrap-editor">
+            <MarkdownEditor value={value} onChange={setValue} mode={mode} readOnly={readOnly} minHeight={180} />
+          </div>
+          <h2>Static renderer</h2>
+          <div data-testid="table-wrap-renderer"><MarkdownRenderer value={value} /></div>
+        </div>
+        <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }} data-testid="table-wrap-markdown">{value}</pre>
       </section>
     </main>
   )
@@ -1447,6 +1491,7 @@ export default function App() {
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
+  if (fixture === 'table-wrapping') return <TableWrappingFixture />
   if (fixture === 'table-inline') return <TableInlineFixture />
   if (fixture === 'table-commands') return <TableCommandFixture />
   if (fixture === 'table-interaction') return <TableInteractionFixture />

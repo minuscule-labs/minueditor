@@ -280,7 +280,9 @@ Use `getMarkdownHeadings(editorState)` when you already have a configured CodeMi
 
 Inactive live-editor table cells render inline code, bold, italic, strikethrough, and nested formatting in headers and body cells. Active cells still edit raw Markdown, including its delimiters, and table source/clipboard formats are unchanged. Inline-code spacing is retained in live and static tables.
 
-Live table previews are display-only: raw HTML stays literal, links show their labels without navigation, and images show alt text without fetching assets (unlabeled images remain literal). Clicking the table retains its existing edit behavior. Reference links and wiki syntax remain literal in live table previews. This does not change the static renderer's existing HTML/link/image policy or table wrapping.
+Live table previews are display-only: raw HTML stays literal, links show their labels without navigation, and images show alt text without fetching assets (unlabeled images remain literal). Clicking the table retains its existing edit behavior. Reference links and wiki syntax remain literal in live table previews. This does not change the static renderer's existing HTML/link/image policy.
+
+Live table previews and static tables stay content-sized when small and fit the available width when possible. Prose wraps at word boundaries; long identifiers and inline code can break when necessary, with code spacing preserved. A minimum column width keeps many-column tables readable; they scroll horizontally when that minimum cannot fit. Customize the preview/renderer floor with `--me-table-cell-min-width` on `.minueditor` and `.me-renderer` (default `8ch`). Active editing retains single-line raw Markdown inputs and horizontal scrolling.
 
 `/table`, the full toolbar, and `editorRef.current?.insertTable()` immediately insert a two-column table with one body row and focus the first header cell. The insertion is one undoable editor transaction. Override the default shape declaratively when a host needs a different starting point:
 
