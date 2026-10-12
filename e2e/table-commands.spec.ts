@@ -178,6 +178,7 @@ test('resolves table boundaries after local and external document changes', asyn
   await page.goto('/?fixture=table-commands')
 
   await page.locator('.me-table-widget').click()
+  await expect(page.locator('.me-table-input[data-row-index="0"][data-col-index="0"]')).toBeFocused()
   await page.locator('.me-table-input[data-row-index="1"][data-col-index="0"]').fill('Ada Lovelace')
   await page.getByRole('button', { name: 'Place cursor after table' }).click()
   await page.keyboard.type('After local edit')

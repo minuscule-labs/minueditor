@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Rendered safe inline Markdown in inactive live table headers and body cells while preserving raw Markdown inputs, storage, clipboard, source/read-only modes, and existing table activation behavior.
+- Preserved inline-code spacing in live/static tables; kept raw HTML and resource URLs inert in live table previews, with display-only link labels and image alt text.
 - Normalized complete-list paste into empty live task, bullet, and numbered items without duplicating prefixes; preserved pasted checkbox states, markers/numbers, nesting, and separate paste undo while leaving nonempty items, source mode, and explicit plain-text paste unchanged.
 - Preserved nested HTML lists ahead of the spreadsheet-tab heuristic and used marker-width-aware indentation beneath numbered items.
 - Preserved task-list checkbox states during HTML paste, including `aria-checked="mixed"` as `[/]`, formatted labels, and nested checklists.

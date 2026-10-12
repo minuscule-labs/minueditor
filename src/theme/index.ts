@@ -793,6 +793,10 @@ export const minueditorTheme = EditorView.theme({
     minWidth: "4ch",
   },
 
+  ".me-table-render code": {
+    whiteSpace: "pre",
+  },
+
   ".me-table-widget--editing .me-table-render th, .me-table-widget--editing .me-table-render td": {
     padding: "0",
   },

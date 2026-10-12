@@ -1187,6 +1187,10 @@
     white-space: nowrap;
 }
 
+.me-renderer table code {
+    white-space: pre;
+}
+
 .me-renderer th {
     background: var(--me-table-header-bg, #f6f6f6);
     font-weight: 600;

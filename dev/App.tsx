@@ -1037,6 +1037,33 @@ function CursorStabilityFixture() {
   )
 }
 
+const TABLE_INLINE_INITIAL = 'Before\n\n| **Feature** | _Example_ | Result |\n| --- | --- | ---: |\n| `inline code` | **bold** and _italic_ | ~~old~~ |\n| ``a ` b`` | **bold _nested_** | `left\\|right` |\n| [link label](https://example.com) | \\*literal stars\\* | `a  b` |\n\nAfter'
+
+function TableInlineFixture() {
+  const [value, setValue] = useState(TABLE_INLINE_INITIAL)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [readOnly, setReadOnly] = useState(false)
+
+  return (
+    <main className="app-main" data-testid="table-inline-fixture">
+      <section className="surface">
+        <h1>Inline table Markdown lab</h1>
+        <p className="surface-desc">Inactive cells show code, bold, italic, and strike formatting. Click the table to edit raw Markdown; Escape restores its preview. Links show their labels without navigation. Wrapping is unchanged in this package.</p>
+        <button type="button" onClick={() => setValue(TABLE_INLINE_INITIAL)}>Reset table</button>
+        <button type="button" onClick={() => setMode(current => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
+        <button type="button" onClick={() => setReadOnly(current => !current)}>Read-only: {readOnly ? 'on' : 'off'}</button>
+        <button type="button" onClick={() => setValue(current => current.replace('**Feature**', '`Updated`'))}>Replace header externally</button>
+        <div className="editor-frame" data-testid="table-inline-editor">
+          <MarkdownEditor value={value} onChange={setValue} mode={mode} readOnly={readOnly} minHeight={280} />
+        </div>
+        <pre data-testid="table-inline-markdown">{value}</pre>
+        <h2>Static renderer comparison</h2>
+        <div data-testid="table-inline-renderer"><MarkdownRenderer value={value} /></div>
+      </section>
+    </main>
+  )
+}
+
 function TableCommandFixture() {
   const [value, setValue] = useState('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
   const [view, setView] = useState<EditorView | null>(null)
@@ -1420,6 +1447,7 @@ export default function App() {
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
+  if (fixture === 'table-inline') return <TableInlineFixture />
   if (fixture === 'table-commands') return <TableCommandFixture />
   if (fixture === 'table-interaction') return <TableInteractionFixture />
   return <PlaygroundApp />

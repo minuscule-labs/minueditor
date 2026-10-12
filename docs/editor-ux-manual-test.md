@@ -45,6 +45,19 @@ Open `http://localhost:3333/?fixture=task-clipboard` for the source/rendered che
 - [ ] Paste just a label or paste into nonempty list text; confirm the existing prefix/text is not stripped. Source mode and Cmd/Ctrl+Shift+V should keep their raw insertion behavior.
 - [ ] Try the original failing copy/paste in MinuNotes and the external app involved. If the clipboard contains only labels or CSS styling, state cannot be recovered; external apps may not support `[/]`.
 
+## Inline table Markdown
+
+Open `http://localhost:3333/?fixture=table-inline` for live and static table comparison.
+
+- [ ] Confirm headers and body cells show code, bold, italic, nested formatting, and strikethrough rather than their markers.
+- [ ] Confirm the longer-backtick example, escaped pipe (`left|right`), escaped literal stars, and double spaces in `a  b` retain their content.
+- [ ] Click formatted text to activate the table; confirm inputs still show raw Markdown. Edit the first header to `__Changed__`, press Escape, and confirm a bold preview. Undo must restore the original source.
+- [ ] Switch to source mode; confirm literal Markdown and no table widget. Switch back and check formatting is restored.
+- [ ] Toggle read-only; confirm previews remain formatted and clicking a cell does not activate inputs.
+- [ ] Use **Replace header externally** and confirm the preview updates to code without modifying the other cells.
+- [ ] Confirm link labels do not navigate from the live preview; cell-range TSV copy/cut and whole-table Markdown copy retain raw delimiters while editing.
+- [ ] Wrapping is deliberately unchanged here; validate this package before the wrapping package.
+
 ## Lists and code blocks
 
 - [ ] Type a top-level bullet, press Enter, and confirm the next marker matches.

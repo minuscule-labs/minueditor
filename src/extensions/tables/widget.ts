@@ -18,6 +18,7 @@ import {
   type TableBlock,
 } from './model'
 import { parseTableClipboard, tableCellsToTsv } from './clipboard'
+import { renderInlineTableCell } from '../../internal/table-inline-markdown'
 import {
   clearTableCellRange,
   deleteTable,
@@ -807,7 +808,7 @@ class TableWidget extends WidgetType {
       if (this.isEditing) {
         th.appendChild(createTableInput(view, this.block.from, this.block.to, 0, colIndex, cell, wrapper))
       } else {
-        th.textContent = cell || ' '
+        th.appendChild(renderInlineTableCell(cell || ' ', th.ownerDocument))
       }
       headerRow.appendChild(th)
     }
@@ -827,7 +828,7 @@ class TableWidget extends WidgetType {
               createTableInput(view, this.block.from, this.block.to, rowOffset + 1, colIndex, cell, wrapper),
             )
           } else {
-            td.textContent = cell || ' '
+            td.appendChild(renderInlineTableCell(cell || ' ', td.ownerDocument))
           }
           tr.appendChild(td)
         }
