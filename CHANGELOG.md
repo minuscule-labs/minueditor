@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.17.0 — 2026-10-12
+
 - Added adaptive wrapping to live table previews and static tables: long prose/tokens fit available space, compact tables stay content-sized, and many-column tables keep local horizontal scrolling. Inline-code spacing is preserved, and active raw Markdown inputs remain single-line.
 - Applied the existing `--me-table-cell-min-width` variable to preview/static column floors, defaulting to `8ch`; contained static table overflow so wide tables do not enlarge flex/grid layouts.
 - Rendered safe inline Markdown in inactive live table headers and body cells while preserving raw Markdown inputs, storage, clipboard, source/read-only modes, and existing table activation behavior.

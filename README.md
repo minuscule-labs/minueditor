@@ -10,10 +10,10 @@ npm install @dpklabs/minueditor
 
 MinuEditor uses CodeMirror as peer dependencies so host-provided CodeMirror extensions, such as fenced-code language support, share the same CodeMirror runtime as the editor. If your package manager does not install peers automatically, install the listed `@codemirror/*` peer packages alongside MinuEditor.
 
-Install directly from a GitHub release tag:
+Install directly from a GitHub release tag (once that tag is published):
 
 ```bash
-npm install github:spdydve/minueditor#v0.1.0
+npm install github:minuscule-labs/minueditor#v0.17.0
 ```
 
 Import the default styles:
@@ -663,8 +663,10 @@ For personal GitHub-based installs, tag releases from the version already in `pa
 
 ### Install from a release tag
 
+After the tag is pushed:
+
 ```bash
-npm install github:spdydve/minueditor#v0.1.0
+npm install github:minuscule-labs/minueditor#v0.17.0
 ```
 
 Use tags rather than a branch like `main` when you want reproducible installs.

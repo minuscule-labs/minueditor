@@ -77,7 +77,7 @@ function main() {
   if (!shouldPush) {
     console.log(`release: push it with 'git push origin ${branch}' and 'git push origin ${tag}' when ready.`)
   }
-  console.log(`release: install with 'npm install github:spdydve/minueditor#${tag}'`)
+  console.log(`release: install with 'npm install github:minuscule-labs/minueditor#${tag}'`)
 }
 
 main()

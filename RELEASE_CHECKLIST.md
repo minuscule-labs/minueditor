@@ -1,5 +1,13 @@
 # Release Checklist
 
+## Scope and Approval
+
+1. Confirm the release branch contains only the intended commits and includes the latest `origin/main`.
+2. Choose the version, update `package.json`/`package-lock.json`, and move the release notes out of `Unreleased`.
+3. Commit preparation locally so `release:tag:dry-run` can validate a clean tree.
+4. Run `pnpm run release:tag:dry-run` before creating a tag. This validates the release without tagging or pushing.
+5. Get approval before integrating/pushing to `main`, creating/pushing `v<version>`, or publishing to npm. The tag script does not publish to npm or create a GitHub Release.
+
 ## Before Packing
 
 1. Run `npm run check:release`
@@ -64,10 +72,10 @@ import '@dpklabs/minueditor/themes/dark.css'
 1. In a separate app, install directly from GitHub:
 
 ```bash
-npm install github:dpklabs/minueditor#main
+npm install github:minuscule-labs/minueditor#v<version>
 ```
 
-2. Verify the same imports and runtime behavior.
+2. Verify the same imports and runtime behavior after the approved tag has been pushed; use the exact tag rather than `main` for reproducible validation.
 3. Confirm `prepare` runs and the package is usable after install.
 
 ## Convenience Script
