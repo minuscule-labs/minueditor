@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+## 0.17.1 — 2026-10-16
+
 - Fixed copy/cut of text inside table inputs falling through to CodeMirror's document clipboard, which could copy or delete the table header instead of the selected cell text.
 - Added safe HTML structure alongside TSV for table-range copy/cut so single-column and single-cell ranges round-trip with formatting source and inline-code spacing intact.
 - Accepted single paragraph/div wrappers in pasted HTML cells while continuing to reject genuine multiline content; rejected merged HTML cells with an explicit message instead of silently shifting values.
+
 ## 0.17.0 — 2026-10-12
 
 - Added adaptive wrapping to live table previews and static tables: long prose/tokens fit available space, compact tables stay content-sized, and many-column tables keep local horizontal scrolling. Inline-code spacing is preserved, and active raw Markdown inputs remain single-line.

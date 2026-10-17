@@ -13,7 +13,7 @@ MinuEditor uses CodeMirror as peer dependencies so host-provided CodeMirror exte
 Install directly from a GitHub release tag (once that tag is published):
 
 ```bash
-npm install github:minuscule-labs/minueditor#v0.17.0
+npm install github:minuscule-labs/minueditor#v0.17.1
 ```
 
 Import the default styles:
@@ -668,7 +668,7 @@ For personal GitHub-based installs, tag releases from the version already in `pa
 After the tag is pushed:
 
 ```bash
-npm install github:minuscule-labs/minueditor#v0.17.0
+npm install github:minuscule-labs/minueditor#v0.17.1
 ```
 
 Use tags rather than a branch like `main` when you want reproducible installs.
