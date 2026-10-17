@@ -70,6 +70,20 @@ Open `http://localhost:3333/?fixture=table-wrapping` for live/static comparison.
 - [ ] Check source/read-only modes, mobile viewport widths, and resizing the host panel; source stays literal and read-only cells do not activate inputs.
 - [ ] Optional host customization: set `--me-table-cell-min-width: 16ch` on `.minueditor` and `.me-renderer`. Both previews should use a larger column floor; editing inputs remain unchanged.
 
+## Table clipboard
+
+Open `http://localhost:3333/?fixture=table-clipboard`.
+
+- [ ] Use **Select Ad in Ada**, then native Cmd/Ctrl+C and paste into **Clipboard inspection**. Only `Ad` should be copied, never the header/source line.
+- [ ] Reset; select `Ad`, then Cmd/Ctrl+X. Only `Ada` changes to `a`; the header and other cells stay intact. Undo restores `Ada`.
+- [ ] Use **Select Name column**, copy, **Focus empty row**, then paste. `Ada` and `Grace` fill two rows in the same column. Undo restores the empty destination.
+- [ ] Paste the range into **Clipboard inspection** and check both plain TSV and a safe HTML table are present. Copy/cut a two-column range too; overwrite confirmation must still protect populated cells.
+- [ ] Shift-click the same code cell to select a single-cell range. Copy/paste it into an empty cell and confirm the two spaces in `` `a  b` `` remain in source.
+- [ ] Use **Paste paragraph-wrapped cells**; the empty row should receive one logical row, with no false multiline rejection.
+- [ ] Use **Try merged cells**; source stays unchanged and a message asks you to unmerge cells first. Multiple paragraphs, `<br>`, and unstructured multiline text must remain rejected.
+- [ ] Check source/read-only modes and normal Shift+Arrow text selection inside cells. Cell-range selection uses Shift-click/drag, not Shift+Arrow.
+- [ ] Repeat with real browser/system clipboard data and the external app involved; synthetic clipboard events alone do not verify native default actions.
+
 ## Lists and code blocks
 
 - [ ] Type a top-level bullet, press Enter, and confirm the next marker matches.

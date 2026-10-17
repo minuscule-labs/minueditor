@@ -1,7 +1,7 @@
 import { TABLE_LIMITS } from './model'
 
 export type TableClipboardParseResult =
-  | { status: 'not-tabular' | 'empty' | 'invalid' | 'multiline-cell' | 'oversize' }
+  | { status: 'not-tabular' | 'empty' | 'invalid' | 'multiline-cell' | 'merged-cell' | 'oversize' }
   | { status: 'valid'; cells: string[][] }
 
 function byteLength(value: string): number {
@@ -19,9 +19,33 @@ export function tableCellsToTsv(cells: readonly (readonly string[])[]): string {
   }).join('\t')).join('\n')
 }
 
+/** Include a structural representation so one-column and single-cell ranges stay unambiguous. */
+export function tableCellsToHtml(cells: readonly (readonly string[])[]): string {
+  const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\r\n?|\n/g, '<br>')
+  return `<table><tbody>${cells.map(row => `<tr>${row.map(cell => `<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+}
+
 const MAX_CLIPBOARD_ROWS = TABLE_LIMITS.maxBodyRows + 1
-const MULTILINE_HTML_SELECTOR = 'br, p, div, section, article, header, footer, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, pre, table, hr'
+const MULTILINE_HTML_SELECTOR = 'br, section, article, header, footer, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, pre, table, hr'
 const UNSAFE_HTML_SELECTOR = 'script, style, template, embed, iframe, object, noscript'
+
+function singleLineHtmlCell(cell: HTMLTableCellElement): string | null {
+  if (cell.querySelector(MULTILINE_HTML_SELECTOR)) return null
+  let content: Element = cell
+  for (;;) {
+    const meaningful = Array.from(content.childNodes).filter(node =>
+      node.nodeType === 1 || (node.nodeType === 3 && node.textContent?.trim()),
+    )
+    const child = meaningful.length === 1 ? meaningful[0] : null
+    if (child?.nodeType !== 1 || !(child as Element).matches('p, div')) break
+    content = child as Element
+  }
+  // A single paragraph (including nested wrappers) is not multiline. Multiple
+  // paragraphs or mixed inline/block content cannot safely fit a Markdown cell.
+  if (content.querySelector('p, div')) return null
+  return (content.textContent ?? '').replace(/[ \t]*[\r\n]+[ \t]*/g, ' ').trim()
+}
 
 function parseHtmlTableClipboard(html: string): TableClipboardParseResult {
   if (!html.trim() || typeof document === 'undefined') return { status: 'not-tabular' }
@@ -38,13 +62,15 @@ function parseHtmlTableClipboard(html: string): TableClipboardParseResult {
     }
     const cells: string[] = []
     for (const cell of Array.from(row.cells)) {
-      if (cell.querySelector(MULTILINE_HTML_SELECTOR)) return { status: 'multiline-cell' }
-      cells.push((cell.textContent ?? '').replace(/\s+/g, ' ').trim())
+      if (cell.colSpan !== 1 || cell.rowSpan !== 1) return { status: 'merged-cell' }
+      const text = singleLineHtmlCell(cell)
+      if (text === null) return { status: 'multiline-cell' }
+      cells.push(text)
     }
     if (cells.length > 0) rows.push(cells)
   }
   const width = rows[0]?.length ?? 0
-  if (width < 2 || rows.some((row) => row.length !== width)) return { status: 'invalid' }
+  if (width < 1 || rows.some((row) => row.length !== width)) return { status: 'invalid' }
   return { status: 'valid', cells: rows }
 }
 
@@ -111,6 +137,6 @@ export function parseTableClipboard(text: string, html = ''): TableClipboardPars
   if ((cell || row.length > 0) && !finishRow()) return { status: 'oversize' }
   if (rows.length === 0) return { status: 'empty' }
   const width = rows[0].length
-  if (width < 2 || rows.some((current) => current.length !== width)) return { status: 'invalid' }
+  if (width < 1 || rows.some((current) => current.length !== width)) return { status: 'invalid' }
   return { status: 'valid', cells: rows }
 }

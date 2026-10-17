@@ -304,7 +304,7 @@ When editing markdown tables, the editor supports:
 | --- | --- |
 | `Tab` / `Shift+Tab` | Move to next / previous cell |
 | `Arrow` keys at cell edges | Move between cells in the active table widget |
-| `Shift+Arrow` | Extend table cell selection |
+| `Shift+Arrow` | Extend text selection within the current cell |
 | `Mod+ArrowLeft` / `Mod+ArrowRight` | Insert column left / right in source table editing |
 | `Mod+ArrowUp` / `Mod+ArrowDown` | Insert row above / below in source table editing |
 | `Ctrl+Mod+ArrowLeft` / `Ctrl+Mod+ArrowRight` | Insert column left / right in the active table widget |
@@ -319,7 +319,9 @@ When editing markdown tables, the editor supports:
 
 ### Table clipboard
 
-Pasting TSV or an HTML table into an active cell fills a rectangular cell range and grows empty table space within the configured limits. Replacing populated cells shows a confirmation; range copy/cut uses TSV, while **Copy table as Markdown** preserves portable source. Unsupported multiline cell content is rejected with a source-edit fallback rather than flattened.
+Selecting text inside one cell uses native copy/cut/paste without affecting the document's separate selection. Use Shift-click or drag across cells for a rectangular cell selection.
+
+Pasting TSV or an HTML table into an active cell fills a rectangular cell range and grows empty table space within the configured limits. Replacing populated cells shows a confirmation. Range copy/cut provides plain TSV plus safe HTML structure, including single-column and single-cell ranges; **Copy table as Markdown** preserves portable source. Single paragraph/div wrappers in HTML cells are accepted, while real multiline content and merged HTML cells are rejected rather than flattened or shifted. Plain multiline text without table structure remains unsupported instead of being guessed into rows.
 
 ## Fenced code languages
 

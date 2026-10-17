@@ -17,7 +17,7 @@ import {
   TABLE_LIMITS,
   type TableBlock,
 } from './model'
-import { parseTableClipboard, tableCellsToTsv } from './clipboard'
+import { parseTableClipboard, tableCellsToHtml, tableCellsToTsv } from './clipboard'
 import { renderInlineTableCell } from '../../internal/table-inline-markdown'
 import {
   clearTableCellRange,
@@ -331,6 +331,7 @@ function copySelectedTableCells(event: ClipboardEvent, view: EditorView, blockFr
   const cells = selectedTableCells(wrapper, block)
   if (!cells || !event.clipboardData) return false
   event.clipboardData.setData('text/plain', tableCellsToTsv(cells))
+  event.clipboardData.setData('text/html', tableCellsToHtml(cells))
   return true
 }
 
@@ -1054,15 +1055,17 @@ function createTableInput(
     event.stopPropagation()
   })
   input.addEventListener('copy', (event) => {
+    // Native input selection belongs to the cell, not CodeMirror's separate
+    // document selection (whose line-wise fallback could copy the table header).
+    event.stopPropagation()
     if (!copySelectedTableCells(event, view, blockFrom, wrapper)) return
     event.preventDefault()
-    event.stopPropagation()
     announceTableStatus(wrapper, 'Selected cells copied.')
   })
   input.addEventListener('cut', (event) => {
+    event.stopPropagation()
     if (!copySelectedTableCells(event, view, blockFrom, wrapper)) return
     event.preventDefault()
-    event.stopPropagation()
     if (clearSelectedCells(view, blockFrom, wrapper)) {
       clearTableSelection(wrapper)
       announceTableStatus(wrapper, 'Selected cells cut.')
@@ -1090,6 +1093,7 @@ function createTableInput(
       const messages = {
         invalid: 'Clipboard table is not valid TSV.',
         'multiline-cell': 'Clipboard table contains unsupported multiline cells.',
+        'merged-cell': 'Clipboard table contains merged cells; unmerge them before pasting.',
         oversize: 'Clipboard table exceeds the supported limits.',
       }
       announceTableStatus(wrapper, messages[parsed.status])

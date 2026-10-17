@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseTableClipboard } from './clipboard'
+import { parseTableClipboard, tableCellsToHtml, tableCellsToTsv } from './clipboard'
 
 describe('table clipboard parsing', () => {
   it('parses rectangular TSV including quoted tabs and escaped quotes', () => {
@@ -50,6 +50,69 @@ describe('table clipboard parsing', () => {
     expect(parseTableClipboard(`a\t${Array(51).fill('b').join('\t')}`)).toEqual({ status: 'oversize' })
     expect(parseTableClipboard('', `<table>${Array.from({ length: 202 }, () => '<tr><td>a</td><td>b</td></tr>').join('')}</table>`)).toEqual({ status: 'oversize' })
     expect(parseTableClipboard('', `<table><tr>${Array(51).fill('<td>a</td>').join('')}</tr></table>`)).toEqual({ status: 'oversize' })
+  })
+
+  it.each([
+    [['Ada'], ['Grace']],
+    [['']],
+    [['`a  b`']],
+    [['<img src=x onerror=bad>&amp;'], ['**bold**']],
+    [['one\ttwo']],
+    [['say "hi"'], ['🙂 中文']],
+    [['A', 'B'], ['', '']],
+  ].map(cells => ({ cells })))('round-trips selected cells with safe HTML and exact text: %j', ({ cells }) => {
+    const html = tableCellsToHtml(cells)
+    expect(parseTableClipboard(tableCellsToTsv(cells), html)).toEqual({ status: 'valid', cells })
+    const template = document.createElement('template')
+    template.innerHTML = html
+    expect(template.content.querySelector('img, script, [onerror]')).toBeNull()
+  })
+
+  it('reads a one-column HTML table without guessing that ordinary multiline text is a column', () => {
+    const text = 'Ada\nGrace'
+    expect(parseTableClipboard(text)).toEqual({ status: 'not-tabular' })
+    expect(parseTableClipboard(text, '<table><tr><td>Ada</td></tr><tr><td>Grace</td></tr></table>')).toEqual({
+      status: 'valid', cells: [['Ada'], ['Grace']],
+    })
+  })
+
+  it.each([
+    '<p>Ada</p>',
+    '<div>Ada</div>',
+    '\n  <div>\n<p><strong>Ada</strong></p>\n</div>  \n',
+    '<!-- comment --><p><span>Ada</span></p>',
+    '<p>Ada<script>bad()</script></p>',
+  ])('accepts a single paragraph and nested wrappers: %s', content => {
+    expect(parseTableClipboard('', `<table><tr><td>${content}</td></tr></table>`)).toEqual({
+      status: 'valid', cells: [['Ada']],
+    })
+  })
+
+  it.each([
+    '<p>one</p><p>two</p>',
+    '<div>one</div><div>two</div>',
+    'prefix<p>one</p>',
+    '<p>one<br>two</p>',
+    '<div><p>one</p><p>two</p></div>',
+    '<p>one</p>suffix',
+    '<pre>one\ntwo</pre>',
+    '<ul><li>one</li></ul>',
+  ])('continues rejecting real multiline and unsupported block content: %s', content => {
+    expect(parseTableClipboard('', `<table><tr><td>${content}</td></tr></table>`)).toEqual({ status: 'multiline-cell' })
+  })
+
+  it.each(['colspan="2"', 'rowspan="2"', 'rowspan="0"'])('rejects merged cells instead of silently shifting values: %s', span => {
+    expect(parseTableClipboard('', `<table><tr><td ${span}>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>`)).toEqual({ status: 'merged-cell' })
+  })
+
+  it('keeps explicit TSV authoritative over ambiguous HTML layout', () => {
+    expect(parseTableClipboard('A\tB', '<table><tr><td colspan="2">wrong</td></tr></table>')).toEqual({
+      status: 'valid', cells: [['A', 'B']],
+    })
+  })
+
+  it('does not flatten embedded newlines when exporting cells to HTML', () => {
+    expect(parseTableClipboard('', tableCellsToHtml([['one\ntwo']]))).toEqual({ status: 'multiline-cell' })
   })
 
   it('leaves ordinary input to the native cell editor', () => {

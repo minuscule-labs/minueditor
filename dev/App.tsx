@@ -1108,6 +1108,64 @@ function TableWrappingFixture() {
   )
 }
 
+const TABLE_CLIPBOARD_INITIAL = '| Name | Notes |\n| --- | --- |\n| Ada | `a  b` |\n| Grace | **bold** |\n|  |  |'
+
+function TableClipboardFixture() {
+  const [value, setValue] = useState(TABLE_CLIPBOARD_INITIAL)
+  const [view, setView] = useState<EditorView | null>(null)
+  const [mode, setMode] = useState<'live' | 'source'>('live')
+  const [readOnly, setReadOnly] = useState(false)
+  const [payload, setPayload] = useState({ plain: '', html: '' })
+
+  function withCells(run: (cell: (row: number, column: number) => HTMLInputElement | null) => void) {
+    if (!view || mode !== 'live' || readOnly) return
+    view.dom.querySelector('.me-table-widget')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    requestAnimationFrame(() => run((row, column) => view.dom.querySelector<HTMLInputElement>(
+      `.me-table-input[data-row-index="${row}"][data-col-index="${column}"]`,
+    )))
+  }
+
+  function simulateHtml(html: string) {
+    withCells(cell => {
+      const target = cell(3, 0)
+      if (!target) return
+      target.click()
+      target.focus()
+      const data = new DataTransfer()
+      data.setData('text/html', html)
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', { value: data })
+      target.dispatchEvent(event)
+    })
+  }
+
+  return (
+    <main className="app-main">
+      <section className="surface">
+        <h1>Table clipboard lab</h1>
+        <p className="surface-desc">Select cell text for native copy/cut, or Shift-click/drag across cells for a rectangle. Copy the Name column and paste into the empty row. Paste into the textarea to inspect plain/HTML clipboard data. Cut must never remove the header.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button type="button" onClick={() => setValue(TABLE_CLIPBOARD_INITIAL)}>Reset table</button>
+          <button type="button" onClick={() => setMode(current => current === 'live' ? 'source' : 'live')}>Mode: {mode}</button>
+          <button type="button" onClick={() => setReadOnly(current => !current)}>Read-only: {readOnly ? 'on' : 'off'}</button>
+          <button type="button" onClick={() => withCells(cell => { const target = cell(1, 0); target?.click(); target?.focus(); target?.setSelectionRange(0, 2) })}>Select Ad in Ada</button>
+          <button type="button" onClick={() => withCells(cell => { const first = cell(1, 0); const last = cell(2, 0); first?.click(); last?.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); last?.focus() })}>Select Name column</button>
+          <button type="button" onClick={() => withCells(cell => { const target = cell(3, 0); target?.click(); target?.focus() })}>Focus empty row</button>
+          <button type="button" onClick={() => simulateHtml('<table><tr><td><div><p>New name</p></div></td><td><p>New notes</p></td></tr></table>')}>Paste paragraph-wrapped cells</button>
+          <button type="button" onClick={() => simulateHtml('<table><tr><td colspan="2">Merged</td><td>Other</td></tr></table>')}>Try merged cells</button>
+        </div>
+        <div className="editor-frame" data-testid="table-clipboard-editor">
+          <MarkdownEditor value={value} onChange={setValue} onViewReady={setView} mode={mode} readOnly={readOnly} minHeight={260} />
+        </div>
+        <textarea aria-label="Clipboard inspection" placeholder="Paste here to inspect the clipboard" style={{ width: '100%', minHeight: 100, boxSizing: 'border-box' }} onPaste={event => setPayload({ plain: event.clipboardData.getData('text/plain'), html: event.clipboardData.getData('text/html') })} />
+        <h2>Clipboard plain text</h2><pre style={{ whiteSpace: 'pre-wrap' }}>{payload.plain}</pre>
+        <h2>Clipboard HTML</h2><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{payload.html}</pre>
+        <h2>Markdown source</h2><pre data-testid="table-clipboard-markdown">{value}</pre>
+      </section>
+    </main>
+  )
+}
+
 function TableCommandFixture() {
   const [value, setValue] = useState('| Name | Age |\n| --- | --- |\n| Ada | 42 |')
   const [view, setView] = useState<EditorView | null>(null)
@@ -1491,6 +1549,7 @@ export default function App() {
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
+  if (fixture === 'table-clipboard') return <TableClipboardFixture />
   if (fixture === 'table-wrapping') return <TableWrappingFixture />
   if (fixture === 'table-inline') return <TableInlineFixture />
   if (fixture === 'table-commands') return <TableCommandFixture />
