@@ -7,6 +7,7 @@
 - Preserved the reading position as Mermaid diagrams finish loading or fail, including unfocused editors scrolled by the page or an enclosing container.
 - Reused each unchanged Mermaid block's rendered SVG and measured height when scrolling back to it, avoiding loading-placeholder collapses while keeping identical diagrams' SVG IDs independent.
 - Isolated Mermaid's temporary measurement DOM from page layout so background rendering cannot enlarge the page or disturb scrolling.
+- Kept Mermaid's lazy engine import external in library builds so production consumer bundlers can load diagram modules correctly.
 
 ## 0.17.1 — 2026-10-16
 

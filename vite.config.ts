@@ -19,6 +19,9 @@ const external = (id: string): boolean =>
   id === 'react' ||
   id === 'react-dom' ||
   id === 'react/jsx-runtime' ||
+  // Let the consumer bundle Mermaid once. Rebundling its generated namespace
+  // chunks can break lazy diagram exports in production consumer builds.
+  id === 'mermaid' ||
   id.startsWith('@codemirror/') ||
   id.startsWith('@lezer/')
 

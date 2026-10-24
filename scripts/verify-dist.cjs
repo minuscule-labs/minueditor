@@ -41,4 +41,12 @@ for (const file of ['dist/index.js', 'dist/index.cjs']) {
   }
 }
 
+// Mermaid ships generated lazy diagram chunks. Keep the engine as a runtime
+// dependency so a consumer bundler does not rebundle those chunks twice.
+const esm = fs.readFileSync('dist/index.js', 'utf8')
+if (!/import\(["']mermaid["']\)/.test(esm)) {
+  console.error('Expected a lazy external Mermaid import in dist/index.js.')
+  process.exit(1)
+}
+
 console.log('dist verified')
