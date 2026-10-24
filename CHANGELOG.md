@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.17.2 — 2026-10-24
+
+- Preserved the reading position as Mermaid diagrams finish loading or fail, including unfocused editors scrolled by the page or an enclosing container.
+- Reused each unchanged Mermaid block's rendered SVG and measured height when scrolling back to it, avoiding loading-placeholder collapses while keeping identical diagrams' SVG IDs independent.
+- Isolated Mermaid's temporary measurement DOM from page layout so background rendering cannot enlarge the page or disturb scrolling.
+
 ## 0.17.1 — 2026-10-16
 
 - Fixed copy/cut of text inside table inputs falling through to CodeMirror's document clipboard, which could copy or delete the table header instead of the selected cell text.
