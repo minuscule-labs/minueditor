@@ -131,7 +131,8 @@ export type MermaidRenderResult = {
 
 export type MermaidEngine = {
   initialize: (config: Record<string, unknown>) => void
-  render: (id: string, source: string) => Promise<MermaidRenderResult>
+  /** The optional connected container keeps temporary measurement DOM out of page layout. */
+  render: (id: string, source: string, container?: HTMLElement) => Promise<MermaidRenderResult>
 }
 
 export type MermaidConfig = {

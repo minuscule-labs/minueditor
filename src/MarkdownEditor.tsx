@@ -332,6 +332,12 @@ export const MarkdownEditor = forwardRef<
       : false,
     [normalizedMermaid.enabled, normalizedMermaid.interactive, normalizedMermaid.load, normalizedMermaid.theme],
   )
+  // Keep the Mermaid state field (and its per-block render/height cache) when
+  // mode extensions are reconfigured with unchanged Mermaid options.
+  const stableMermaidExtension = useMemo(
+    () => mermaidBlockExtension(stableMermaidConfig),
+    [stableMermaidConfig],
+  )
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
@@ -587,7 +593,7 @@ export const MarkdownEditor = forwardRef<
       externalLinkWidgets,
       calloutDecorations,
       tableDecorations,
-      mermaidBlockExtension(stableMermaidConfig),
+      stableMermaidExtension,
       codeBlockDecorations(
         codeLanguages,
         codeHighlighter,
@@ -601,7 +607,7 @@ export const MarkdownEditor = forwardRef<
       taskListKeymap,
       imageDecorations,
     ]
-  }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode, stableMermaidConfig])
+  }, [codeHighlighter, codeHighlightStyle, codeLanguages, mode, stableMermaidConfig, stableMermaidExtension])
 
   const buildWikiLinkExtensions = useCallback((): Extension => {
     if (mode === 'source') return []

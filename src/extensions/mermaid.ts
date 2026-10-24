@@ -1,9 +1,11 @@
 import { syntaxTree } from '@codemirror/language'
-import { RangeSet, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
+import { RangeSet, StateField, type ChangeDesc, type EditorState, type Extension, type Range } from '@codemirror/state'
 import {
   Decoration,
   type DecorationSet,
   EditorView,
+  ViewPlugin,
+  type ViewUpdate,
   WidgetType,
 } from '@codemirror/view'
 import type { MermaidConfig, MermaidEngine, MermaidRenderResult, SlashCommand } from '../types'
@@ -25,6 +27,7 @@ type NormalizedMermaidConfig = {
 }
 
 type MermaidElement = HTMLElement & { __meCancelMermaid?: () => void }
+type MermaidPresentation = { result?: MermaidRenderResult; height?: number; width?: number }
 
 let mermaidId = 0
 let mermaidRenderQueue: Promise<void> = Promise.resolve()
@@ -104,7 +107,17 @@ async function renderMermaid(
       theme: config.theme,
     })
     mermaidId += 1
-    return engine.render(`me-mermaid-${mermaidId}`, source)
+    // Mermaid needs connected DOM for SVG measurements, but its default scratch
+    // nodes live in document.body and can temporarily change the page's height.
+    const scratch = document.createElement('div')
+    scratch.setAttribute('aria-hidden', 'true')
+    scratch.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:0;overflow:hidden;visibility:hidden;pointer-events:none'
+    document.body.appendChild(scratch)
+    try {
+      return await engine.render(`me-mermaid-${mermaidId}`, source, scratch)
+    } finally {
+      scratch.remove()
+    }
   }
 
   // Mermaid uses singleton configuration and shared DOM bookkeeping. Serialize
@@ -432,6 +445,8 @@ function createMermaidSurface(
   config: NormalizedMermaidConfig,
   editable: boolean,
   requestEdit?: () => void,
+  updateLayout: (update: () => void) => void = (update) => update(),
+  presentation: MermaidPresentation = {},
 ): MermaidElement {
   const wrapper = document.createElement('figure') as MermaidElement
   wrapper.className = 'me-mermaid-block me-mermaid-block--loading'
@@ -485,38 +500,47 @@ function createMermaidSurface(
   let cleanupInteraction: () => void = () => undefined
   let cleanupModal: () => void = () => undefined
   const cancelRender = startAsyncBlockRender({
-    render: (signal) => renderMermaid(source, config, signal),
+    render: (signal) => presentation.result
+      ? Promise.resolve(presentation.result)
+      : renderMermaid(source, config, signal),
     apply(result) {
-      wrapper.classList.remove('me-mermaid-block--loading')
-      wrapper.classList.add('me-mermaid-block--ready')
-      body.innerHTML = result.svg
-      result.bindFunctions?.(body)
-      const svg = body.querySelector<SVGElement>('svg')
-      if (controls && expand && svg) {
-        body.classList.add('me-mermaid-body--controlled')
-        body.tabIndex = 0
-        body.setAttribute('aria-label', 'Mermaid diagram with controls. Use arrow keys to pan, plus and minus to zoom, zero to reset, or Expand for direct manipulation.')
-        body.appendChild(controls)
-        expand.disabled = false
-        cleanupModal = wireMermaidModal(expand, svg.outerHTML, result.bindFunctions)
-        cleanupInteraction = createMermaidInteraction(body, svg, controls, false)
-      }
+      updateLayout(() => {
+        wrapper.style.removeProperty('min-height')
+        wrapper.classList.remove('me-mermaid-block--loading')
+        wrapper.classList.add('me-mermaid-block--ready')
+        body.innerHTML = result.svg
+        result.bindFunctions?.(body)
+        const svg = body.querySelector<SVGElement>('svg')
+        if (controls && expand && svg) {
+          body.classList.add('me-mermaid-body--controlled')
+          body.tabIndex = 0
+          body.setAttribute('aria-label', 'Mermaid diagram with controls. Use arrow keys to pan, plus and minus to zoom, zero to reset, or Expand for direct manipulation.')
+          body.appendChild(controls)
+          expand.disabled = false
+          cleanupModal = wireMermaidModal(expand, svg.outerHTML, result.bindFunctions)
+          cleanupInteraction = createMermaidInteraction(body, svg, controls, false)
+        }
+        presentation.result = result
+      })
     },
     fail(error) {
-      wrapper.classList.remove('me-mermaid-block--loading')
-      wrapper.classList.add('me-mermaid-block--error')
-      body.replaceChildren()
+      updateLayout(() => {
+        wrapper.style.removeProperty('min-height')
+        wrapper.classList.remove('me-mermaid-block--loading')
+        wrapper.classList.add('me-mermaid-block--error')
+        body.replaceChildren()
 
-      const message = document.createElement('div')
-      message.className = 'me-mermaid-error'
-      message.setAttribute('role', 'status')
-      message.textContent = errorMessage(error)
-      body.appendChild(message)
+        const message = document.createElement('div')
+        message.className = 'me-mermaid-error'
+        message.setAttribute('role', 'status')
+        message.textContent = errorMessage(error)
+        body.appendChild(message)
 
-      const sourceFallback = document.createElement('pre')
-      sourceFallback.className = 'me-mermaid-source-fallback'
-      sourceFallback.textContent = source
-      body.appendChild(sourceFallback)
+        const sourceFallback = document.createElement('pre')
+        sourceFallback.className = 'me-mermaid-source-fallback'
+        sourceFallback.textContent = source
+        body.appendChild(sourceFallback)
+      })
     },
   })
   wrapper.__meCancelMermaid = () => {
@@ -528,7 +552,77 @@ function createMermaidSurface(
   return wrapper
 }
 
+function scrollParent(view: EditorView): HTMLElement {
+  const document = view.dom.ownerDocument
+  for (let parent: HTMLElement | null = view.scrollDOM; parent; parent = parent.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight) {
+      return parent
+    }
+  }
+  return (document.scrollingElement ?? document.documentElement) as HTMLElement
+}
+
+const mermaidScrollPreserver = ViewPlugin.fromClass(class {
+  private anchor: { from: number; top: number; parent: HTMLElement } | null = null
+
+  constructor(readonly view: EditorView) {}
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.selectionSet) this.anchor = null
+  }
+
+  updateLayout(update: () => void) {
+    const { view } = this
+    if (!this.anchor && view.inView) {
+      const parent = scrollParent(view)
+      const document = view.dom.ownerDocument
+      const top = parent === document.scrollingElement
+        ? 0
+        : Math.max(0, parent.getBoundingClientRect().top + parent.clientTop)
+      const block = view.lineBlockAtHeight(Math.max(0, top - view.documentTop))
+      this.anchor = { from: block.from, top: view.documentTop + block.top, parent }
+    }
+    update()
+    view.requestMeasure({
+      key: this,
+      read: () => undefined,
+      // Run after CodeMirror's own height measurement and scroll anchoring.
+      // CodeMirror skips anchoring unfocused, externally scrolled views.
+      write: () => queueMicrotask(() => this.restore()),
+    })
+  }
+
+  private restore() {
+    const anchor = this.anchor
+    this.anchor = null
+    if (!anchor) return
+    const top = this.view.documentTop + this.view.lineBlockAt(anchor.from).top
+    const delta = top - anchor.top
+    if (Math.abs(delta) > 1) {
+      anchor.parent.scrollTop += delta
+      this.view.requestMeasure()
+    }
+  }
+
+  cancel() {
+    this.anchor = null
+  }
+
+  destroy() {
+    this.cancel()
+  }
+}, {
+  eventHandlers: {
+    wheel() { this.cancel() },
+    touchstart() { this.cancel() },
+    pointerdown() { this.cancel() },
+    keydown() { this.cancel() },
+  },
+})
+
 class MermaidWidget extends WidgetType {
+  private readonly presentation: MermaidPresentation = {}
+
   constructor(
     readonly block: MermaidBlock,
     readonly config: NormalizedMermaidConfig,
@@ -537,7 +631,9 @@ class MermaidWidget extends WidgetType {
     super()
   }
 
-  override eq(other: MermaidWidget): boolean {
+  // Reuse widgets explicitly by mapped document position, not by source alone:
+  // independent identical blocks must not inherit each other's SVG IDs/cache.
+  matches(other: MermaidWidget): boolean {
     return this.block.source === other.block.source &&
       this.block.to - this.block.from === other.block.to - other.block.from &&
       this.block.contentFrom - this.block.from === other.block.contentFrom - other.block.from &&
@@ -545,6 +641,10 @@ class MermaidWidget extends WidgetType {
       this.config.interactive === other.config.interactive &&
       this.config.load === other.config.load &&
       this.isEditable === other.isEditable
+  }
+
+  override get estimatedHeight(): number {
+    return this.presentation.height ?? -1
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -565,7 +665,25 @@ class MermaidWidget extends WidgetType {
             })
           }
         : undefined,
+      (update) => {
+        const preserver = view.plugin(mermaidScrollPreserver)
+        if (preserver) preserver.updateLayout(update)
+        else update()
+        view.requestMeasure({
+          key: surface,
+          read: () => surface.isConnected
+            ? { height: surface.getBoundingClientRect().height, width: view.contentDOM.clientWidth }
+            : null,
+          write: (size) => {
+            if (size) Object.assign(this.presentation, size)
+          },
+        })
+      },
+      this.presentation,
     )
+    if (this.presentation.height && this.presentation.width === view.contentDOM.clientWidth) {
+      surface.style.minHeight = `${this.presentation.height}px`
+    }
     return surface
   }
 
@@ -589,15 +707,28 @@ function selectionInsideBlock(state: EditorState, block: MermaidBlock): boolean 
 function buildMermaidDecorations(
   state: EditorState,
   config: NormalizedMermaidConfig,
+  previous?: DecorationSet,
+  changes?: ChangeDesc,
 ): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const editable = state.facet(EditorView.editable)
+  const previousWidgets = new Map<number, MermaidWidget>()
+  for (let cursor = previous?.iter(); cursor?.value; cursor.next()) {
+    const widget = cursor.value.spec.widget
+    if (widget instanceof MermaidWidget) {
+      previousWidgets.set(changes?.mapPos(cursor.from, 1) ?? cursor.from, widget)
+    }
+  }
 
   for (const block of findMermaidBlocks(state)) {
     if (editable && selectionInsideBlock(state, block)) continue
+    const widget = new MermaidWidget(block, config, editable)
+    const oldWidget = previousWidgets.get(block.from)
+    // Keep each block's SVG and measured height across viewport unmounts and
+    // unrelated transactions. Never share SVG IDs between identical diagrams.
     ranges.push(
       Decoration.replace({
-        widget: new MermaidWidget(block, config, editable),
+        widget: oldWidget?.matches(widget) ? oldWidget : widget,
         block: true,
         inclusive: true,
       }).range(block.from, block.to),
@@ -611,17 +742,20 @@ export function mermaidBlockExtension(input?: boolean | MermaidConfig): Extensio
   const config = normalizeMermaidConfig(input)
   if (!config.enabled) return []
 
-  return StateField.define<DecorationSet>({
-    create(state) {
-      return buildMermaidDecorations(state, config)
-    },
-    update(value, transaction) {
-      const syntaxTreeChanged = syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
-      if (!transaction.docChanged && !transaction.selection && !syntaxTreeChanged) return value
-      return buildMermaidDecorations(transaction.state, config)
-    },
-    provide: (field) => EditorView.decorations.from(field),
-  })
+  return [
+    mermaidScrollPreserver,
+    StateField.define<DecorationSet>({
+      create(state) {
+        return buildMermaidDecorations(state, config)
+      },
+      update(value, transaction) {
+        const syntaxTreeChanged = syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+        if (!transaction.docChanged && !transaction.selection && !syntaxTreeChanged) return value
+        return buildMermaidDecorations(transaction.state, config, value, transaction.changes)
+      },
+      provide: (field) => EditorView.decorations.from(field),
+    }),
+  ]
 }
 
 export function enhanceRendererMermaid(

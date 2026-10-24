@@ -22,9 +22,9 @@ function markdownState(value: string): EditorState {
 
 function fakeEngine(options: { fail?: boolean } = {}) {
   const initialize = vi.fn()
-  const renderDiagram = vi.fn(async (_id: string, source: string) => {
+  const renderDiagram = vi.fn(async (id: string, source: string) => {
     if (options.fail) throw new Error('Diagram syntax is invalid')
-    return { svg: `<svg data-testid="diagram"><text>${source.includes('graph TD') ? 'Flow diagram' : 'Diagram'}</text></svg>` }
+    return { svg: `<svg id="${id}" data-testid="diagram"><text>${source.includes('graph TD') ? 'Flow diagram' : 'Diagram'}</text></svg>` }
   })
   const engine: MermaidEngine = { initialize, render: renderDiagram }
   return { engine, initialize, renderDiagram, load: vi.fn(async () => engine) }
@@ -88,8 +88,60 @@ describe('Mermaid rich blocks', () => {
       suppressErrorRendering: true,
       theme: 'dark',
     }))
-    expect(renderDiagram).toHaveBeenCalledWith(expect.stringMatching(/^me-mermaid-/), 'graph TD\n  A --> B')
+    expect(renderDiagram).toHaveBeenCalledWith(
+      expect.stringMatching(/^me-mermaid-/),
+      'graph TD\n  A --> B',
+      expect.any(HTMLElement),
+    )
     expect(container.querySelector('.me-codeblock-widget')).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('isolates and cleans up measurement DOM (failure: %s)', async (fail) => {
+    let finish!: () => void
+    let scratch!: HTMLElement
+    const engine: MermaidEngine = {
+      initialize: vi.fn(),
+      render: vi.fn(async (_id, _source, container) => {
+        scratch = container!
+        await new Promise<void>((resolve) => { finish = resolve })
+        if (fail) throw new Error('Invalid diagram')
+        return { svg: '<svg></svg>' }
+      }),
+    }
+    const { container } = render(
+      <MarkdownRenderer value={'```mermaid\ngraph TD\n```'} mermaid={{ load: async () => engine }} />,
+    )
+
+    await waitFor(() => expect(engine.render).toHaveBeenCalledOnce())
+    expect(scratch.isConnected).toBe(true)
+    expect(scratch).toHaveAttribute('aria-hidden', 'true')
+    expect(scratch.style.position).toBe('fixed')
+    expect(scratch.style.visibility).toBe('hidden')
+    expect(scratch.style.height).toBe('0px')
+    expect(scratch.style.overflow).toBe('hidden')
+    await act(async () => finish())
+    await waitFor(() => expect(container.querySelector(fail ? '.me-mermaid-block--error' : '.me-mermaid-block--ready')).toBeInTheDocument())
+    expect(scratch.isConnected).toBe(false)
+  })
+
+  it('cleans up an in-flight measurement after the surface is unmounted', async () => {
+    let finish!: () => void
+    let scratch!: HTMLElement
+    const engine: MermaidEngine = {
+      initialize: vi.fn(),
+      render: vi.fn(async (_id, _source, container) => {
+        scratch = container!
+        await new Promise<void>((resolve) => { finish = resolve })
+        return { svg: '<svg></svg>' }
+      }),
+    }
+    const { unmount } = render(
+      <MarkdownRenderer value={'```mermaid\ngraph TD\n```'} mermaid={{ load: async () => engine }} />,
+    )
+    await waitFor(() => expect(engine.render).toHaveBeenCalledOnce())
+    unmount()
+    await act(async () => finish())
+    await waitFor(() => expect(scratch.isConnected).toBe(false))
   })
 
   it('uses explicit inline controls without capturing wheel gestures', async () => {
@@ -269,6 +321,36 @@ describe('Mermaid rich blocks', () => {
     const current = view!.state.doc.toString()
     expect(view!.state.selection.main.head).toBe(current.lastIndexOf('graph TD'))
     expect(container.querySelectorAll('.me-mermaid-block')).toHaveLength(1)
+  })
+
+  it('keeps per-block SVG identity when an identical fence is inserted at its start', async () => {
+    const { load, renderDiagram } = fakeEngine()
+    let view: EditorView | null = null
+    const value = '```mermaid\ngraph TD\n```'
+    const inserted = `${value}\n\n`
+    const { container } = render(
+      <MarkdownEditor
+        value={value}
+        onChange={vi.fn()}
+        mermaid={{ load }}
+        onViewReady={(nextView) => { view = nextView }}
+      />,
+    )
+    await waitFor(() => expect(container.querySelector('.me-mermaid-block--ready')).toBeInTheDocument())
+    const original = container.querySelector('.me-mermaid-block')
+    const id = original!.querySelector('svg')!.id
+    act(() => { view!.dispatch({ changes: { from: 0, insert: inserted } }) })
+    await waitFor(() => expect(container.querySelectorAll('.me-mermaid-block--ready')).toHaveLength(2))
+    const diagrams = container.querySelectorAll('.me-mermaid-block')
+    expect(diagrams[1].querySelector('svg')!.id).toBe(id)
+    expect(diagrams[0].querySelector('svg')!.id).not.toBe(id)
+    expect(renderDiagram).toHaveBeenCalledTimes(2)
+
+    act(() => { view!.dispatch({ changes: { from: 0, to: inserted.length } }) })
+    expect(container.querySelectorAll('.me-mermaid-block')).toHaveLength(1)
+    await waitFor(() => expect(container.querySelector('.me-mermaid-block--ready')).toBeInTheDocument())
+    expect(container.querySelector('.me-mermaid-block svg')!.id).toBe(id)
+    expect(renderDiagram).toHaveBeenCalledTimes(2)
   })
 
   it('reveals exact source from the diagram edit control', async () => {

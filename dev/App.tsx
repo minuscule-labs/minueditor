@@ -17,6 +17,7 @@ import lightThemeUrl from '../src/theme/themes/light.css?url'
 import darkThemeUrl from '../src/theme/themes/dark.css?url'
 import { markdownParityFixtures } from './fixtures/markdown-parity'
 import { richPasteFixtures } from './fixtures/rich-paste'
+import { MermaidScrollFixture } from './fixtures/mermaid-scroll'
 
 type ThemeChoice = 'base' | 'light' | 'dark'
 
@@ -1548,6 +1549,7 @@ export default function App() {
   if (fixture === 'formatted-selection') return <FormattedSelectionFixture />
   if (fixture === 'task-list-keyboard') return <TaskListKeyboardFixture />
   if (fixture === 'mermaid-stability') return <MermaidStabilityFixture />
+  if (fixture === 'mermaid-scroll') return <MermaidScrollFixture />
   if (fixture === 'cursor-stability') return <CursorStabilityFixture />
   if (fixture === 'table-clipboard') return <TableClipboardFixture />
   if (fixture === 'table-wrapping') return <TableWrappingFixture />
